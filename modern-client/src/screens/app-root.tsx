@@ -26,6 +26,7 @@ export function AppRoot() {
     event.preventDefault();
     void login({ name: nameInput, password: passwordInput || undefined });
     setPasswordInput('');
+    setAccountOpen(false);
   };
 
   useEffect(() => {

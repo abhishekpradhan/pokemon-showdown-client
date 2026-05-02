@@ -49,7 +49,7 @@ export function MiniRoomRail({ mode }: { mode: 'rooms' | 'battles' }) {
           <Activity size={17} aria-hidden />
           <span>
             <strong>{connection === 'connected' ? 'Load live rooms' : 'Connect first'}</strong>
-            <em>{connection === 'connected' ? 'Request roomlist' : 'No local fixture shown'}</em>
+            <em>{connection === 'connected' ? 'Request roomlist' : 'Waiting for server'}</em>
           </span>
         </button>
       )}

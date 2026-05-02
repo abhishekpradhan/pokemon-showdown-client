@@ -8,7 +8,11 @@ export type PokemonSet = {
   fainted?: boolean;
 };
 
+export type BattleRoomMode = 'player' | 'spectator' | 'waiting' | 'ended';
+
 export type BattleChoice = {
+  slot: number;
+  activeIndex?: number;
   name: string;
   type: 'Fire' | 'Water' | 'Grass' | 'Electric' | 'Ground' | 'Dark' | 'Fairy' | 'Fighting' | 'Normal' | 'Psychic' | 'Steel' | 'Poison' | 'Ice' | 'Bug' | 'Flying' | 'Rock' | 'Ghost' | 'Dragon';
   pp: string;
@@ -16,6 +20,8 @@ export type BattleChoice = {
   effectiveness: string;
   disabled?: boolean;
   target?: string;
+  requiresTarget?: boolean;
+  targetOptions?: number[];
   canMegaEvo?: boolean;
   canUltraBurst?: boolean;
   canZMove?: boolean;
@@ -42,8 +48,11 @@ export type ArenaBattle = {
   noCancel?: boolean;
   trapped?: boolean;
   maybeTrapped?: boolean;
+  targetable?: boolean;
   teamPreviewSize?: number;
+  mode?: BattleRoomMode;
   choiceError?: string;
+  choiceDraft?: BattleChoiceDraft;
 };
 
 export type BattleRequestMove = {
@@ -54,6 +63,10 @@ export type BattleRequestMove = {
   maxpp?: number;
   target?: string;
   disabled?: boolean;
+};
+
+export type BattleRequestSpecialMove = BattleRequestMove & {
+  name?: string;
 };
 
 export type BattleRequestPokemon = {
@@ -80,24 +93,92 @@ export type BattleRequest = {
   };
   active?: Array<{
     moves?: BattleRequestMove[];
+    maxMoves?: BattleRequestSpecialMove[] | { maxMoves?: BattleRequestSpecialMove[]; gigantamax?: boolean };
+    zMoves?: Array<BattleRequestSpecialMove | null>;
     trapped?: boolean;
     maybeTrapped?: boolean;
+    maybeDisabled?: boolean;
     canMegaEvo?: boolean;
     canUltraBurst?: boolean;
-    canZMove?: unknown;
+    canZMove?: Array<BattleRequestSpecialMove | null> | boolean;
     canDynamax?: boolean;
     canTerastallize?: string;
-  }>;
+  } | null>;
   noCancel?: boolean;
   chosenTeamSize?: number;
+  maxChosenTeamSize?: number;
+  requestType?: 'move' | 'switch' | 'team' | 'wait';
+  targetable?: boolean;
 };
 
 export type BattleChoiceState =
-  | { kind: 'move'; slot: number; target?: number; mega?: boolean; ultra?: boolean; z?: boolean; max?: boolean; tera?: boolean }
+  | { kind: 'move'; slot: number; activeIndex?: number; target?: number; mega?: boolean; ultra?: boolean; z?: boolean; max?: boolean; tera?: boolean }
   | { kind: 'switch'; slot: number }
   | { kind: 'team'; order: number[] }
   | { kind: 'pass' }
   | { kind: 'shift' };
+
+export type BattleChoiceDraft = {
+  choices: string[];
+  pendingMove?: BattleChoiceState & { kind: 'move' };
+};
+
+export type BattleChoiceValidation = {
+  ok: boolean;
+  error?: string;
+};
+
+export type BattleCommandResult = BattleChoiceValidation & {
+  complete: boolean;
+  command?: string;
+  draft: BattleChoiceDraft;
+  session: BattleChoiceSession;
+  message?: string;
+};
+
+export type BattleDecisionState = {
+  roomId: string;
+  mode: BattleRoomMode;
+  requestType?: ArenaBattle['requestType'];
+  requestLength: number;
+  noCancel: boolean;
+  waiting: boolean;
+  targetable: boolean;
+  draft: BattleChoiceDraft;
+  error?: string;
+};
+
+export type BattleRequestNormalized = Omit<BattleRequest, 'active' | 'forceSwitch' | 'requestType' | 'noCancel' | 'targetable'> & {
+  requestType: 'move' | 'switch' | 'team' | 'wait';
+  forceSwitch?: boolean[];
+  active?: Array<({
+    moves?: BattleRequestMove[];
+    maxMoves?: BattleRequestSpecialMove[];
+    zMoves?: Array<BattleRequestSpecialMove | null>;
+    trapped?: boolean;
+    maybeTrapped?: boolean;
+    maybeDisabled?: boolean;
+    canMegaEvo?: boolean;
+    canUltraBurst?: boolean;
+    canZMove?: Array<BattleRequestSpecialMove | null> | boolean;
+    canDynamax?: boolean;
+    canTerastallize?: string;
+  } | null)>;
+  chosenTeamSize?: number;
+  noCancel: boolean;
+  targetable: boolean;
+};
+
+export type BattleChoiceSession = {
+  request: BattleRequestNormalized;
+  draft: BattleChoiceDraft;
+  noCancel: boolean;
+  alreadySwitchingIn: number[];
+  alreadyMega: boolean;
+  alreadyMax: boolean;
+  alreadyZ: boolean;
+  alreadyTera: boolean;
+};
 
 export type ChoiceBuilderAdapter = {
   request: BattleRequest;
@@ -132,10 +213,10 @@ export const demoBattle: ArenaBattle = {
     { slot: 6, name: 'Enamorus', species: 'enamorus', hp: 84 },
   ],
   moves: [
-    { name: 'Moonblast', type: 'Fairy', pp: '11/16', cmd: '/move 1', effectiveness: '2x' },
-    { name: 'Close Combat', type: 'Fighting', pp: '7/8', cmd: '/move 2', effectiveness: '1x' },
-    { name: 'Thunderbolt', type: 'Electric', pp: '15/24', cmd: '/move 3', effectiveness: '1x' },
-    { name: 'Encore', type: 'Dark', pp: '5/8', cmd: '/move 4', effectiveness: 'status' },
+    { slot: 1, name: 'Moonblast', type: 'Fairy', pp: '11/16', cmd: '/move 1', effectiveness: '2x' },
+    { slot: 2, name: 'Close Combat', type: 'Fighting', pp: '7/8', cmd: '/move 2', effectiveness: '1x' },
+    { slot: 3, name: 'Thunderbolt', type: 'Electric', pp: '15/24', cmd: '/move 3', effectiveness: '1x' },
+    { slot: 4, name: 'Encore', type: 'Dark', pp: '5/8', cmd: '/move 4', effectiveness: 'status' },
   ],
   log: [
     'Turn 12 started.',
@@ -147,6 +228,24 @@ export const demoBattle: ArenaBattle = {
     { user: 'system', message: 'Rated battle started.' },
     { user: 'spectator', message: 'clean opening position' },
   ],
+};
+
+export const emptyBattle: ArenaBattle = {
+  id: 'pending',
+  format: 'Battle',
+  turn: 0,
+  p1: { name: 'Player 1', rating: 0 },
+  p2: { name: 'Player 2', rating: 0 },
+  active: { slot: 1, name: 'Waiting', species: 'missingno', hp: 100, active: true },
+  opponentActive: { slot: 1, name: 'Opponent', species: 'missingno', hp: 100, active: true },
+  team: [],
+  opponentTeam: [],
+  moves: [],
+  log: ['Waiting for battle data.'],
+  chat: [],
+  requestType: 'wait',
+  waiting: true,
+  mode: 'waiting',
 };
 
 const typeFromMoveName = (name: string): BattleChoice['type'] => {
@@ -193,13 +292,66 @@ export function parseHpPercent(condition: string) {
 
 export function requestType(request?: BattleRequest | null): ArenaBattle['requestType'] {
   if (!request) return undefined;
+  if (request.requestType) return request.requestType;
   if (request.wait) return 'wait';
   if (request.teamPreview) return 'team';
   if (request.forceSwitch) return 'switch';
   return 'move';
 }
 
-export function battleFromRequest(roomId: string, request: BattleRequest, previous: ArenaBattle = demoBattle): ArenaBattle {
+const canChooseTarget = (target?: string) => ['normal', 'any', 'adjacentAlly', 'adjacentAllyOrSelf', 'adjacentFoe'].includes(target || '');
+
+const defaultTargetOptions = (target?: string): number[] => {
+  if (target === 'adjacentAlly' || target === 'adjacentAllyOrSelf') return [-1, 1];
+  if (target === 'any') return [-2, -1, 1, 2];
+  if (target === 'normal' || target === 'adjacentFoe') return [-1, -2];
+  return [];
+};
+
+const normalizeSpecialMoves = (active: NonNullable<BattleRequest['active']>[number]) => {
+  if (!active || !active.maxMoves) return [];
+  if (Array.isArray(active.maxMoves)) return active.maxMoves;
+  return active.maxMoves.maxMoves || [];
+};
+
+export function normalizeBattleRequest(request: BattleRequest, previousBattle?: ArenaBattle): BattleRequestNormalized {
+  const normalizedType = requestType(request) || 'wait';
+  const active = request.active?.map(entry => {
+    if (!entry) return null;
+    const moves = (entry.moves || []).map(move => ({
+      ...move,
+      id: move.id || speciesId(move.move || ''),
+    }));
+    const maxMoves: BattleRequestSpecialMove[] = normalizeSpecialMoves(entry).map(move => ({
+      ...move,
+      move: move.move || move.name || 'Move',
+      id: move.id || speciesId(move.move || move.name || ''),
+    }));
+    const zMoves: Array<BattleRequestSpecialMove | null> | undefined = (Array.isArray(entry.canZMove) ? entry.canZMove : entry.zMoves)?.map(move => move ? ({
+      ...move,
+      move: move.move || move.name || 'Move',
+      id: move.id || speciesId(move.move || move.name || ''),
+    }) : null);
+    return { ...entry, moves, maxMoves, zMoves };
+  }) || [];
+  const forceSwitch = Array.isArray(request.forceSwitch) ? request.forceSwitch :
+    request.forceSwitch ? [true] : undefined;
+  const sideSize = request.side?.pokemon?.length || previousBattle?.team.length || 1;
+  const chosenTeamSize = normalizedType === 'team' ? request.chosenTeamSize || request.maxChosenTeamSize || 1 : request.chosenTeamSize;
+
+  return {
+    ...request,
+    active,
+    forceSwitch,
+    requestType: normalizedType,
+    chosenTeamSize,
+    noCancel: !!request.noCancel || normalizedType === 'wait',
+    targetable: request.targetable ?? (active.length > 1 || (sideSize > 1 && active.length > 1)),
+  };
+}
+
+export function battleFromRequest(roomId: string, request: BattleRequest, previous: ArenaBattle = emptyBattle): ArenaBattle {
+  const normalized = normalizeBattleRequest(request, previous);
   const team = request.side?.pokemon?.map((pokemon, index): PokemonSet => {
     const name = pokemon.ident.split(': ')[1] || speciesFromDetails(pokemon.details);
     return {
@@ -218,9 +370,11 @@ export function battleFromRequest(roomId: string, request: BattleRequest, previo
   }) || previous.team;
 
   const active = team.find(pokemon => pokemon.active) || team[0] || previous.active;
-  const activeRequest = request.active?.[0];
+  const activeRequest = normalized.active?.[0];
   const requestMoves = activeRequest?.moves || [];
   const moves = requestMoves.length ? requestMoves.map((move, index): BattleChoice => ({
+    slot: index + 1,
+    activeIndex: 0,
     name: move.move || idToName(move.id || `Move ${index + 1}`),
     type: move.type || typeFromMoveName(move.move || move.id || ''),
     pp: `${move.pp ?? '-'} / ${move.maxpp ?? '-'}`.replaceAll(' ', ''),
@@ -228,9 +382,11 @@ export function battleFromRequest(roomId: string, request: BattleRequest, previo
     effectiveness: move.disabled ? 'disabled' : 'ready',
     disabled: move.disabled,
     target: move.target,
+    requiresTarget: normalized.targetable && canChooseTarget(move.target),
+    targetOptions: normalized.targetable && canChooseTarget(move.target) ? defaultTargetOptions(move.target) : undefined,
     canMegaEvo: !!activeRequest?.canMegaEvo,
     canUltraBurst: !!activeRequest?.canUltraBurst,
-    canZMove: !!activeRequest?.canZMove,
+    canZMove: Array.isArray(activeRequest?.zMoves) ? !!activeRequest.zMoves[index] : !!activeRequest?.canZMove,
     canDynamax: !!activeRequest?.canDynamax,
     canTerastallize: !!activeRequest?.canTerastallize,
   })) : previous.moves;
@@ -239,17 +395,20 @@ export function battleFromRequest(roomId: string, request: BattleRequest, previo
     ...previous,
     id: roomId || previous.id,
     rqid: request.rqid,
-    requestType: requestType(request),
-    waiting: !!request.wait,
+    requestType: normalized.requestType,
+    waiting: !!request.wait || normalized.requestType === 'wait',
     p1: { ...previous.p1, name: request.side?.name || previous.p1.name },
     active,
     team,
     moves,
-    noCancel: !!request.noCancel,
+    noCancel: normalized.noCancel,
     trapped: !!activeRequest?.trapped,
     maybeTrapped: !!activeRequest?.maybeTrapped,
-    teamPreviewSize: request.chosenTeamSize,
+    targetable: normalized.targetable,
+    teamPreviewSize: normalized.chosenTeamSize,
+    mode: normalized.requestType === 'wait' ? 'waiting' : 'player',
     choiceError: undefined,
+    choiceDraft: { choices: [] },
   };
 }
 
@@ -284,17 +443,197 @@ export function buildChooseCommand(choice: BattleChoiceState, rqid?: number) {
   return `/choose move ${choice.slot}${flags.length ? ` ${flags.join(' ')}` : ''}${suffix}`;
 }
 
+const requestLength = (request: BattleRequestNormalized) => {
+  switch (request.requestType) {
+  case 'move':
+    return request.active?.length || 1;
+  case 'switch':
+    return request.forceSwitch?.length || 1;
+  case 'team':
+    return request.chosenTeamSize || 1;
+  case 'wait':
+    return 0;
+  }
+};
+
+const stringChoice = (choice: BattleChoiceState) => {
+  if (choice.kind === 'pass') return 'pass';
+  if (choice.kind === 'shift') return 'shift';
+  if (choice.kind === 'switch') return `switch ${choice.slot}`;
+  if (choice.kind === 'team') return choice.order.map(slot => `team ${slot}`);
+  const flags = [
+    choice.max ? 'max' : '',
+    choice.mega ? 'mega' : '',
+    choice.ultra ? 'ultra' : '',
+    choice.z ? 'zmove' : '',
+    choice.tera ? 'terastallize' : '',
+    choice.target ? `${choice.target > 0 ? '+' : ''}${choice.target}` : '',
+  ].filter(Boolean);
+  return `move ${choice.slot}${flags.length ? ` ${flags.join(' ')}` : ''}`;
+};
+
+const choiceIndex = (session: BattleChoiceSession) => session.draft.choices.length;
+
+const currentMoveRequest = (session: BattleChoiceSession, index = choiceIndex(session)) => {
+  if (session.request.requestType !== 'move') return null;
+  return session.request.active?.[index] || null;
+};
+
+const currentMove = (session: BattleChoiceSession, choice: BattleChoiceState & { kind: 'move' }) => {
+  const active = currentMoveRequest(session, choice.activeIndex ?? choiceIndex(session));
+  if (!active) return null;
+  if (choice.max && active.maxMoves?.length) return active.maxMoves[choice.slot - 1] || null;
+  if (choice.z && active.zMoves?.length) return active.zMoves[choice.slot - 1] || null;
+  return active.moves?.[choice.slot - 1] || null;
+};
+
+const fillPasses = (session: BattleChoiceSession) => {
+  if (session.request.requestType === 'move') {
+    while (session.draft.choices.length < (session.request.active?.length || 0) && !session.request.active?.[session.draft.choices.length]) {
+      session.draft.choices.push('pass');
+    }
+  }
+  if (session.request.requestType === 'switch') {
+    while (session.draft.choices.length < (session.request.forceSwitch?.length || 0) && !session.request.forceSwitch?.[session.draft.choices.length]) {
+      session.draft.choices.push('pass');
+    }
+  }
+};
+
+const cloneSession = (session: BattleChoiceSession): BattleChoiceSession => ({
+  ...session,
+  draft: {
+    choices: [...session.draft.choices],
+    pendingMove: session.draft.pendingMove ? { ...session.draft.pendingMove } : undefined,
+  },
+  alreadySwitchingIn: [...session.alreadySwitchingIn],
+});
+
+export function createBattleChoiceSession(request: BattleRequest): BattleChoiceSession {
+  const session: BattleChoiceSession = {
+    request: normalizeBattleRequest(request),
+    draft: { choices: [] },
+    noCancel: !!request.noCancel || requestType(request) === 'wait',
+    alreadySwitchingIn: [],
+    alreadyMega: false,
+    alreadyMax: false,
+    alreadyZ: false,
+    alreadyTera: false,
+  };
+  fillPasses(session);
+  return session;
+}
+
+export function isBattleChoiceComplete(session: BattleChoiceSession) {
+  return !session.draft.pendingMove && session.draft.choices.length >= requestLength(session.request);
+}
+
+export function addBattleChoice(session: BattleChoiceSession, choice: BattleChoiceState): BattleCommandResult {
+  const next = cloneSession(session);
+
+  if (next.request.requestType === 'wait') {
+    return { ok: false, complete: false, error: "It's not your turn to choose.", draft: next.draft, session: next };
+  }
+
+  if (choice.kind === 'pass') {
+    next.draft.choices.push('pass');
+  } else if (choice.kind === 'shift') {
+    if (next.request.requestType !== 'move') {
+      return { ok: false, complete: false, error: 'Shift is only available during move requests.', draft: next.draft, session: next };
+    }
+    next.draft.choices.push('shift');
+  } else if (choice.kind === 'team') {
+    if (next.request.requestType !== 'team') {
+      return { ok: false, complete: false, error: 'Team preview is not active.', draft: next.draft, session: next };
+    }
+    const targetSlots = choice.order.length ? choice.order : [];
+    for (const slot of targetSlots) {
+      const pokemon = next.request.side?.pokemon?.[slot - 1];
+      if (!pokemon) return { ok: false, complete: false, error: `Team slot ${slot} is unavailable.`, draft: next.draft, session: next };
+      if (pokemon.condition.includes('fnt')) return { ok: false, complete: false, error: `${pokemon.ident} has fainted.`, draft: next.draft, session: next };
+      if (next.alreadySwitchingIn.includes(slot)) {
+        return { ok: false, complete: false, error: `${pokemon.ident} is already selected.`, draft: next.draft, session: next };
+      }
+      next.alreadySwitchingIn.push(slot);
+      next.draft.choices.push(`team ${slot}`);
+      if (isBattleChoiceComplete(next)) break;
+    }
+  } else if (choice.kind === 'switch') {
+    if (next.request.requestType !== 'switch' && next.request.requestType !== 'move') {
+      return { ok: false, complete: false, error: 'Switching is not available for this request.', draft: next.draft, session: next };
+    }
+    if (currentMoveRequest(next)?.trapped) {
+      return { ok: false, complete: false, error: 'You are trapped and cannot switch out.', draft: next.draft, session: next };
+    }
+    const pokemon = next.request.side?.pokemon?.[choice.slot - 1];
+    if (!pokemon) return { ok: false, complete: false, error: `Switch slot ${choice.slot} is unavailable.`, draft: next.draft, session: next };
+    if (choice.slot - 1 < requestLength(next.request)) {
+      return { ok: false, complete: false, error: 'That Pokemon is already active.', draft: next.draft, session: next };
+    }
+    if (pokemon.condition.includes('fnt')) {
+      return { ok: false, complete: false, error: `${pokemon.ident} has fainted.`, draft: next.draft, session: next };
+    }
+    if (next.alreadySwitchingIn.includes(choice.slot)) {
+      return { ok: false, complete: false, error: 'That Pokemon is already selected.', draft: next.draft, session: next };
+    }
+    next.alreadySwitchingIn.push(choice.slot);
+    next.draft.choices.push(`switch ${choice.slot}`);
+  } else if (choice.kind === 'move') {
+    if (next.request.requestType !== 'move') {
+      return { ok: false, complete: false, error: 'You must switch, not move.', draft: next.draft, session: next };
+    }
+    const active = currentMoveRequest(next, choice.activeIndex ?? choiceIndex(next));
+    const move = currentMove(next, choice);
+    if (!active || !move || move.disabled) {
+      return { ok: false, complete: false, error: `Move ${move?.move || choice.slot} is disabled.`, draft: next.draft, session: next };
+    }
+    if (choice.max && !active.canDynamax) choice = { ...choice, max: false };
+    if (choice.mega && next.alreadyMega) return { ok: false, complete: false, error: 'Mega Evolution is already selected.', draft: next.draft, session: next };
+    if (choice.z && next.alreadyZ) return { ok: false, complete: false, error: 'A Z-Move is already selected.', draft: next.draft, session: next };
+    if (choice.max && next.alreadyMax) return { ok: false, complete: false, error: 'Dynamax is already selected.', draft: next.draft, session: next };
+    if (choice.tera && next.alreadyTera) return { ok: false, complete: false, error: 'Terastallization is already selected.', draft: next.draft, session: next };
+    if (next.request.targetable && canChooseTarget(move.target) && !choice.target) {
+      next.draft.pendingMove = choice;
+      return { ok: true, complete: false, draft: next.draft, session: next, message: 'Choose a target.' };
+    }
+    if (choice.mega) next.alreadyMega = true;
+    if (choice.z) next.alreadyZ = true;
+    if (choice.max) next.alreadyMax = true;
+    if (choice.tera) next.alreadyTera = true;
+    next.draft.pendingMove = undefined;
+    next.draft.choices.push(stringChoice(choice) as string);
+  }
+
+  fillPasses(next);
+  const complete = isBattleChoiceComplete(next);
+  const choiceString = next.draft.choices.join(', ').replace(/, team /g, ', ');
+  const command = complete ? `/choose ${choiceString}${next.request.rqid ? `|${next.request.rqid}` : ''}` : undefined;
+  return { ok: true, complete, command, draft: next.draft, session: next };
+}
+
+export function battleDecisionState(roomId: string, battle: ArenaBattle, session?: BattleChoiceSession, error?: string): BattleDecisionState {
+  return {
+    roomId,
+    mode: battle.mode || (battle.requestType === 'wait' ? 'waiting' : 'player'),
+    requestType: battle.requestType,
+    requestLength: session ? requestLength(session.request) : battle.requestType === 'team' ? battle.teamPreviewSize || 1 : 0,
+    noCancel: battle.noCancel || !!session?.noCancel,
+    waiting: !!battle.waiting,
+    targetable: !!battle.targetable,
+    draft: session?.draft || battle.choiceDraft || { choices: [] },
+    error: error || battle.choiceError,
+  };
+}
+
 export function createChoiceBuilder(request: BattleRequest): ChoiceBuilderAdapter {
-  const type = requestType(request);
-  const requestLength = type === 'move' ? request.active?.length || 1 :
-    type === 'switch' ? (Array.isArray(request.forceSwitch) ? request.forceSwitch.length : 1) :
-    type === 'team' ? request.chosenTeamSize || 1 : 0;
+  const normalized = normalizeBattleRequest(request);
+  const type = normalized.requestType;
 
   return {
-    request,
+    request: normalized,
     requestType: type,
-    requestLength,
-    noCancel: !!request.noCancel || type === 'wait',
-    build: choice => buildChooseCommand(choice, request.rqid),
+    requestLength: requestLength(normalized),
+    noCancel: normalized.noCancel,
+    build: choice => buildChooseCommand(choice, normalized.rqid),
   };
 }

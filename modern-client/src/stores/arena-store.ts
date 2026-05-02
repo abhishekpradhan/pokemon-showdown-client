@@ -1,11 +1,18 @@
 import { create } from 'zustand';
 import {
+  addBattleChoice,
   battleFromRequest,
+  battleDecisionState,
   buildBattleCommand,
-  commandForChoice,
   demoBattle,
+  emptyBattle,
+  createBattleChoiceSession,
   type ArenaBattle,
   type BattleChoice,
+  type BattleChoiceSession,
+  type BattleChoiceState,
+  type BattleDecisionState,
+  type BattleRoomMode,
   type BattleRequest,
   type PokemonSet,
 } from '../compat/battle-adapter';
@@ -82,6 +89,10 @@ type ArenaState = {
   searchFormats: string[];
   battle: ArenaBattle;
   battles: Record<string, ArenaBattle>;
+  choiceSessionByRoom: Record<string, BattleChoiceSession>;
+  choiceDraftByRoom: Record<string, BattleDecisionState['draft']>;
+  choiceErrorByRoom: Record<string, string | undefined>;
+  battleModeByRoom: Record<string, BattleRoomMode>;
   rooms: Record<string, RoomState>;
   roomList: RoomList;
   activeTeam: PackedTeam;
@@ -112,6 +123,9 @@ type ArenaState = {
   startSearch: () => void;
   cancelSearch: () => void;
   submitBattleChoice: (choice: BattleChoice | PokemonSet, roomId?: string) => void;
+  submitBattleTarget: (target: number, roomId?: string) => void;
+  getBattleDecision: (roomId?: string) => BattleDecisionState;
+  resetBattleChoiceSession: (roomId?: string) => void;
   undoBattleChoice: (roomId?: string) => void;
   toggleBattleTimer: (roomId?: string) => void;
   forfeitBattle: (roomId?: string) => void;
@@ -276,8 +290,12 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
   formats: defaultFormats,
   searchState: 'idle',
   searchFormats: [],
-  battle: demoBattle,
+  battle: emptyBattle,
   battles: import.meta.env.MODE === 'test' || import.meta.env.VITE_ENABLE_DEMO_FIXTURES === 'true' ? { [demoBattle.id]: demoBattle } : {},
+  choiceSessionByRoom: {},
+  choiceDraftByRoom: {},
+  choiceErrorByRoom: {},
+  battleModeByRoom: {},
   rooms: {},
   roomList: { rooms: [] },
   activeTeam: bootstrappedTeams[0]?.packed || sampleTeam,
@@ -366,10 +384,18 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
     return exportTeam(activeTeam);
   },
   startSearch: () => {
-    const { protocol: client, selectedFormat, activeTeam, formats, connection } = get();
+    const { protocol: client, selectedFormat, activeTeam, formats, connection, named } = get();
     const format = formats.find(entry => entry.id === selectedFormat);
     if (connection !== 'connected') {
       set({ lastError: 'Connect to a PS-compatible server before searching.' });
+      return;
+    }
+    if (!named) {
+      set({ lastError: 'Choose a name before searching.' });
+      return;
+    }
+    if (!format?.searchShow) {
+      set({ lastError: 'This format is not available for ladder search.' });
       return;
     }
     if (format?.team !== false && !activeTeam) {
@@ -378,7 +404,7 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
     }
     if (format?.team !== false && activeTeam) client.send(`/utm ${exportPackedTeam(activeTeam)}`);
     client.send(`/search ${selectedFormat}`);
-    set({ searchState: 'searching', notifications: 3 });
+    set({ searchState: 'searching', searchFormats: [selectedFormat], notifications: 3, lastError: undefined });
   },
   cancelSearch: () => {
     get().protocol.send('/cancelsearch');
@@ -386,25 +412,100 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
   },
   submitBattleChoice: (choice, roomId) => {
     const battle = get().battles[roomId || get().battle.id] || get().battle;
-    const command = !('cmd' in choice) && battle.requestType === 'team' ?
-      `/choose team ${choice.slot}${battle.rqid ? `|${battle.rqid}` : ''}` :
-      commandForChoice(choice, battle.rqid);
+    const session = get().choiceSessionByRoom[battle.id];
+    const choiceState: BattleChoiceState = 'cmd' in choice ? {
+      kind: 'move',
+      slot: choice.slot,
+      activeIndex: choice.activeIndex,
+      tera: choice.cmd.includes('terastallize'),
+      mega: choice.cmd.includes('mega'),
+      ultra: choice.cmd.includes('ultra'),
+      z: choice.cmd.includes('zmove'),
+      max: choice.cmd.includes('dynamax') || choice.cmd.includes(' max'),
+    } : battle.requestType === 'team' ? {
+      kind: 'team',
+      order: [choice.slot],
+    } : {
+      kind: 'switch',
+      slot: choice.slot,
+    };
     const logLine = buildBattleCommand(choice, battle.rqid);
-    get().protocol.send(command, roomId || battle.id);
-    set(state => ({
-      battle: {
+    if (!session) {
+      set(state => ({ choiceErrorByRoom: { ...state.choiceErrorByRoom, [battle.id]: 'No active battle request.' } }));
+      return;
+    }
+    const result = addBattleChoice(session, choiceState);
+    if (!result.ok) {
+      set(state => ({
+        choiceSessionByRoom: { ...state.choiceSessionByRoom, [battle.id]: result.session },
+        choiceDraftByRoom: { ...state.choiceDraftByRoom, [battle.id]: result.draft },
+        choiceErrorByRoom: { ...state.choiceErrorByRoom, [battle.id]: result.error },
+      }));
+      return;
+    }
+    if (result.command) get().protocol.send(result.command, roomId || battle.id);
+    set(state => {
+      const updated = {
         ...battle,
-        log: [logLine, ...battle.log].slice(0, 8),
-        waiting: true,
-      },
-      battles: {
-        ...state.battles,
-        [battle.id]: {
-          ...battle,
-          log: [logLine, ...battle.log].slice(0, 8),
-          waiting: true,
-        },
-      },
+        log: [result.message || logLine, ...battle.log].slice(0, 8),
+        waiting: result.complete,
+        choiceError: undefined,
+        choiceDraft: result.draft,
+      };
+      return {
+        battle: updated,
+        battles: { ...state.battles, [battle.id]: updated },
+        choiceSessionByRoom: { ...state.choiceSessionByRoom, [battle.id]: result.session },
+        choiceDraftByRoom: { ...state.choiceDraftByRoom, [battle.id]: result.draft },
+        choiceErrorByRoom: { ...state.choiceErrorByRoom, [battle.id]: undefined },
+      };
+    });
+  },
+  submitBattleTarget: (target, roomId) => {
+    const battle = get().battles[roomId || get().battle.id] || get().battle;
+    const session = get().choiceSessionByRoom[battle.id];
+    const pending = session?.draft.pendingMove;
+    if (!session || !pending) {
+      set(state => ({ choiceErrorByRoom: { ...state.choiceErrorByRoom, [battle.id]: 'No move is waiting for a target.' } }));
+      return;
+    }
+    const result = addBattleChoice(session, { ...pending, target });
+    if (result.command) get().protocol.send(result.command, roomId || battle.id);
+    set(state => {
+      const updated = {
+        ...battle,
+        waiting: result.complete,
+        log: [result.complete ? 'Battle choice sent.' : result.message || 'Target selected.', ...battle.log].slice(0, 8),
+        choiceDraft: result.draft,
+        choiceError: result.error,
+      };
+      return {
+        battle: updated,
+        battles: { ...state.battles, [battle.id]: updated },
+        choiceSessionByRoom: { ...state.choiceSessionByRoom, [battle.id]: result.session },
+        choiceDraftByRoom: { ...state.choiceDraftByRoom, [battle.id]: result.draft },
+        choiceErrorByRoom: { ...state.choiceErrorByRoom, [battle.id]: result.error },
+      };
+    });
+  },
+  getBattleDecision: roomId => {
+    const battle = get().battles[roomId || get().battle.id] || get().battle;
+    return battleDecisionState(
+      battle.id,
+      battle,
+      get().choiceSessionByRoom[battle.id],
+      get().choiceErrorByRoom[battle.id]
+    );
+  },
+  resetBattleChoiceSession: roomId => {
+    const battle = get().battles[roomId || get().battle.id] || get().battle;
+    const session = get().choiceSessionByRoom[battle.id];
+    const nextSession = session ? createBattleChoiceSession(session.request) : undefined;
+    set(state => ({
+      choiceSessionByRoom: nextSession ? { ...state.choiceSessionByRoom, [battle.id]: nextSession } : state.choiceSessionByRoom,
+      choiceDraftByRoom: { ...state.choiceDraftByRoom, [battle.id]: { choices: [] } },
+      choiceErrorByRoom: { ...state.choiceErrorByRoom, [battle.id]: undefined },
+      battles: { ...state.battles, [battle.id]: { ...battle, choiceDraft: { choices: [] }, choiceError: undefined } },
     }));
   },
   undoBattleChoice: roomId => {
@@ -486,6 +587,7 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
         set({
           searchFormats: update.searching,
           searchState: update.searching.length ? 'searching' : 'idle',
+          lastError: undefined,
         });
         break;
       }
@@ -531,6 +633,7 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
       }
       case 'init': {
         const type = line.args[0] || (roomId.startsWith('battle-') ? 'battle' : 'chat');
+        const initialBattle = { ...emptyBattle, id: roomId, format: roomId.split('-')[1] || 'Battle' };
         set(state => ({
           rooms: upsertRoom(state.rooms, roomId, {
             id: roomId,
@@ -538,8 +641,9 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
             type,
             connected: true,
           }),
-          battles: type === 'battle' ? { ...state.battles, [roomId]: state.battles[roomId] || { ...demoBattle, id: roomId } } : state.battles,
-          battle: type === 'battle' ? state.battles[roomId] || { ...demoBattle, id: roomId } : state.battle,
+          battles: type === 'battle' ? { ...state.battles, [roomId]: state.battles[roomId] || initialBattle } : state.battles,
+          battle: type === 'battle' ? state.battles[roomId] || initialBattle : state.battle,
+          battleModeByRoom: type === 'battle' ? { ...state.battleModeByRoom, [roomId]: 'waiting' } : state.battleModeByRoom,
         }));
         break;
       }
@@ -562,19 +666,24 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
         const request = parseBattleRequest(line);
         if (!request) break;
         set(state => {
-          const previous = state.battles[roomId] || { ...demoBattle, id: roomId };
+          const previous = state.battles[roomId] || { ...emptyBattle, id: roomId };
           const updated = battleFromRequest(roomId, request, previous);
+          const session = createBattleChoiceSession(request);
           return {
             battle: updated,
             battles: { ...state.battles, [roomId]: updated },
             searchState: 'idle',
+            choiceSessionByRoom: { ...state.choiceSessionByRoom, [roomId]: session },
+            choiceDraftByRoom: { ...state.choiceDraftByRoom, [roomId]: session.draft },
+            choiceErrorByRoom: { ...state.choiceErrorByRoom, [roomId]: undefined },
+            battleModeByRoom: { ...state.battleModeByRoom, [roomId]: updated.mode || 'player' },
           };
         });
         break;
       }
       case 'player':
         set(state => {
-          const battle = state.battles[roomId] || { ...demoBattle, id: roomId };
+          const battle = state.battles[roomId] || { ...emptyBattle, id: roomId };
           const slot = line.args[0];
           const name = line.args[1] || (slot === 'p1' ? battle.p1.name : battle.p2.name);
           const updated = slot === 'p1' ?
@@ -601,7 +710,7 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
         const logLine = roomId.startsWith('battle-') ? battleLogLine(line) : '';
         if (logLine) {
           set(state => {
-            const battle = state.battles[roomId] || { ...state.battle, id: roomId };
+            const battle = state.battles[roomId] || { ...emptyBattle, id: roomId };
             const updated = { ...battle, log: [logLine, ...battle.log].slice(0, 12) };
             return {
               battle: updated,

@@ -1,19 +1,45 @@
 import { expect, test } from '@playwright/test';
+import { installMockPs } from './mock-ps';
 
-test('loads home and direct battle route', async ({ page }) => {
-  await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Showdown Arena' })).toBeVisible();
-  await expect(page.getByRole('link', { name: /arena sample|choose team/i })).toBeVisible();
-  await expect(page.getByRole('button', { name: /search battle/i })).toBeVisible();
-  await expect(page.getByText(/preview/i)).toHaveCount(0);
-
-  await page.goto('/battle/demo-gen9ou');
-  await expect(page).toHaveURL(/\/battle\/demo-gen9ou$/);
-  await expect(page.getByRole('heading', { name: /You vs Rival/i })).toBeVisible();
-  await expect(page.getByRole('button', { name: /Moonblast/i })).toBeVisible();
+test.beforeEach(async ({ page }) => {
+  await installMockPs(page);
 });
 
-test('loads every primary route directly', async ({ page }) => {
+test('loads home with real readiness states and no demo language', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'Showdown Arena' })).toBeVisible();
+  await expect(page.getByText(/demo|fixture|preview/i)).toHaveCount(0);
+  await expect(page.locator('.match-panel .inline-error')).toContainText('Choose a name');
+  await expect(page.getByRole('button', { name: /search battle/i })).toBeDisabled();
+
+  await page.getByRole('button', { name: /Guest/i }).click();
+  await page.getByRole('textbox', { name: 'Username' }).fill('CodexTester');
+  await page.getByRole('button', { name: 'Set guest name' }).click();
+  await expect(page.getByRole('button', { name: /CodexTester/i })).toBeVisible();
+  await expect(page.getByRole('button', { name: /search battle/i })).toBeEnabled();
+});
+
+test('search creates a mock battle room and sends exact battle choices', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: /Guest/i }).click();
+  await page.getByRole('textbox', { name: 'Username' }).fill('CodexTester');
+  await page.getByRole('button', { name: 'Set guest name' }).click();
+  await page.getByRole('button', { name: /search battle/i }).click();
+
+  await expect(page.getByRole('button', { name: /cancel search/i })).toBeVisible();
+  await page.goto('/battle/battle-gen9ou-1');
+  await expect(page.getByRole('heading', { name: /CodexTester vs MockRival/i })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Moonblast/i })).toBeVisible();
+  await page.getByRole('button', { name: /Moonblast/i }).click();
+  await expect(page.getByRole('button', { name: /Foe -1/i })).toBeVisible();
+  await page.getByRole('button', { name: /Foe -1/i }).click();
+
+  await expect.poll(async () => page.evaluate(() => (window as unknown as { __mockPsSent: string[] }).__mockPsSent.join('\n'))).toContain('battle-gen9ou-1|/choose move 1 -1|7');
+  await expect.poll(async () => page.evaluate(() => (window as unknown as { __mockPsSent: string[] }).__mockPsSent.join('\n'))).toContain('|/utm ');
+  await expect.poll(async () => page.evaluate(() => (window as unknown as { __mockPsSent: string[] }).__mockPsSent.join('\n'))).toContain('|/search gen9ou');
+});
+
+test('loads every primary route directly without placeholder language', async ({ page }) => {
   const routes = [
     ['/', 'Showdown Arena'],
     ['/teambuilder', 'Teambuilder'],
@@ -21,46 +47,23 @@ test('loads every primary route directly', async ({ page }) => {
     ['/ladder', 'Ladder'],
     ['/replays', 'Replays'],
     ['/settings', 'Settings'],
-    ['/battle/demo-gen9ou', 'You vs Rival'],
   ] as const;
 
   for (const [route, heading] of routes) {
     await page.goto(route);
     await expect(page.getByRole('heading', { name: heading })).toBeVisible();
-    await expect(page.getByText('Compatibility surface')).toHaveCount(0);
-    await expect(page.getByText(/preview/i)).toHaveCount(0);
+    await expect(page.getByText(/preview|fixture/i)).toHaveCount(0);
   }
-});
-
-test('demo battle controls produce visible feedback', async ({ page }) => {
-  await page.goto('/battle/demo-gen9ou');
-  await page.getByRole('button', { name: 'Pause' }).click();
-  await expect(page.getByText('Battle playback paused.')).toBeVisible();
-
-  await page.getByRole('button', { name: /Moonblast/i }).click();
-  await expect(page.getByText('Queued Moonblast.')).toBeVisible();
-
-  await page.getByRole('textbox', { name: /chat message/i }).fill('testing chat');
-  await page.getByRole('button', { name: 'Send' }).click();
-  await expect(page.getByRole('region', { name: /battle chat/i }).getByText('testing chat')).toBeVisible();
-});
-
-test('captures non-empty visual smoke screenshots', async ({ page }) => {
-  await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Showdown Arena' })).toBeVisible();
-  const homeShot = await page.screenshot({ fullPage: true });
-  expect(homeShot.byteLength).toBeGreaterThan(40_000);
-
-  await page.goto('/battle/demo-gen9ou');
-  await expect(page.getByRole('button', { name: /Moonblast/i })).toBeVisible();
-  const battleShot = await page.screenshot({ fullPage: true });
-  expect(battleShot.byteLength).toBeGreaterThan(40_000);
 });
 
 test('keeps mobile battle controls usable without horizontal overflow', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/battle/demo-gen9ou');
-  await expect(page.getByRole('heading', { name: /You vs Rival/i })).toBeVisible();
+  await page.goto('/');
+  await page.getByRole('button', { name: /Guest/i }).click();
+  await page.getByRole('textbox', { name: 'Username' }).fill('CodexTester');
+  await page.getByRole('button', { name: 'Set guest name' }).click();
+  await page.getByRole('button', { name: /search battle/i }).click();
+  await page.goto('/battle/battle-gen9ou-1');
   await expect(page.getByRole('button', { name: /Moonblast/i })).toBeVisible();
 
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);

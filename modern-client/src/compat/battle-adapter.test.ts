@@ -1,4 +1,12 @@
-import { battleFromRequest, commandForChoice, parseHpPercent, type BattleRequest } from './battle-adapter';
+import {
+  addBattleChoice,
+  battleFromRequest,
+  commandForChoice,
+  createBattleChoiceSession,
+  normalizeBattleRequest,
+  parseHpPercent,
+  type BattleRequest,
+} from './battle-adapter';
 
 describe('battle request adapter', () => {
   it('maps PS request payloads into playable battle state', () => {
@@ -27,12 +35,14 @@ describe('battle request adapter', () => {
     expect(battle.team[0].hp).toBe(78);
     expect(battle.team[1].fainted).toBe(true);
     expect(battle.moves[0].cmd).toBe('/choose move 1|7');
+    expect(battle.moves[0].requiresTarget).toBe(false);
     expect(battle.moves[1].disabled).toBe(true);
   });
 
   it('builds exact PS choice commands with rqid', () => {
     expect(commandForChoice({
       name: 'Moonblast',
+      slot: 1,
       type: 'Fairy',
       pp: '11/16',
       cmd: 'move 1 terastallize',
@@ -45,5 +55,77 @@ describe('battle request adapter', () => {
   it('parses HP conditions', () => {
     expect(parseHpPercent('50/200')).toBe(25);
     expect(parseHpPercent('0 fnt')).toBe(0);
+  });
+
+  it('normalizes request type, targetability, and team preview size', () => {
+    const normalized = normalizeBattleRequest({
+      rqid: 10,
+      teamPreview: true,
+      side: {
+        pokemon: [
+          { ident: 'p1: Meowscarada', details: 'Meowscarada, L80', condition: '100/100' },
+          { ident: 'p1: Heatran', details: 'Heatran, L80', condition: '100/100' },
+        ],
+      },
+    });
+
+    expect(normalized.requestType).toBe('team');
+    expect(normalized.chosenTeamSize).toBe(1);
+    expect(normalized.noCancel).toBe(false);
+  });
+
+  it('builds partial targeted move choices before sending exact commands', () => {
+    const request: BattleRequest = {
+      rqid: 11,
+      targetable: true,
+      side: {
+        pokemon: [
+          { ident: 'p1: Iron Valiant', details: 'Iron Valiant, L80', condition: '100/100', active: true },
+        ],
+      },
+      active: [{
+        moves: [{ move: 'Moonblast', id: 'moonblast', type: 'Fairy', pp: 11, maxpp: 16, target: 'normal' }],
+        canTerastallize: 'Fairy',
+      }],
+    };
+    const session = createBattleChoiceSession(request);
+    const pending = addBattleChoice(session, { kind: 'move', slot: 1, tera: true });
+
+    expect(pending.complete).toBe(false);
+    expect(pending.draft.pendingMove).toMatchObject({ slot: 1, tera: true });
+
+    const complete = addBattleChoice(pending.session, { ...pending.draft.pendingMove!, target: -1 });
+    expect(complete.complete).toBe(true);
+    expect(complete.command).toBe('/choose move 1 terastallize -1|11');
+  });
+
+  it('rejects fainted switches and supports team preview choices', () => {
+    const switchSession = createBattleChoiceSession({
+      rqid: 12,
+      forceSwitch: [true],
+      side: {
+        pokemon: [
+          { ident: 'p1: Fainted', details: 'Fainted, L80', condition: '0 fnt', active: true },
+          { ident: 'p1: Heatran', details: 'Heatran, L80', condition: '0 fnt' },
+        ],
+      },
+    });
+    expect(addBattleChoice(switchSession, { kind: 'switch', slot: 2 }).ok).toBe(false);
+
+    const teamSession = createBattleChoiceSession({
+      rqid: 13,
+      teamPreview: true,
+      chosenTeamSize: 2,
+      side: {
+        pokemon: [
+          { ident: 'p1: Lead', details: 'Lead, L80', condition: '100/100' },
+          { ident: 'p1: Second', details: 'Second, L80', condition: '100/100' },
+        ],
+      },
+    });
+    const one = addBattleChoice(teamSession, { kind: 'team', order: [2] });
+    expect(one.complete).toBe(false);
+    const two = addBattleChoice(one.session, { kind: 'team', order: [1] });
+    expect(two.command).toBe('/choose team 2, 1|13');
   });
 });

@@ -7,12 +7,19 @@ import { MiniRoomRail } from '../components/mini-room-rail';
 import { useArenaStore } from '../stores/arena-store';
 
 export function HomeScreen() {
-  const { selectedFormat, formats, setSelectedFormat, searchState, startSearch, cancelSearch, connection, teams, activeTeamId, lastError, named } = useArenaStore();
+  const { selectedFormat, formats, setSelectedFormat, searchState, searchFormats, startSearch, cancelSearch, connection, teams, activeTeamId, lastError, named } = useArenaStore();
   const selected = formats.find(format => format.id === selectedFormat);
   const activeTeam = teams.find(team => team.id === activeTeamId);
   const requiresTeam = selected?.team !== false;
-  const canSearch = connection === 'connected' && (!requiresTeam || !!activeTeam);
-  const showDemo = import.meta.env.VITE_ENABLE_DEMO_FIXTURES === 'true' || connection === 'offline';
+  const blockers = [
+    connection !== 'connected' ? 'Connect to the server' : '',
+    !named ? 'Choose a name' : '',
+    !selected?.searchShow ? 'Pick a searchable format' : '',
+    requiresTeam && !activeTeam ? 'Select a team' : '',
+  ].filter(Boolean);
+  const canSearch = blockers.length === 0;
+  const queueStatus = searchState === 'searching' ? `Searching ${searchFormats.join(', ') || selectedFormat}` :
+    canSearch ? 'Ready to search' : blockers[0];
 
   return (
     <section className="home-grid" aria-label="Matchmaking">
@@ -33,12 +40,6 @@ export function HomeScreen() {
             <Shield size={19} aria-hidden />
             {activeTeam ? activeTeam.name : 'Choose team'}
           </Link>
-          {showDemo && (
-            <Link to="/battle/$battleId" params={{ battleId: 'demo-gen9ou' }} className="secondary-action">
-              <Swords size={19} aria-hidden />
-              Offline fixture
-            </Link>
-          )}
           {searchState === 'idle' ? (
             <button className="primary-action" type="button" onClick={startSearch} disabled={!canSearch}>
               <Timer size={19} aria-hidden />
@@ -56,7 +57,7 @@ export function HomeScreen() {
       <div className="surface-panel match-panel">
         <div className="panel-heading">
           <span>Queue</span>
-          <strong>{searchState === 'idle' ? 'Ready' : 'Searching'}</strong>
+          <strong>{searchState === 'idle' ? queueStatus : 'Searching'}</strong>
         </div>
         <div className="queue-meter" data-state={searchState}>
           <span />
@@ -80,7 +81,7 @@ export function HomeScreen() {
           </div>
         </dl>
         {lastError && <p className="inline-error">{lastError}</p>}
-        <p className="inline-status">{canSearch ? 'Ready to send live search commands.' : 'Connect and choose a valid team before searching.'}</p>
+        <p className={canSearch ? 'inline-status' : 'inline-error'}>{queueStatus}</p>
       </div>
 
       <Tabs.Root className="surface-panel activity-panel" defaultValue="rooms">

@@ -817,6 +817,34 @@ textarea:focus-visible,
   font-size: 13px;
 }
 
+.decision-error {
+  margin: 7px 0 0;
+  color: #8c2b22;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.target-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.target-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 48px;
+  color: #1d1d1b;
+  background: #fffdf7;
+  border: 1px solid rgba(80, 72, 60, 0.18);
+  border-radius: var(--arena-radius);
+  cursor: pointer;
+  font-weight: 800;
+}
+
 .move-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
