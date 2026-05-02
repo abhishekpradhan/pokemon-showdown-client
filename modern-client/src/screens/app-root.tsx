@@ -5,31 +5,17 @@ import { AnimatePresence, motion } from 'motion/react';
 import {
   Activity,
   Bell,
-  BookOpen,
   Bot,
   ChevronDown,
-  Gamepad2,
   MessageSquareText,
   RadioTower,
-  Settings,
-  Shield,
-  Trophy,
-  Users,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useArenaStore } from '../stores/arena-store';
 import { CommandBar } from '../components/command-bar';
 import { LegalFooter } from '../components/legal-footer';
 import { ConnectionPill } from '../components/status-pills';
-
-const navItems = [
-  { to: '/', label: 'Battle', icon: Gamepad2 },
-  { to: '/teambuilder', label: 'Teams', icon: Shield },
-  { to: '/rooms', label: 'Rooms', icon: Users },
-  { to: '/ladder', label: 'Ladder', icon: Trophy },
-  { to: '/replays', label: 'Replays', icon: BookOpen },
-  { to: '/settings', label: 'Settings', icon: Settings },
-];
+import { navItems } from '../navigation';
 
 export function AppRoot() {
   const location = useLocation();
@@ -38,6 +24,9 @@ export function AppRoot() {
   return (
     <Tooltip.Provider delayDuration={150}>
       <div className="arena-app">
+        <a className="skip-link" href="#workspace">
+          Skip to battle workspace
+        </a>
         <aside className="arena-nav" aria-label="Primary">
           <Link to="/" className="brand-lockup" aria-label="Showdown Arena home">
             <img src="https://play.pokemonshowdown.com/favicon-256.png" alt="" />
@@ -50,11 +39,15 @@ export function AppRoot() {
           <nav className="nav-stack">
             {navItems.map(item => {
               const Icon = item.icon;
-              const active = location.pathname === item.to;
+              const active = item.activePattern.test(location.pathname);
               return (
                 <Tooltip.Root key={item.to}>
                   <Tooltip.Trigger asChild>
-                    <Link to={item.to} className={clsx('nav-link', active && 'is-active')}>
+                    <Link
+                      to={item.to}
+                      className={clsx('nav-link', active && 'is-active')}
+                      aria-current={active ? 'page' : undefined}
+                    >
                       <Icon size={18} aria-hidden />
                       <span>{item.label}</span>
                     </Link>
@@ -116,7 +109,9 @@ export function AppRoot() {
           <AnimatePresence mode="wait">
             <motion.main
               key={location.pathname}
+              id="workspace"
               className="workspace"
+              tabIndex={-1}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -6 }}

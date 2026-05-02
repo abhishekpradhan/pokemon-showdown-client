@@ -9,7 +9,7 @@ export function FormatSelector({ value, onValueChange }: {
 }) {
   return (
     <DropdownMenu.Root>
-      <DropdownMenu.Trigger className="format-trigger">
+      <DropdownMenu.Trigger className="format-trigger" aria-label="Select battle format">
         <span>{value}</span>
         <ChevronDown size={16} aria-hidden />
       </DropdownMenu.Trigger>

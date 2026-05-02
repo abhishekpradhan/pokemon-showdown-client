@@ -73,7 +73,12 @@ export function BattleScreen() {
         <section className="surface-panel options-panel">
           <label className="switch-row">
             <span>Hardcore mode</span>
-            <Switch.Root className="switch-root" checked={hardcoreMode} onCheckedChange={toggleHardcore}>
+            <Switch.Root
+              className="switch-root"
+              checked={hardcoreMode}
+              onCheckedChange={toggleHardcore}
+              aria-label="Toggle hardcore mode"
+            >
               <Switch.Thumb className="switch-thumb" />
             </Switch.Root>
           </label>

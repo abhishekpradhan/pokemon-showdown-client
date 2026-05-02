@@ -23,6 +23,10 @@
   box-sizing: border-box;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   margin: 0;
   min-width: 320px;
@@ -47,6 +51,33 @@ a {
 a {
   color: inherit;
   text-decoration: none;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+[role="menuitem"]:focus-visible,
+[role="tab"]:focus-visible {
+  outline: 3px solid var(--arena-cyan);
+  outline-offset: 3px;
+}
+
+.skip-link {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  z-index: 100;
+  padding: 10px 12px;
+  color: #111;
+  background: #fffdf7;
+  border-radius: var(--arena-radius);
+  transform: translateY(-160%);
+  transition: transform 160ms ease;
+}
+
+.skip-link:focus {
+  transform: translateY(0);
 }
 
 .arena-app {
@@ -149,7 +180,7 @@ a {
   display: flex;
   align-items: center;
   gap: 9px;
-  min-height: 34px;
+  min-height: 40px;
   padding: 8px 10px;
   color: var(--arena-muted);
 }
@@ -255,7 +286,7 @@ a {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 40px;
+  min-height: 44px;
   color: #fff;
   background: rgba(255, 255, 255, 0.09);
   border-color: rgba(255, 255, 255, 0.13);
@@ -264,7 +295,7 @@ a {
 
 .notification-button {
   position: relative;
-  width: 42px;
+  width: 44px;
 }
 
 .notification-button span {
@@ -371,7 +402,7 @@ a {
   align-items: center;
   justify-content: center;
   gap: 9px;
-  min-height: 46px;
+  min-height: 48px;
   padding: 0 16px;
   cursor: pointer;
 }
@@ -506,7 +537,7 @@ a {
   align-items: center;
   justify-content: center;
   gap: 7px;
-  min-height: 34px;
+  min-height: 40px;
   color: #48443e;
   background: transparent;
   border: 0;
@@ -580,7 +611,7 @@ a {
 }
 
 .icon-button {
-  width: 40px;
+  width: 44px;
 }
 
 .battle-field {
@@ -726,6 +757,13 @@ a {
   text-align: left;
   cursor: pointer;
   overflow: hidden;
+}
+
+.move-button:disabled,
+.move-button.is-disabled {
+  cursor: default;
+  filter: grayscale(0.7);
+  opacity: 0.62;
 }
 
 .move-button::after {
@@ -884,8 +922,8 @@ a {
 .chat-entry button {
   display: grid;
   place-items: center;
-  width: 30px;
-  height: 30px;
+  width: 36px;
+  height: 36px;
   color: #fff;
   background: var(--arena-red);
   border: 0;
@@ -902,8 +940,8 @@ a {
 
 .switch-root {
   position: relative;
-  width: 42px;
-  height: 24px;
+  width: 48px;
+  height: 28px;
   background: #b7afa2;
   border: 0;
   border-radius: 999px;
@@ -916,8 +954,8 @@ a {
 
 .switch-thumb {
   display: block;
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   background: #fff;
   border-radius: 999px;
   transform: translateX(2px);
@@ -925,7 +963,7 @@ a {
 }
 
 .switch-root[data-state="checked"] .switch-thumb {
-  transform: translateX(20px);
+  transform: translateX(22px);
 }
 
 .forfeit-button {
@@ -934,7 +972,7 @@ a {
   justify-content: center;
   gap: 8px;
   width: 100%;
-  min-height: 40px;
+  min-height: 44px;
   margin-top: 14px;
   cursor: pointer;
 }
@@ -1171,5 +1209,20 @@ a {
 
   .combatant-near {
     left: 5%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.001ms !important;
   }
 }

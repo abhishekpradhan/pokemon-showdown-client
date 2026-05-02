@@ -24,6 +24,7 @@ export function MoveControls({ moves, onChoose }: {
           key={move.name}
           className={clsx('move-button', typeClass[move.type], move.disabled && 'is-disabled')}
           disabled={move.disabled}
+          aria-label={`${move.name}, ${move.type}, ${move.pp} PP, effectiveness ${move.effectiveness}`}
           onClick={() => onChoose(move)}
         >
           <strong>{move.name}</strong>

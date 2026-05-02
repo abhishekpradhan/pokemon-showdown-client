@@ -14,7 +14,7 @@ export function TeamBench({ team, onSwitch }: {
           className={clsx('bench-slot', pokemon.active && 'is-active', pokemon.fainted && 'is-fainted')}
           disabled={!onSwitch || pokemon.active || pokemon.fainted}
           onClick={() => onSwitch?.(pokemon)}
-          aria-label={`${pokemon.name} ${pokemon.hp}%`}
+          aria-label={`${pokemon.name}, ${pokemon.hp}% HP${pokemon.status ? `, ${pokemon.status}` : ''}`}
         >
           <span className="bench-icon" aria-hidden>
             <img
