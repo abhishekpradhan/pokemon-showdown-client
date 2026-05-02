@@ -1,6 +1,32 @@
 Contributing to the PS client
 =============================
 
+Modern fork workflow
+--------------------
+
+This fork now has two client surfaces:
+
+- the legacy Pokémon Showdown client, kept for compatibility while parity work
+  proceeds
+- the modern React/Vite client in `modern-client/`
+
+Use feature branches and pull requests into `main`. `main` should be protected
+in GitHub with required CI and Vercel preview checks. The fork tracks upstream
+selectively: security, protocol, data, replay, and battle compatibility fixes
+should be ported intentionally instead of merging upstream UI changes wholesale.
+
+Modern client verification:
+
+```bash
+npm run modern:typecheck
+npm run modern:lint
+npm run modern:test
+npm run modern:build
+npm run modern:e2e
+```
+
+Keep AGPLv3 notices and source-availability links intact for public deployments.
+
 Architecture overview
 ---------------------
 

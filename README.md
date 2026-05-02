@@ -1,6 +1,32 @@
 Pokémon Showdown Client
 ========================================================================
 
+Modern fork notice
+------------------------------------------------------------------------
+
+This repository is being developed as a modern, Vercel-hosted fork of the
+Pokémon Showdown client at:
+
+> https://github.com/abhishekpradhan/pokemon-showdown-client
+
+The fork keeps Pokémon Showdown protocol compatibility as a core constraint
+while rebuilding the frontend with a modern React/Vite application in
+`modern-client/`. The original client code remains in place until the modern
+client reaches production parity.
+
+Useful commands for the modern client:
+
+```bash
+npm --prefix modern-client ci
+npm run modern:dev
+npm run modern:build
+npm run modern:test
+```
+
+Vercel deployment is configured by `vercel.json`. Vercel hosts the frontend
+only; realtime battle and chat traffic should continue to connect from the
+browser to a PS-compatible server.
+
 Navigation: [Website][1] | [Server repository][2] | **Client repository** | [Dex repository][3]
 
   [1]: http://pokemonshowdown.com/

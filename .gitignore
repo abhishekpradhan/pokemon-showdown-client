@@ -1,4 +1,9 @@
 node_modules/
+modern-client/dist/
+modern-client/node_modules/
+modern-client/test-results/
+modern-client/playwright-report/
+modern-client/.vite/
 .DS_Store
 Thumbs.db
 npm-debug.log
