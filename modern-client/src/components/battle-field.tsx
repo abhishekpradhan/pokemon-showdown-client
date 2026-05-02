@@ -19,8 +19,10 @@ function Combatant({ pokemon, side }: { pokemon: PokemonSet; side: 'near' | 'far
         />
       </div>
       <div className="combatant-bar">
-        <strong>{pokemon.name}</strong>
-        <span>{pokemon.hp}%</span>
+        <div className="combatant-meta">
+          <strong>{pokemon.name}</strong>
+          <span>{pokemon.hp}%</span>
+        </div>
         <div className="hp-track" aria-hidden>
           <i style={{ inlineSize: `${Math.max(pokemon.hp, 1)}%` }} data-critical={pokemon.hp < 25} />
         </div>
@@ -33,12 +35,13 @@ export function BattleField({ battle }: { battle: ArenaBattle }) {
   return (
     <div className="battle-field" aria-label="Battle field">
       <div className="field-backdrop" />
+      <div className="field-vignette" />
       <Combatant pokemon={battle.opponentActive} side="far" />
       <Combatant pokemon={battle.active} side="near" />
       <div className="field-hud">
-        <span>{battle.p1.rating}</span>
+        <span>{battle.p1.name} · {battle.p1.rating}</span>
         <strong>Turn {battle.turn}</strong>
-        <span>{battle.p2.rating}</span>
+        <span>{battle.p2.name} · {battle.p2.rating}</span>
       </div>
     </div>
   );

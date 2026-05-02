@@ -12,7 +12,7 @@ export function BattleScreen() {
   const { battle, submitBattleChoice, toggleHardcore, hardcoreMode } = useArenaStore();
 
   return (
-    <section className="battle-layout" aria-label={`Battle ${params.battleId}`}>
+    <section className="battle-layout battle-console" aria-label={`Battle ${params.battleId}`}>
       <div className="battle-stage">
         <div className="battle-toolbar">
           <div>
@@ -43,8 +43,8 @@ export function BattleScreen() {
         </motion.div>
       </div>
 
-      <aside className="battle-side">
-        <section className="surface-panel log-panel" aria-label="Battle log">
+      <aside className="battle-side" aria-label="Battle context">
+        <section className="side-panel log-panel" aria-label="Battle log">
           <div className="panel-heading">
             <span>Battle log</span>
             <strong>Live</strong>
@@ -54,7 +54,7 @@ export function BattleScreen() {
           </ol>
         </section>
 
-        <section className="surface-panel chat-panel" aria-label="Battle chat">
+        <section className="side-panel chat-panel" aria-label="Battle chat">
           <div className="panel-heading">
             <span>Chat</span>
             <strong>Room</strong>
@@ -70,7 +70,7 @@ export function BattleScreen() {
           </form>
         </section>
 
-        <section className="surface-panel options-panel">
+        <section className="side-panel options-panel">
           <label className="switch-row">
             <span>Hardcore mode</span>
             <Switch.Root
