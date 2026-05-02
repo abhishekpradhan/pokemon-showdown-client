@@ -1,7 +1,6 @@
 import { Link, Outlet, useLocation } from '@tanstack/react-router';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import * as Tooltip from '@radix-ui/react-tooltip';
-import { AnimatePresence, motion } from 'motion/react';
 import {
   Activity,
   Bell,
@@ -106,20 +105,9 @@ export function AppRoot() {
             </div>
           </header>
 
-          <AnimatePresence mode="wait">
-            <motion.main
-              key={location.pathname}
-              id="workspace"
-              className="workspace"
-              tabIndex={-1}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.18, ease: [0.2, 0.8, 0.2, 1] }}
-            >
-              <Outlet />
-            </motion.main>
-          </AnimatePresence>
+          <main id="workspace" className="workspace" tabIndex={-1}>
+            <Outlet />
+          </main>
           <LegalFooter />
         </div>
       </div>
