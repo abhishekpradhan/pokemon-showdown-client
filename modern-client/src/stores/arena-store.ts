@@ -212,6 +212,10 @@ const battleLogLine = (line: PsLine) => {
   }
 };
 
+const sanitizeProtocolLog = (raw: string) => raw
+  .replace(/(\|challstr\|)[^\r\n]*/g, '$1[redacted]')
+  .replace(/(\/trn\s+[^,\r\n|]+,0,)[^\r\n|]+/g, '$1[redacted]');
+
 const parseBattleRequest = (line: PsLine): BattleRequest | null => {
   const raw = line.args.join('|');
   if (!raw) return null;
@@ -229,7 +233,7 @@ protocol.subscribe(event => {
     useArenaStore.getState().handleFrame(event.frame);
   } else if (event.type === 'send') {
     useArenaStore.setState(state => ({
-      rawProtocolLog: state.protocolLogEnabled ? [`>> ${event.message}`, ...state.rawProtocolLog].slice(0, 240) : state.rawProtocolLog,
+      rawProtocolLog: state.protocolLogEnabled ? [`>> ${sanitizeProtocolLog(event.message)}`, ...state.rawProtocolLog].slice(0, 240) : state.rawProtocolLog,
     }));
   } else if (event.type === 'error') {
     useArenaStore.setState({ lastError: event.error.message, connection: 'error' });
@@ -350,7 +354,7 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
   toggleProtocolLog: protocolLogEnabled => set({ protocolLogEnabled }),
   handleFrame: frame => {
     set(state => ({
-      rawProtocolLog: state.protocolLogEnabled ? [`<< ${frame.raw}`, ...state.rawProtocolLog].slice(0, 240) : state.rawProtocolLog,
+      rawProtocolLog: state.protocolLogEnabled ? [`<< ${sanitizeProtocolLog(frame.raw)}`, ...state.rawProtocolLog].slice(0, 240) : state.rawProtocolLog,
     }));
 
     let collectingFormats = false;
