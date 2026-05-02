@@ -2,13 +2,23 @@ import { clsx } from 'clsx';
 import type { BattleChoice } from '../compat/battle-adapter';
 
 const typeClass: Record<BattleChoice['type'], string> = {
+  Bug: 'type-grass',
   Dark: 'type-dark',
+  Dragon: 'type-dark',
   Electric: 'type-electric',
   Fairy: 'type-fairy',
   Fighting: 'type-fighting',
   Fire: 'type-fire',
+  Flying: 'type-water',
+  Ghost: 'type-dark',
   Grass: 'type-grass',
   Ground: 'type-ground',
+  Ice: 'type-water',
+  Normal: 'type-dark',
+  Poison: 'type-fairy',
+  Psychic: 'type-fairy',
+  Rock: 'type-ground',
+  Steel: 'type-dark',
   Water: 'type-water',
 };
 

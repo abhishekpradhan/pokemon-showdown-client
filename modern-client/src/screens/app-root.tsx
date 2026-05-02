@@ -10,6 +10,7 @@ import {
   RadioTower,
 } from 'lucide-react';
 import { clsx } from 'clsx';
+import { type FormEvent, useEffect, useState } from 'react';
 import { useArenaStore } from '../stores/arena-store';
 import { CommandBar } from '../components/command-bar';
 import { LegalFooter } from '../components/legal-footer';
@@ -18,8 +19,19 @@ import { navItems } from '../navigation';
 
 export function AppRoot() {
   const location = useLocation();
-  const { connection, notifications, username, setConnection } = useArenaStore();
+  const { connection, notifications, username, connect, reconnect, disconnect, login, named } = useArenaStore();
+  const [nameInput, setNameInput] = useState(username === 'Guest Player' ? '' : username);
+  const [passwordInput, setPasswordInput] = useState('');
   const focusWorkspace = () => document.getElementById('workspace')?.focus();
+  const submitName = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    void login({ name: nameInput, password: passwordInput || undefined });
+    setPasswordInput('');
+  };
+
+  useEffect(() => {
+    if (import.meta.env.MODE !== 'test' && import.meta.env.VITE_PS_AUTOCONNECT !== 'false') connect();
+  }, [connect]);
 
   return (
     <Tooltip.Provider delayDuration={150}>
@@ -68,10 +80,10 @@ export function AppRoot() {
             <button
               className="icon-row"
               type="button"
-              onClick={() => setConnection(connection === 'connected' ? 'reconnecting' : 'connected')}
+              onClick={() => connection === 'connected' ? disconnect() : reconnect()}
             >
               <RadioTower size={16} aria-hidden />
-              <span>{connection === 'connected' ? 'Live server' : 'Reconnect'}</span>
+              <span>{connection === 'connected' ? 'Disconnect' : 'Reconnect'}</span>
             </button>
           </div>
         </aside>
@@ -92,6 +104,26 @@ export function AppRoot() {
                 </DropdownMenu.Trigger>
                 <DropdownMenu.Portal>
                   <DropdownMenu.Content className="menu-surface" align="end">
+                    <div className="menu-form" onKeyDown={event => event.stopPropagation()}>
+                      <strong>{named ? username : 'Choose name'}</strong>
+                      <form onSubmit={submitName}>
+                        <input
+                          aria-label="Username"
+                          placeholder="Guest name"
+                          value={nameInput}
+                          onChange={event => setNameInput(event.currentTarget.value)}
+                        />
+                        <input
+                          aria-label="Password"
+                          placeholder="Password"
+                          type="password"
+                          value={passwordInput}
+                          onChange={event => setPasswordInput(event.currentTarget.value)}
+                        />
+                        <button type="submit">Set</button>
+                      </form>
+                    </div>
+                    <DropdownMenu.Separator className="menu-separator" />
                     <DropdownMenu.Item className="menu-item">
                       <Activity size={16} aria-hidden /> Battle options
                     </DropdownMenu.Item>

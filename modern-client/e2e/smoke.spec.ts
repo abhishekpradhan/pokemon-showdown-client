@@ -4,7 +4,7 @@ test('loads home and direct battle route', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Showdown Arena' })).toBeVisible();
   await expect(page.getByRole('link', { name: /open demo battle/i })).toBeVisible();
-  await expect(page.getByRole('button', { name: /start queue preview/i })).toBeVisible();
+  await expect(page.getByRole('button', { name: /search battle/i })).toBeVisible();
 
   await page.getByRole('link', { name: /open demo battle/i }).click();
   await expect(page).toHaveURL(/\/battle\/demo-gen9ou$/);
@@ -40,7 +40,7 @@ test('demo battle controls produce visible feedback', async ({ page }) => {
 
   await page.getByRole('textbox', { name: /chat message/i }).fill('testing chat');
   await page.getByRole('button', { name: 'Send' }).click();
-  await expect(page.getByText('Guest Player testing chat')).toBeVisible();
+  await expect(page.getByRole('region', { name: /battle chat/i }).getByText('testing chat')).toBeVisible();
 });
 
 test('captures non-empty visual smoke screenshots', async ({ page }) => {

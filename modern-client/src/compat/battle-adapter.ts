@@ -10,15 +10,17 @@ export type PokemonSet = {
 
 export type BattleChoice = {
   name: string;
-  type: 'Fire' | 'Water' | 'Grass' | 'Electric' | 'Ground' | 'Dark' | 'Fairy' | 'Fighting';
+  type: 'Fire' | 'Water' | 'Grass' | 'Electric' | 'Ground' | 'Dark' | 'Fairy' | 'Fighting' | 'Normal' | 'Psychic' | 'Steel' | 'Poison' | 'Ice' | 'Bug' | 'Flying' | 'Rock' | 'Ghost' | 'Dragon';
   pp: string;
   cmd: string;
   effectiveness: string;
   disabled?: boolean;
+  target?: string;
 };
 
 export type ArenaBattle = {
   id: string;
+  format: string;
   turn: number;
   p1: { name: string; rating: number };
   p2: { name: string; rating: number };
@@ -29,10 +31,58 @@ export type ArenaBattle = {
   moves: BattleChoice[];
   log: string[];
   chat: { user: string; message: string }[];
+  rqid?: number;
+  requestType?: 'move' | 'switch' | 'team' | 'wait';
+  waiting?: boolean;
+};
+
+export type BattleRequestMove = {
+  move: string;
+  id?: string;
+  type?: BattleChoice['type'];
+  pp?: number;
+  maxpp?: number;
+  target?: string;
+  disabled?: boolean;
+};
+
+export type BattleRequestPokemon = {
+  ident: string;
+  details: string;
+  condition: string;
+  active?: boolean;
+  stats?: Record<string, number>;
+  moves?: string[];
+  item?: string;
+  ability?: string;
+  baseAbility?: string;
+};
+
+export type BattleRequest = {
+  rqid?: number;
+  wait?: boolean;
+  forceSwitch?: boolean | boolean[];
+  teamPreview?: boolean;
+  side?: {
+    id?: string;
+    name?: string;
+    pokemon?: BattleRequestPokemon[];
+  };
+  active?: Array<{
+    moves?: BattleRequestMove[];
+    trapped?: boolean;
+    maybeTrapped?: boolean;
+    canMegaEvo?: boolean;
+    canUltraBurst?: boolean;
+    canZMove?: unknown;
+    canDynamax?: boolean;
+    canTerastallize?: string;
+  }>;
 };
 
 export const demoBattle: ArenaBattle = {
   id: 'demo-gen9ou',
+  format: 'Gen 9 OU',
   turn: 12,
   p1: { name: 'You', rating: 1516 },
   p2: { name: 'Rival', rating: 1498 },
@@ -72,7 +122,108 @@ export const demoBattle: ArenaBattle = {
   ],
 };
 
-export function buildBattleCommand(choice: BattleChoice | PokemonSet) {
+const typeFromMoveName = (name: string): BattleChoice['type'] => {
+  const lower = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (lower.includes('moonblast')) return 'Fairy';
+  if (lower.includes('closecombat')) return 'Fighting';
+  if (lower.includes('thunder')) return 'Electric';
+  if (lower.includes('shadow')) return 'Ghost';
+  if (lower.includes('ice')) return 'Ice';
+  if (lower.includes('poison')) return 'Poison';
+  if (lower.includes('iron') || lower.includes('steel')) return 'Steel';
+  if (lower.includes('dragon')) return 'Dragon';
+  if (lower.includes('bug')) return 'Bug';
+  if (lower.includes('rock')) return 'Rock';
+  if (lower.includes('fly') || lower.includes('hurricane')) return 'Flying';
+  if (lower.includes('water') || lower.includes('hydro') || lower.includes('surf')) return 'Water';
+  if (lower.includes('fire') || lower.includes('flame') || lower.includes('burn')) return 'Fire';
+  if (lower.includes('grass') || lower.includes('leaf') || lower.includes('giga')) return 'Grass';
+  if (lower.includes('earth') || lower.includes('ground')) return 'Ground';
+  if (lower.includes('psychic')) return 'Psychic';
+  if (lower.includes('dark') || lower.includes('sucker')) return 'Dark';
+  return 'Normal';
+};
+
+const idToName = (id: string) => id
+  .replace(/([a-z])([A-Z])/g, '$1 $2')
+  .replace(/[-_]/g, ' ')
+  .replace(/\b\w/g, letter => letter.toUpperCase());
+
+const speciesFromDetails = (details: string) => details.split(',')[0]?.trim() || 'Pokemon';
+
+const speciesId = (name: string) => name.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+export function parseHpPercent(condition: string) {
+  if (!condition || condition === '0 fnt') return 0;
+  const [hpPart] = condition.split(' ');
+  if (hpPart.includes('/')) {
+    const [hp, maxhp] = hpPart.split('/').map(Number);
+    if (maxhp > 0) return Math.max(0, Math.min(100, Math.round((hp / maxhp) * 100)));
+  }
+  const numeric = Number(hpPart);
+  return Number.isFinite(numeric) ? Math.max(0, Math.min(100, numeric)) : 100;
+}
+
+export function requestType(request?: BattleRequest | null): ArenaBattle['requestType'] {
+  if (!request) return undefined;
+  if (request.wait) return 'wait';
+  if (request.teamPreview) return 'team';
+  if (request.forceSwitch) return 'switch';
+  return 'move';
+}
+
+export function battleFromRequest(roomId: string, request: BattleRequest, previous: ArenaBattle = demoBattle): ArenaBattle {
+  const team = request.side?.pokemon?.map((pokemon, index): PokemonSet => {
+    const name = pokemon.ident.split(': ')[1] || speciesFromDetails(pokemon.details);
+    return {
+      slot: index + 1,
+      name,
+      species: speciesId(speciesFromDetails(pokemon.details)),
+      hp: parseHpPercent(pokemon.condition),
+      active: !!pokemon.active,
+      fainted: pokemon.condition.includes('fnt') || parseHpPercent(pokemon.condition) <= 0,
+      status: pokemon.condition.includes(' brn') ? 'BRN' :
+        pokemon.condition.includes(' par') ? 'PAR' :
+        pokemon.condition.includes(' psn') ? 'PSN' :
+        pokemon.condition.includes(' slp') ? 'SLP' :
+        pokemon.condition.includes(' frz') ? 'FRZ' : undefined,
+    };
+  }) || previous.team;
+
+  const active = team.find(pokemon => pokemon.active) || team[0] || previous.active;
+  const requestMoves = request.active?.[0]?.moves || [];
+  const moves = requestMoves.length ? requestMoves.map((move, index): BattleChoice => ({
+    name: move.move || idToName(move.id || `Move ${index + 1}`),
+    type: move.type || typeFromMoveName(move.move || move.id || ''),
+    pp: `${move.pp ?? '-'} / ${move.maxpp ?? '-'}`.replaceAll(' ', ''),
+    cmd: `/choose move ${index + 1}${request.rqid ? `|${request.rqid}` : ''}`,
+    effectiveness: move.disabled ? 'disabled' : 'ready',
+    disabled: move.disabled,
+    target: move.target,
+  })) : previous.moves;
+
+  return {
+    ...previous,
+    id: roomId || previous.id,
+    rqid: request.rqid,
+    requestType: requestType(request),
+    waiting: !!request.wait,
+    p1: { ...previous.p1, name: request.side?.name || previous.p1.name },
+    active,
+    team,
+    moves,
+  };
+}
+
+export function buildBattleCommand(choice: BattleChoice | PokemonSet, rqid?: number) {
   if ('cmd' in choice) return `Queued ${choice.name}.`;
-  return choice.fainted ? `${choice.name} cannot switch in.` : `Queued switch to ${choice.name}.`;
+  return choice.fainted ? `${choice.name} cannot switch in.` : `Queued switch to ${choice.name}${rqid ? ` for request ${rqid}` : ''}.`;
+}
+
+export function commandForChoice(choice: BattleChoice | PokemonSet, rqid?: number) {
+  if ('cmd' in choice) {
+    if (choice.cmd.startsWith('/choose')) return choice.cmd;
+    return rqid ? `/choose ${choice.cmd.replace(/^\//, '')}|${rqid}` : choice.cmd;
+  }
+  return rqid ? `/choose switch ${choice.slot}|${rqid}` : `/choose switch ${choice.slot}`;
 }

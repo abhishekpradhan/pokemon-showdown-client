@@ -204,7 +204,16 @@ textarea:focus-visible,
   animation: spin 1s linear infinite;
 }
 
+.connection-pill.is-connecting svg {
+  color: var(--arena-cyan);
+  animation: spin 1s linear infinite;
+}
+
 .connection-pill.is-offline svg {
+  color: var(--arena-red);
+}
+
+.connection-pill.is-error svg {
   color: var(--arena-red);
 }
 
@@ -1292,6 +1301,55 @@ textarea:focus-visible,
   height: 1px;
   margin: 6px;
   background: #e2dbd0;
+}
+
+.menu-form {
+  display: grid;
+  gap: 8px;
+  padding: 8px;
+}
+
+.menu-form form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px;
+  width: 220px;
+}
+
+.menu-form input {
+  min-width: 0;
+  width: 100%;
+  padding: 8px;
+  color: var(--arena-dark-text);
+  background: #fffdf7;
+  border: 1px solid #d8d0c4;
+  border-radius: 6px;
+}
+
+.menu-form button {
+  padding: 0 10px;
+  color: #fff;
+  background: var(--arena-red);
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  grid-row: span 2;
+}
+
+.light-switch-row span {
+  color: var(--arena-dark-text);
+}
+
+.protocol-log {
+  max-height: 180px;
+  margin: 0;
+  padding: 10px;
+  overflow: auto;
+  color: #f7f4ec;
+  background: #151618;
+  border-radius: var(--arena-radius);
+  font-size: 11px;
+  white-space: pre-wrap;
 }
 
 .tooltip {

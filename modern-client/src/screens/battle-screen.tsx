@@ -10,12 +10,13 @@ import { useArenaStore } from '../stores/arena-store';
 
 export function BattleScreen() {
   const params = useParams({ from: '/battle/$battleId' });
-  const { battle, submitBattleChoice, toggleHardcore, hardcoreMode, recordBattleEvent, sendBattleChat } = useArenaStore();
+  const { battle: focusedBattle, battles, submitBattleChoice, toggleHardcore, hardcoreMode, recordBattleEvent, sendBattleChat } = useArenaStore();
   const [chatMessage, setChatMessage] = useState('');
+  const battle = battles[params.battleId] || focusedBattle;
 
   const submitChat = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    sendBattleChat(chatMessage);
+    sendBattleChat(chatMessage, battle.id);
     setChatMessage('');
   };
 
@@ -28,16 +29,16 @@ export function BattleScreen() {
             <h2>{battle.p1.name} vs {battle.p2.name}</h2>
           </div>
           <div className="toolbar-actions">
-            <button type="button" className="icon-button" aria-label="Replay" onClick={() => recordBattleEvent('Replay restarted.')}>
+            <button type="button" className="icon-button" aria-label="Replay" onClick={() => recordBattleEvent('Replay restarted.', battle.id)}>
               <RotateCcw size={17} />
             </button>
-            <button type="button" className="icon-button" aria-label="Pause" onClick={() => recordBattleEvent('Battle playback paused.')}>
+            <button type="button" className="icon-button" aria-label="Pause" onClick={() => recordBattleEvent('Battle playback paused.', battle.id)}>
               <Pause size={17} />
             </button>
-            <button type="button" className="icon-button" aria-label="Play" onClick={() => recordBattleEvent('Battle playback resumed.')}>
+            <button type="button" className="icon-button" aria-label="Play" onClick={() => recordBattleEvent('Battle playback resumed.', battle.id)}>
               <Play size={17} />
             </button>
-            <button type="button" className="icon-button" aria-label="Fast forward" onClick={() => recordBattleEvent('Skipped to the next decision point.')}>
+            <button type="button" className="icon-button" aria-label="Fast forward" onClick={() => recordBattleEvent('Skipped to the next decision point.', battle.id)}>
               <FastForward size={17} />
             </button>
           </div>
@@ -47,15 +48,15 @@ export function BattleScreen() {
           <div className="decision-heading">
             <div>
               <span className="eyebrow">Turn {battle.turn}</span>
-              <h3>What will {battle.active.name} do?</h3>
+              <h3>{battle.waiting ? 'Waiting for opponent' : `What will ${battle.active.name} do?`}</h3>
             </div>
             <div className="timer-chip">
               <TimerReset size={16} aria-hidden />
               1:42
             </div>
           </div>
-          <MoveControls moves={battle.moves} onChoose={submitBattleChoice} />
-          <TeamBench team={battle.team} onSwitch={submitBattleChoice} />
+          <MoveControls moves={battle.moves} onChoose={choice => submitBattleChoice(choice, battle.id)} />
+          <TeamBench team={battle.team} onSwitch={choice => submitBattleChoice(choice, battle.id)} />
         </motion.div>
       </div>
 
@@ -104,7 +105,7 @@ export function BattleScreen() {
               <Switch.Thumb className="switch-thumb" />
             </Switch.Root>
           </label>
-          <button className="forfeit-button" type="button" onClick={() => recordBattleEvent('Forfeit confirmation would open here.')}>
+          <button className="forfeit-button" type="button" onClick={() => recordBattleEvent('Forfeit confirmation would open here.', battle.id)}>
             <Flag size={16} aria-hidden /> Forfeit
           </button>
         </section>

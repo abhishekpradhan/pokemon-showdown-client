@@ -13,6 +13,7 @@ import {
   Users,
   type LucideIcon,
 } from 'lucide-react';
+import { type FormEvent, useState } from 'react';
 import { TeamBench } from '../components/team-bench';
 import { useArenaStore } from '../stores/arena-store';
 
@@ -88,7 +89,38 @@ const settingRows = [
 export function UtilityScreen({ view }: { view: UtilityView }) {
   const meta = viewMeta[view];
   const Icon = meta.icon;
-  const { battle } = useArenaStore();
+  const {
+    activeTeam,
+    battle,
+    connection,
+    connect,
+    disconnect,
+    joinRoom,
+    rawProtocolLog,
+    rooms,
+    sendRoomMessage,
+    server,
+    setActiveTeam,
+    toggleProtocolLog,
+    protocolLogEnabled,
+  } = useArenaStore();
+  const [roomMessage, setRoomMessage] = useState('');
+  const liveRooms = Object.values(rooms);
+  const lobby = rooms.lobby || liveRooms[0];
+  const visibleRooms = liveRooms.length ? liveRooms : roomRows.map(room => ({
+    id: room.title.toLowerCase(),
+    title: room.title,
+    type: 'chat',
+    connected: false,
+    users: [],
+    chat: [],
+    log: [],
+  }));
+  const submitRoomMessage = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    sendRoomMessage(lobby?.id || 'lobby', roomMessage);
+    setRoomMessage('');
+  };
 
   return (
     <section className="utility-layout" aria-label={meta.title}>
@@ -106,7 +138,12 @@ export function UtilityScreen({ view }: { view: UtilityView }) {
             <strong>Gen 9 OU</strong>
           </div>
           <TeamBench team={battle.team} />
-          <textarea aria-label="Team import text" placeholder="Paste a PS team export here" />
+          <textarea
+            aria-label="Team import text"
+            placeholder="Paste a PS team export here"
+            value={activeTeam}
+            onChange={event => setActiveTeam(event.currentTarget.value)}
+          />
           <div className="button-row">
             <button type="button" className="primary-action">Validate</button>
             <button type="button" className="secondary-action">Import</button>
@@ -122,29 +159,36 @@ export function UtilityScreen({ view }: { view: UtilityView }) {
               <strong>Live</strong>
             </div>
             <div className="chat-feed utility-chat">
-              <p><strong>system</strong> Welcome to Lobby.</p>
-              <p><strong>host</strong> Tournament signups open in 8 minutes.</p>
-              <p><strong>spectator</strong> OU suspect discussion moved to OverUsed.</p>
+              {(lobby?.chat.length ? lobby.chat.slice(-12) : [
+                { user: 'system', message: 'Connect to the server to receive live room messages.' },
+              ]).map((message, index) => (
+                <p key={`${message.user}-${message.message}-${index}`}><strong>{message.user}</strong> {message.message}</p>
+              ))}
             </div>
-            <div className="chat-entry">
+            <form className="chat-entry" onSubmit={submitRoomMessage}>
               <MessageCircle size={17} aria-hidden />
-              <input aria-label="Room message" placeholder="Message room" />
-              <button type="button" aria-label="Send room message"><ChevronRight size={16} /></button>
-            </div>
+              <input
+                aria-label="Room message"
+                placeholder={`Message ${lobby?.title || 'room'}`}
+                value={roomMessage}
+                onChange={event => setRoomMessage(event.currentTarget.value)}
+              />
+              <button type="submit" aria-label="Send room message"><ChevronRight size={16} /></button>
+            </form>
           </section>
           <section className="surface-panel room-list-panel" aria-label="Room list">
             <div className="panel-heading">
               <span>Rooms</span>
               <strong>Preview</strong>
             </div>
-            {roomRows.map(room => (
-              <button className="room-list-row" type="button" key={room.title}>
+            {visibleRooms.map(room => (
+              <button className="room-list-row" type="button" key={room.id} onClick={() => joinRoom(room.id)}>
                 <MessageCircle size={16} aria-hidden />
                 <span>
                   <strong>{room.title}</strong>
-                  <small>{room.meta}</small>
+                  <small>{room.users.length ? `${room.users.length} users` : room.type}</small>
                 </span>
-                <em>{room.status}</em>
+                <em>{room.connected ? 'Joined' : 'Join'}</em>
               </button>
             ))}
           </section>
@@ -229,8 +273,16 @@ export function UtilityScreen({ view }: { view: UtilityView }) {
           <section className="surface-panel utility-panel" aria-label="Client settings">
             <div className="panel-heading">
               <span>Client defaults</span>
-              <strong>Guest</strong>
+              <strong>{connection}</strong>
             </div>
+            <button className="utility-list-row" type="button" onClick={() => connection === 'connected' ? disconnect() : connect()}>
+              <RadioTower size={16} aria-hidden />
+              <span>
+                <strong>{server.id}</strong>
+                <small>{server.host}:{server.port}{server.prefix}</small>
+              </span>
+              <em>{connection === 'connected' ? 'Disconnect' : 'Connect'}</em>
+            </button>
             {settingRows.map(row => {
               const RowIcon = row.icon;
               return (
@@ -244,6 +296,14 @@ export function UtilityScreen({ view }: { view: UtilityView }) {
                 </button>
               );
             })}
+            <label className="switch-row light-switch-row">
+              <span>Protocol log</span>
+              <input
+                type="checkbox"
+                checked={protocolLogEnabled}
+                onChange={event => toggleProtocolLog(event.currentTarget.checked)}
+              />
+            </label>
           </section>
           <section className="surface-panel utility-panel" aria-label="Legal and source">
             <ClipboardCheck size={22} aria-hidden />
@@ -253,6 +313,11 @@ export function UtilityScreen({ view }: { view: UtilityView }) {
               <a className="secondary-action" href="https://github.com/abhishekpradhan/pokemon-showdown-client">Source code</a>
               <a className="secondary-action" href="https://github.com/abhishekpradhan/pokemon-showdown-client/blob/main/LICENSE">License</a>
             </div>
+            {protocolLogEnabled && (
+              <pre className="protocol-log" aria-label="Protocol log">
+                {rawProtocolLog.slice(0, 12).join('\n') || 'No protocol messages yet.'}
+              </pre>
+            )}
           </section>
         </>
       )}

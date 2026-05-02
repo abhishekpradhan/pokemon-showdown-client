@@ -7,7 +7,9 @@ import { MiniRoomRail } from '../components/mini-room-rail';
 import { useArenaStore } from '../stores/arena-store';
 
 export function HomeScreen() {
-  const { selectedFormat, setSelectedFormat, searchState, startSearch, cancelSearch } = useArenaStore();
+  const { selectedFormat, formats, setSelectedFormat, searchState, startSearch, cancelSearch, connection, rooms } = useArenaStore();
+  const selected = formats.find(format => format.id === selectedFormat);
+  const liveRooms = Object.values(rooms).filter(room => room.connected);
 
   return (
     <section className="home-grid" aria-label="Matchmaking">
@@ -23,7 +25,7 @@ export function HomeScreen() {
           <p>Competitive battles, modern controls, and the familiar team-building rhythm.</p>
         </motion.div>
         <div className="hero-actions" aria-label="Battle search">
-          <FormatSelector value={selectedFormat} onValueChange={setSelectedFormat} />
+          <FormatSelector value={selectedFormat} formats={formats} onValueChange={setSelectedFormat} />
           <Link to="/battle/$battleId" params={{ battleId: 'demo-gen9ou' }} className="primary-action">
             <Swords size={19} aria-hidden />
             Open demo battle
@@ -31,7 +33,7 @@ export function HomeScreen() {
           {searchState === 'idle' ? (
             <button className="secondary-action" type="button" onClick={startSearch}>
               <Timer size={19} aria-hidden />
-              Start queue preview
+              Search battle
             </button>
           ) : (
             <button className="danger-action" type="button" onClick={cancelSearch}>
@@ -53,7 +55,7 @@ export function HomeScreen() {
         <dl className="stat-list">
           <div>
             <dt>Format</dt>
-            <dd>{selectedFormat}</dd>
+            <dd>{selected?.name || selectedFormat}</dd>
           </div>
           <div>
             <dt>Privacy</dt>
@@ -61,7 +63,11 @@ export function HomeScreen() {
           </div>
           <div>
             <dt>Server</dt>
-            <dd>Direct PS protocol</dd>
+            <dd>{connection}</dd>
+          </div>
+          <div>
+            <dt>Rooms</dt>
+            <dd>{liveRooms.length}</dd>
           </div>
         </dl>
       </div>
