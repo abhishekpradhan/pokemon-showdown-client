@@ -3,10 +3,11 @@ import { expect, test } from '@playwright/test';
 test('loads home and direct battle route', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Showdown Arena' })).toBeVisible();
-  await expect(page.getByRole('link', { name: /open demo battle/i })).toBeVisible();
+  await expect(page.getByRole('link', { name: /arena sample|choose team/i })).toBeVisible();
   await expect(page.getByRole('button', { name: /search battle/i })).toBeVisible();
+  await expect(page.getByText(/preview/i)).toHaveCount(0);
 
-  await page.getByRole('link', { name: /open demo battle/i }).click();
+  await page.goto('/battle/demo-gen9ou');
   await expect(page).toHaveURL(/\/battle\/demo-gen9ou$/);
   await expect(page.getByRole('heading', { name: /You vs Rival/i })).toBeVisible();
   await expect(page.getByRole('button', { name: /Moonblast/i })).toBeVisible();
@@ -27,6 +28,7 @@ test('loads every primary route directly', async ({ page }) => {
     await page.goto(route);
     await expect(page.getByRole('heading', { name: heading })).toBeVisible();
     await expect(page.getByText('Compatibility surface')).toHaveCount(0);
+    await expect(page.getByText(/preview/i)).toHaveCount(0);
   }
 });
 

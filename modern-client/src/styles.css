@@ -435,6 +435,14 @@ textarea:focus-visible,
   font-weight: 800;
 }
 
+.primary-action:disabled,
+.secondary-action:disabled,
+.danger-action:disabled {
+  cursor: default;
+  opacity: 0.55;
+  transform: none;
+}
+
 .danger-action,
 .forfeit-button {
   color: #fff;
@@ -803,6 +811,12 @@ textarea:focus-visible,
   font-weight: 800;
 }
 
+.decision-note {
+  margin: 5px 0 0;
+  color: #6a5f52;
+  font-size: 13px;
+}
+
 .move-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -884,6 +898,24 @@ textarea:focus-visible,
   grid-row: 3;
   align-self: end;
   justify-self: end;
+}
+
+.move-flags {
+  grid-column: 1 / -1;
+  display: flex !important;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.move-flags i {
+  padding: 2px 5px;
+  color: #1d1d1b;
+  background: rgba(255, 255, 255, 0.78);
+  border-radius: 999px;
+  font-style: normal;
+  font-size: 10px;
+  font-weight: 900;
 }
 
 .type-dark { background: #3d3343; }
@@ -1092,6 +1124,11 @@ textarea:focus-visible,
   cursor: pointer;
 }
 
+.battle-command {
+  width: 100%;
+  margin-top: 14px;
+}
+
 .utility-layout {
   display: grid;
   grid-template-columns: minmax(0, 0.74fr) minmax(320px, 0.56fr);
@@ -1136,6 +1173,45 @@ textarea:focus-visible,
   border: 1px solid #d8d0c4;
   border-radius: var(--arena-radius);
   resize: vertical;
+}
+
+.utility-input {
+  display: block;
+  width: 100%;
+  min-height: 42px;
+  margin-top: 14px;
+  padding: 0 12px;
+  color: var(--arena-dark-text);
+  background: #fffdf7;
+  border: 1px solid #d8d0c4;
+  border-radius: var(--arena-radius);
+}
+
+.inline-error,
+.inline-status {
+  margin: 12px 0 0;
+  padding: 9px 10px;
+  border-radius: var(--arena-radius);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.inline-error {
+  color: #721f1f;
+  background: #f7d8d3;
+  border: 1px solid #e6aaa3;
+}
+
+.inline-status {
+  color: #244b34;
+  background: #dff2e6;
+  border: 1px solid #b6dbc4;
+}
+
+.compact-action {
+  min-height: 34px;
+  padding: 0 10px;
+  font-size: 13px;
 }
 
 .utility-textarea {
@@ -1350,6 +1426,84 @@ textarea:focus-visible,
   border-radius: var(--arena-radius);
   font-size: 11px;
   white-space: pre-wrap;
+}
+
+.dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  background: rgba(3, 4, 5, 0.54);
+  backdrop-filter: blur(4px);
+}
+
+.account-dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 80;
+  width: min(460px, calc(100vw - 28px));
+  max-height: calc(100svh - 28px);
+  padding: 18px;
+  overflow: auto;
+  color: var(--arena-dark-text);
+  background: #fffdf7;
+  border: 1px solid rgba(31, 30, 27, 0.14);
+  border-radius: 10px;
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.3);
+  transform: translate(-50%, -50%);
+}
+
+.dialog-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.dialog-heading h2,
+.dialog-heading p {
+  margin: 0;
+}
+
+.dialog-heading p {
+  margin-top: 6px;
+  color: #615b52;
+  line-height: 1.45;
+}
+
+.dialog-heading .icon-button {
+  flex: 0 0 auto;
+  color: #1d1d1b;
+  background: #eee5d8;
+}
+
+.account-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.account-form label {
+  display: grid;
+  gap: 6px;
+  color: #4e493f;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.account-form input {
+  min-height: 42px;
+  padding: 0 11px;
+  color: var(--arena-dark-text);
+  background: #fff;
+  border: 1px solid #d8d0c4;
+  border-radius: 7px;
+}
+
+.form-error {
+  margin: 0;
+  color: #8c2b22;
+  font-size: 13px;
 }
 
 .tooltip {

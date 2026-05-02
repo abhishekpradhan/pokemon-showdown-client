@@ -10,7 +10,18 @@ import { useArenaStore } from '../stores/arena-store';
 
 export function BattleScreen() {
   const params = useParams({ from: '/battle/$battleId' });
-  const { battle: focusedBattle, battles, submitBattleChoice, toggleHardcore, hardcoreMode, recordBattleEvent, sendBattleChat } = useArenaStore();
+  const {
+    battle: focusedBattle,
+    battles,
+    submitBattleChoice,
+    toggleHardcore,
+    hardcoreMode,
+    recordBattleEvent,
+    sendBattleChat,
+    undoBattleChoice,
+    toggleBattleTimer,
+    forfeitBattle,
+  } = useArenaStore();
   const [chatMessage, setChatMessage] = useState('');
   const battle = battles[params.battleId] || focusedBattle;
 
@@ -29,7 +40,7 @@ export function BattleScreen() {
             <h2>{battle.p1.name} vs {battle.p2.name}</h2>
           </div>
           <div className="toolbar-actions">
-            <button type="button" className="icon-button" aria-label="Replay" onClick={() => recordBattleEvent('Replay restarted.', battle.id)}>
+            <button type="button" className="icon-button" aria-label="Undo choice" onClick={() => undoBattleChoice(battle.id)}>
               <RotateCcw size={17} />
             </button>
             <button type="button" className="icon-button" aria-label="Pause" onClick={() => recordBattleEvent('Battle playback paused.', battle.id)}>
@@ -49,13 +60,18 @@ export function BattleScreen() {
             <div>
               <span className="eyebrow">Turn {battle.turn}</span>
               <h3>{battle.waiting ? 'Waiting for opponent' : `What will ${battle.active.name} do?`}</h3>
+              {battle.requestType === 'team' && <p className="decision-note">Team preview: choose your lead slot.</p>}
+              {battle.requestType === 'switch' && <p className="decision-note">Force switch request active.</p>}
+              {battle.trapped && <p className="decision-note">Your active Pokemon is trapped.</p>}
             </div>
             <div className="timer-chip">
               <TimerReset size={16} aria-hidden />
-              1:42
+              {battle.requestType || 'live'}
             </div>
           </div>
-          <MoveControls moves={battle.moves} onChoose={choice => submitBattleChoice(choice, battle.id)} />
+          {battle.requestType !== 'switch' && battle.requestType !== 'team' && (
+            <MoveControls moves={battle.moves} onChoose={choice => submitBattleChoice(choice, battle.id)} />
+          )}
           <TeamBench team={battle.team} onSwitch={choice => submitBattleChoice(choice, battle.id)} />
         </motion.div>
       </div>
@@ -105,7 +121,16 @@ export function BattleScreen() {
               <Switch.Thumb className="switch-thumb" />
             </Switch.Root>
           </label>
-          <button className="forfeit-button" type="button" onClick={() => recordBattleEvent('Forfeit confirmation would open here.', battle.id)}>
+          <button className="secondary-action battle-command" type="button" onClick={() => toggleBattleTimer(battle.id)}>
+            <TimerReset size={16} aria-hidden /> Timer
+          </button>
+          <button
+            className="forfeit-button"
+            type="button"
+            onClick={() => {
+              if (window.confirm('Forfeit this battle?')) forfeitBattle(battle.id);
+            }}
+          >
             <Flag size={16} aria-hidden /> Forfeit
           </button>
         </section>

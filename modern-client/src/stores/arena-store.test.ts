@@ -21,14 +21,14 @@ describe('arena store protocol integration', () => {
 
     store.handleFrame(parsePsFrame('|challstr|1|abc'));
     store.handleFrame(parsePsFrame('|updateuser|CodexTester|1|0'));
-    store.handleFrame(parsePsFrame('|formats|\n,SV Singles\ngen9ou,Gen 9 OU,searchShow'));
+    store.handleFrame(parsePsFrame('|formats|,1|S/V Singles|[Gen 9] Random Battle,4f|[Gen 9] OU,e|[Gen 9] Ubers,e'));
     store.handleFrame(parsePsFrame('>lobby\n|init|chat\n|title|Lobby\n|c|alice|hello'));
 
     const state = useArenaStore.getState();
     expect(state.challstr).toBe('1|abc');
     expect(state.username).toBe('CodexTester');
     expect(state.named).toBe(true);
-    expect(state.formats[0]).toMatchObject({ id: 'gen9ou', name: 'Gen 9 OU' });
+    expect(state.formats.find(format => format.id === 'gen9ou')).toMatchObject({ id: 'gen9ou', name: '[Gen 9] OU' });
     expect(state.rooms.lobby.title).toBe('Lobby');
     expect(state.rooms.lobby.chat[0]).toMatchObject({ user: 'alice', message: 'hello' });
   });

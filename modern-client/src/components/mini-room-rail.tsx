@@ -1,20 +1,8 @@
 import { Activity, MessageCircle, Swords } from 'lucide-react';
 import { useArenaStore } from '../stores/arena-store';
 
-const rooms = [
-  { name: 'Lobby', detail: '1,284 users', icon: MessageCircle },
-  { name: 'OverUsed', detail: 'Team discussion', icon: Activity },
-  { name: 'Tournaments', detail: '3 active', icon: Swords },
-];
-
-const battles = [
-  { name: 'Gen 9 OU', detail: 'Rivalry at turn 18', icon: Swords },
-  { name: 'Random Battle', detail: 'Late-game endgame', icon: Swords },
-  { name: 'VGC 2026', detail: 'Open team sheets', icon: Swords },
-];
-
 export function MiniRoomRail({ mode }: { mode: 'rooms' | 'battles' }) {
-  const { rooms: liveRooms, battles: liveBattles, joinRoom } = useArenaStore();
+  const { rooms: liveRooms, battles: liveBattles, roomList, joinRoom, refreshRoomList, connection } = useArenaStore();
   const roomItems = Object.values(liveRooms).length ?
     Object.values(liveRooms).slice(0, 6).map(room => ({
       name: room.title,
@@ -22,7 +10,12 @@ export function MiniRoomRail({ mode }: { mode: 'rooms' | 'battles' }) {
       icon: room.type === 'battle' ? Swords : MessageCircle,
       action: () => joinRoom(room.id),
     })) :
-    rooms.map(room => ({ ...room, action: () => joinRoom(room.name) }));
+    roomList.rooms.slice(0, 6).map(room => ({
+      name: room.title,
+      detail: room.p1 ? `${room.p1}${room.p2 ? ` vs ${room.p2}` : ''}` : `${room.users ?? 0} users`,
+      icon: room.p1 ? Swords : MessageCircle,
+      action: () => joinRoom(room.id),
+    }));
   const battleItems = Object.values(liveBattles).filter(battle => battle.id !== 'demo-gen9ou').length ?
     Object.values(liveBattles).filter(battle => battle.id !== 'demo-gen9ou').slice(0, 6).map(battle => ({
       name: battle.format,
@@ -30,12 +23,17 @@ export function MiniRoomRail({ mode }: { mode: 'rooms' | 'battles' }) {
       icon: Swords,
       action: undefined,
     })) :
-    battles.map(battle => ({ ...battle, action: undefined }));
+    roomList.rooms.filter(room => room.p1).slice(0, 6).map(room => ({
+      name: room.format || 'Battle',
+      detail: `${room.p1}${room.p2 ? ` vs ${room.p2}` : ''}`,
+      icon: Swords,
+      action: () => joinRoom(room.id),
+    }));
   const items = mode === 'rooms' ? roomItems : battleItems;
 
   return (
     <div className="mini-room-list">
-      {items.map(item => {
+      {items.length ? items.map(item => {
         const Icon = item.icon;
         return (
           <button type="button" className="mini-room-row" key={item.name} onClick={item.action}>
@@ -46,7 +44,15 @@ export function MiniRoomRail({ mode }: { mode: 'rooms' | 'battles' }) {
             </span>
           </button>
         );
-      })}
+      }) : (
+        <button type="button" className="mini-room-row" onClick={() => connection === 'connected' && refreshRoomList()}>
+          <Activity size={17} aria-hidden />
+          <span>
+            <strong>{connection === 'connected' ? 'Load live rooms' : 'Connect first'}</strong>
+            <em>{connection === 'connected' ? 'Request roomlist' : 'No local fixture shown'}</em>
+          </span>
+        </button>
+      )}
     </div>
   );
 }

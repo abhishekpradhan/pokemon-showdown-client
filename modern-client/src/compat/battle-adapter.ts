@@ -16,6 +16,11 @@ export type BattleChoice = {
   effectiveness: string;
   disabled?: boolean;
   target?: string;
+  canMegaEvo?: boolean;
+  canUltraBurst?: boolean;
+  canZMove?: boolean;
+  canDynamax?: boolean;
+  canTerastallize?: boolean;
 };
 
 export type ArenaBattle = {
@@ -34,6 +39,11 @@ export type ArenaBattle = {
   rqid?: number;
   requestType?: 'move' | 'switch' | 'team' | 'wait';
   waiting?: boolean;
+  noCancel?: boolean;
+  trapped?: boolean;
+  maybeTrapped?: boolean;
+  teamPreviewSize?: number;
+  choiceError?: string;
 };
 
 export type BattleRequestMove = {
@@ -78,6 +88,23 @@ export type BattleRequest = {
     canDynamax?: boolean;
     canTerastallize?: string;
   }>;
+  noCancel?: boolean;
+  chosenTeamSize?: number;
+};
+
+export type BattleChoiceState =
+  | { kind: 'move'; slot: number; target?: number; mega?: boolean; ultra?: boolean; z?: boolean; max?: boolean; tera?: boolean }
+  | { kind: 'switch'; slot: number }
+  | { kind: 'team'; order: number[] }
+  | { kind: 'pass' }
+  | { kind: 'shift' };
+
+export type ChoiceBuilderAdapter = {
+  request: BattleRequest;
+  requestType: ArenaBattle['requestType'];
+  requestLength: number;
+  noCancel: boolean;
+  build: (choice: BattleChoiceState) => string;
 };
 
 export const demoBattle: ArenaBattle = {
@@ -191,7 +218,8 @@ export function battleFromRequest(roomId: string, request: BattleRequest, previo
   }) || previous.team;
 
   const active = team.find(pokemon => pokemon.active) || team[0] || previous.active;
-  const requestMoves = request.active?.[0]?.moves || [];
+  const activeRequest = request.active?.[0];
+  const requestMoves = activeRequest?.moves || [];
   const moves = requestMoves.length ? requestMoves.map((move, index): BattleChoice => ({
     name: move.move || idToName(move.id || `Move ${index + 1}`),
     type: move.type || typeFromMoveName(move.move || move.id || ''),
@@ -200,6 +228,11 @@ export function battleFromRequest(roomId: string, request: BattleRequest, previo
     effectiveness: move.disabled ? 'disabled' : 'ready',
     disabled: move.disabled,
     target: move.target,
+    canMegaEvo: !!activeRequest?.canMegaEvo,
+    canUltraBurst: !!activeRequest?.canUltraBurst,
+    canZMove: !!activeRequest?.canZMove,
+    canDynamax: !!activeRequest?.canDynamax,
+    canTerastallize: !!activeRequest?.canTerastallize,
   })) : previous.moves;
 
   return {
@@ -212,6 +245,11 @@ export function battleFromRequest(roomId: string, request: BattleRequest, previo
     active,
     team,
     moves,
+    noCancel: !!request.noCancel,
+    trapped: !!activeRequest?.trapped,
+    maybeTrapped: !!activeRequest?.maybeTrapped,
+    teamPreviewSize: request.chosenTeamSize,
+    choiceError: undefined,
   };
 }
 
@@ -226,4 +264,37 @@ export function commandForChoice(choice: BattleChoice | PokemonSet, rqid?: numbe
     return rqid ? `/choose ${choice.cmd.replace(/^\//, '')}|${rqid}` : choice.cmd;
   }
   return rqid ? `/choose switch ${choice.slot}|${rqid}` : `/choose switch ${choice.slot}`;
+}
+
+export function buildChooseCommand(choice: BattleChoiceState, rqid?: number) {
+  const suffix = rqid ? `|${rqid}` : '';
+  if (choice.kind === 'pass') return `/choose pass${suffix}`;
+  if (choice.kind === 'shift') return `/choose shift${suffix}`;
+  if (choice.kind === 'switch') return `/choose switch ${choice.slot}${suffix}`;
+  if (choice.kind === 'team') return `/choose team ${choice.order.join(',')}${suffix}`;
+
+  const flags = [
+    choice.mega ? 'mega' : '',
+    choice.ultra ? 'ultra' : '',
+    choice.z ? 'zmove' : '',
+    choice.max ? 'dynamax' : '',
+    choice.tera ? 'terastallize' : '',
+    choice.target ? String(choice.target) : '',
+  ].filter(Boolean);
+  return `/choose move ${choice.slot}${flags.length ? ` ${flags.join(' ')}` : ''}${suffix}`;
+}
+
+export function createChoiceBuilder(request: BattleRequest): ChoiceBuilderAdapter {
+  const type = requestType(request);
+  const requestLength = type === 'move' ? request.active?.length || 1 :
+    type === 'switch' ? (Array.isArray(request.forceSwitch) ? request.forceSwitch.length : 1) :
+    type === 'team' ? request.chosenTeamSize || 1 : 0;
+
+  return {
+    request,
+    requestType: type,
+    requestLength,
+    noCancel: !!request.noCancel || type === 'wait',
+    build: choice => buildChooseCommand(choice, request.rqid),
+  };
 }

@@ -1,12 +1,10 @@
 import { Link, Outlet, useLocation } from '@tanstack/react-router';
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import * as Dialog from '@radix-ui/react-dialog';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import {
-  Activity,
   Bell,
   Bot,
-  ChevronDown,
-  MessageSquareText,
+  X,
   RadioTower,
 } from 'lucide-react';
 import { clsx } from 'clsx';
@@ -19,9 +17,10 @@ import { navItems } from '../navigation';
 
 export function AppRoot() {
   const location = useLocation();
-  const { connection, notifications, username, connect, reconnect, disconnect, login, named } = useArenaStore();
+  const { connection, notifications, username, connect, reconnect, disconnect, login, named, loginPending, lastError } = useArenaStore();
   const [nameInput, setNameInput] = useState(username === 'Guest Player' ? '' : username);
   const [passwordInput, setPasswordInput] = useState('');
+  const [accountOpen, setAccountOpen] = useState(false);
   const focusWorkspace = () => document.getElementById('workspace')?.focus();
   const submitName = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -96,45 +95,63 @@ export function AppRoot() {
                 <Bell size={18} aria-hidden />
                 {notifications > 0 && <span>{notifications}</span>}
               </button>
-              <DropdownMenu.Root>
-                <DropdownMenu.Trigger className="user-trigger">
+              <Dialog.Root open={accountOpen} onOpenChange={setAccountOpen}>
+                <button
+                  className="user-trigger"
+                  type="button"
+                  onClick={() => {
+                    setNameInput(username === 'Guest Player' ? '' : username);
+                    setAccountOpen(true);
+                  }}
+                >
                   <Bot size={18} aria-hidden />
                   <span>{username}</span>
-                  <ChevronDown size={14} aria-hidden />
-                </DropdownMenu.Trigger>
-                <DropdownMenu.Portal>
-                  <DropdownMenu.Content className="menu-surface" align="end">
-                    <div className="menu-form" onKeyDown={event => event.stopPropagation()}>
-                      <strong>{named ? username : 'Choose name'}</strong>
-                      <form onSubmit={submitName}>
+                </button>
+                <Dialog.Portal>
+                  <Dialog.Overlay className="dialog-overlay" />
+                  <Dialog.Content className="account-dialog">
+                    <div className="dialog-heading">
+                      <div>
+                        <Dialog.Title>{named ? 'Account connected' : 'Choose name'}</Dialog.Title>
+                        <Dialog.Description>
+                          Use a guest name or enter a registered account password. Passwords are only sent to the PS login endpoint for an assertion.
+                        </Dialog.Description>
+                      </div>
+                      <Dialog.Close className="icon-button" aria-label="Close account dialog">
+                        <X size={17} />
+                      </Dialog.Close>
+                    </div>
+                    <form className="account-form" onSubmit={submitName}>
+                      <label>
+                        <span>Username</span>
                         <input
                           aria-label="Username"
                           placeholder="Guest name"
                           value={nameInput}
                           onChange={event => setNameInput(event.currentTarget.value)}
                         />
+                      </label>
+                      <label>
+                        <span>Password</span>
                         <input
                           aria-label="Password"
-                          placeholder="Password"
+                          placeholder="Optional for registered login"
                           type="password"
                           value={passwordInput}
                           onChange={event => setPasswordInput(event.currentTarget.value)}
                         />
-                        <button type="submit">Set</button>
-                      </form>
-                    </div>
-                    <DropdownMenu.Separator className="menu-separator" />
-                    <DropdownMenu.Item className="menu-item">
-                      <Activity size={16} aria-hidden /> Battle options
-                    </DropdownMenu.Item>
-                    <DropdownMenu.Item className="menu-item">
-                      <MessageSquareText size={16} aria-hidden /> Chat preferences
-                    </DropdownMenu.Item>
-                    <DropdownMenu.Separator className="menu-separator" />
-                    <DropdownMenu.Item className="menu-item">Source and license</DropdownMenu.Item>
-                  </DropdownMenu.Content>
-                </DropdownMenu.Portal>
-              </DropdownMenu.Root>
+                      </label>
+                      {lastError && <p className="form-error">{lastError}</p>}
+                      <div className="button-row">
+                        <button className="primary-action" type="submit" disabled={loginPending || !nameInput.trim()}>
+                          {loginPending ? 'Submitting...' : passwordInput ? 'Log in' : 'Set guest name'}
+                        </button>
+                        <Link className="secondary-action" to="/settings" onClick={() => setAccountOpen(false)}>Settings</Link>
+                      </div>
+                    </form>
+                  </Dialog.Content>
+                </Dialog.Portal>
+              </Dialog.Root>
             </div>
           </header>
 

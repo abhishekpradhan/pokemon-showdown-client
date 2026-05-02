@@ -7,14 +7,16 @@ import {
   MessageCircle,
   Moon,
   RadioTower,
+  RefreshCw,
   Settings,
   Shield,
   Trophy,
   Users,
   type LucideIcon,
 } from 'lucide-react';
-import { type FormEvent, useState } from 'react';
+import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import { TeamBench } from '../components/team-bench';
+import { exportTeam, teamSummary } from '../compat/team-store';
 import { useArenaStore } from '../stores/arena-store';
 
 type UtilityView = 'teambuilder' | 'rooms' | 'ladder' | 'replays' | 'settings';
@@ -31,59 +33,38 @@ const viewMeta: Record<UtilityView, ViewMeta> = {
     title: 'Teambuilder',
     eyebrow: 'Teams',
     icon: Shield,
-    body: 'Import, validate, and prepare teams for PS-compatible formats.',
+    body: 'Import, save, select, and pack teams for PS-compatible searches.',
   },
   rooms: {
     title: 'Rooms',
     eyebrow: 'Community',
     icon: Users,
-    body: 'Join chat rooms, PMs, and tournament spaces without leaving the battle-ready shell.',
+    body: 'Join live chat rooms, inspect public battles, and keep PMs in the same shell.',
   },
   ladder: {
     title: 'Ladder',
     eyebrow: 'Ranked',
     icon: Trophy,
-    body: 'Track format standings and rating changes with fast filters and clear account state.',
+    body: 'Fetch public ladder data when the endpoint is available for the selected format.',
   },
   replays: {
     title: 'Replays',
     eyebrow: 'Review',
     icon: BookOpen,
-    body: 'Load, scrub, upload, and share battle logs while preserving replay compatibility.',
+    body: 'Load replay URLs or pasted logs without mixing review tools into battle rooms.',
   },
   settings: {
     title: 'Settings',
     eyebrow: 'Client',
     icon: Settings,
-    body: 'Manage theme, audio, notifications, graphics, privacy, and AGPL source links.',
+    body: 'Manage connection diagnostics, protocol logging, source links, and local display defaults.',
   },
 };
 
-const roomRows = [
-  { title: 'Lobby', meta: '1,284 users', status: 'Public chat' },
-  { title: 'OverUsed', meta: 'Team discussion', status: 'Slow mode' },
-  { title: 'Tournaments', meta: '3 active', status: 'Open signups' },
-  { title: 'Help', meta: '42 users', status: 'Staff online' },
-];
-
-const ladderRows = [
-  { rank: '01', name: 'storm-zone', rating: '1892', change: '+24' },
-  { rank: '02', name: 'iron tempo', rating: '1868', change: '+11' },
-  { rank: '03', name: 'hazard stack', rating: '1844', change: '-7' },
-  { rank: '04', name: 'calm wincon', rating: '1816', change: '+18' },
-];
-
-const replayRows = [
-  { title: 'Gen 9 OU - Iron Valiant endgame', meta: 'Turn 42', tag: 'Saved' },
-  { title: 'Doubles OU - speed control pivot', meta: 'Turn 18', tag: 'Review' },
-  { title: 'Random Battle - timer comeback', meta: 'Turn 33', tag: 'Shared' },
-];
-
 const settingRows = [
-  { icon: Moon, title: 'Theme', meta: 'Dark arena' },
-  { icon: Bell, title: 'Notifications', meta: 'Mentions and battles' },
-  { icon: Gauge, title: 'Animations', meta: 'Battle motion on' },
-  { icon: RadioTower, title: 'Server', meta: 'Direct PS protocol' },
+  { icon: Moon, title: 'Theme', meta: 'Dark arena active' },
+  { icon: Bell, title: 'Notifications', meta: 'Mentions and battles tracked in-client' },
+  { icon: Gauge, title: 'Motion', meta: 'Uses OS reduced-motion preference' },
 ];
 
 export function UtilityScreen({ view }: { view: UtilityView }) {
@@ -91,35 +72,106 @@ export function UtilityScreen({ view }: { view: UtilityView }) {
   const Icon = meta.icon;
   const {
     activeTeam,
-    battle,
+    activeTeamId,
     connection,
     connect,
     disconnect,
+    exportActiveTeam,
+    importTeamText,
     joinRoom,
+    lastError,
     rawProtocolLog,
+    reconnect,
+    refreshRoomList,
+    roomList,
     rooms,
     sendRoomMessage,
     server,
-    setActiveTeam,
+    selectTeam,
+    teams,
+    teamNotice,
     toggleProtocolLog,
     protocolLogEnabled,
   } = useArenaStore();
   const [roomMessage, setRoomMessage] = useState('');
+  const [teamText, setTeamText] = useState(() => exportTeam(activeTeam));
+  const [teamName, setTeamName] = useState('');
+  const [replayInput, setReplayInput] = useState('');
+  const [replayStatus, setReplayStatus] = useState('Paste a replay URL or log, then load it locally.');
+  const [ladderStatus, setLadderStatus] = useState('Select refresh to fetch public ladder data for the active format.');
+  const [ladderRows, setLadderRows] = useState<Array<{ rank: string; name: string; rating: string }>>([]);
   const liveRooms = Object.values(rooms);
-  const lobby = rooms.lobby || liveRooms[0];
-  const visibleRooms = liveRooms.length ? liveRooms : roomRows.map(room => ({
-    id: room.title.toLowerCase(),
-    title: room.title,
-    type: 'chat',
-    connected: false,
-    users: [],
-    chat: [],
-    log: [],
-  }));
+  const lobby = rooms.lobby || liveRooms.find(room => room.type !== 'battle') || liveRooms[0];
+  const activeStoredTeam = teams.find(team => team.id === activeTeamId);
+  const activeSummary = activeStoredTeam ? teamSummary(activeStoredTeam) : undefined;
+  const roomRows = useMemo(() => {
+    const joined = liveRooms.map(room => ({
+      id: room.id,
+      title: room.title,
+      detail: room.users.length ? `${room.users.length} users` : room.type,
+      status: room.connected ? 'Joined' : 'Rejoin',
+    }));
+    const publicRows = roomList.rooms.slice(0, 24).map(room => ({
+      id: room.id,
+      title: room.title,
+      detail: room.p1 ? `${room.p1}${room.p2 ? ` vs ${room.p2}` : ''}` : `${room.users ?? 0} users`,
+      status: room.p1 ? 'Watch' : 'Join',
+    }));
+    return [...joined, ...publicRows.filter(room => !joined.some(joinedRoom => joinedRoom.id === room.id))];
+  }, [liveRooms, roomList.rooms]);
+
+  useEffect(() => {
+    if (view === 'rooms' && connection === 'connected') refreshRoomList();
+  }, [connection, refreshRoomList, view]);
+
   const submitRoomMessage = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     sendRoomMessage(lobby?.id || 'lobby', roomMessage);
     setRoomMessage('');
+  };
+
+  const importTeam = () => {
+    importTeamText(teamText, teamName);
+  };
+
+  const refreshLadder = async () => {
+    setLadderStatus('Fetching public ladder data...');
+    try {
+      const response = await fetch('https://pokemonshowdown.com/ladder/gen9ou.json');
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json() as { users?: Array<{ username: string; elo?: number; rpr?: number }> };
+      const rows = (data.users || []).slice(0, 10).map((user, index) => ({
+        rank: String(index + 1).padStart(2, '0'),
+        name: user.username,
+        rating: String(Math.round(user.elo || user.rpr || 0)),
+      }));
+      setLadderRows(rows);
+      setLadderStatus(rows.length ? 'Public ladder data loaded.' : 'The ladder endpoint returned no rows.');
+    } catch (error) {
+      setLadderRows([]);
+      setLadderStatus(error instanceof Error ? `Ladder unavailable: ${error.message}` : 'Ladder unavailable.');
+    }
+  };
+
+  const loadReplay = async () => {
+    const value = replayInput.trim();
+    if (!value) {
+      setReplayStatus('Paste a replay URL or log first.');
+      return;
+    }
+    if (value.startsWith('http')) {
+      try {
+        const response = await fetch(value.endsWith('.log') ? value : `${value}.log`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const text = await response.text();
+        setReplayInput(text);
+        setReplayStatus(`Loaded ${text.split('\n').length} replay log lines.`);
+      } catch (error) {
+        setReplayStatus(error instanceof Error ? `Replay unavailable: ${error.message}` : 'Replay unavailable.');
+      }
+      return;
+    }
+    setReplayStatus(`Loaded ${value.split('\n').length} pasted replay log lines.`);
   };
 
   return (
@@ -132,23 +184,52 @@ export function UtilityScreen({ view }: { view: UtilityView }) {
       </div>
 
       {view === 'teambuilder' && (
-        <section className="surface-panel team-builder-panel" aria-label="Team import">
-          <div className="panel-heading">
-            <span>Current team</span>
-            <strong>Gen 9 OU</strong>
-          </div>
-          <TeamBench team={battle.team} />
-          <textarea
-            aria-label="Team import text"
-            placeholder="Paste a PS team export here"
-            value={activeTeam}
-            onChange={event => setActiveTeam(event.currentTarget.value)}
-          />
-          <div className="button-row">
-            <button type="button" className="primary-action">Validate</button>
-            <button type="button" className="secondary-action">Import</button>
-          </div>
-        </section>
+        <>
+          <section className="surface-panel team-builder-panel" aria-label="Team import">
+            <div className="panel-heading">
+              <span>Active team</span>
+              <strong>{activeStoredTeam?.name || 'Unsaved import'}</strong>
+            </div>
+            {activeSummary && <TeamBench team={activeSummary.pokemon} />}
+            <input
+              className="utility-input"
+              aria-label="Team name"
+              placeholder="Team name"
+              value={teamName}
+              onChange={event => setTeamName(event.currentTarget.value)}
+            />
+            <textarea
+              aria-label="Team import text"
+              placeholder="Paste a PS team export or packed team here"
+              value={teamText}
+              onChange={event => setTeamText(event.currentTarget.value)}
+            />
+            <div className="button-row">
+              <button type="button" className="primary-action" onClick={importTeam}>Import and save</button>
+              <button type="button" className="secondary-action" onClick={() => setTeamText(exportActiveTeam())}>Export active</button>
+            </div>
+            {(teamNotice || lastError) && <p className={lastError ? 'inline-error' : 'inline-status'}>{lastError || teamNotice}</p>}
+          </section>
+          <section className="surface-panel utility-table-panel" aria-label="Saved teams">
+            <div className="panel-heading">
+              <span>Saved teams</span>
+              <strong>{teams.length}</strong>
+            </div>
+            {teams.map(team => (
+              <button className="utility-list-row" type="button" key={team.id} onClick={() => {
+                selectTeam(team.id);
+                setTeamText(exportTeam(team.packed));
+              }}>
+                <Shield size={16} aria-hidden />
+                <span>
+                  <strong>{team.name}</strong>
+                  <small>{team.format} · {team.sets.length} Pokemon</small>
+                </span>
+                <em>{team.id === activeTeamId ? 'Active' : 'Select'}</em>
+              </button>
+            ))}
+          </section>
+        </>
       )}
 
       {view === 'rooms' && (
@@ -156,11 +237,11 @@ export function UtilityScreen({ view }: { view: UtilityView }) {
           <section className="surface-panel utility-panel" aria-label="Room activity">
             <div className="panel-heading">
               <span>Room activity</span>
-              <strong>Live</strong>
+              <strong>{lobby?.title || connection}</strong>
             </div>
             <div className="chat-feed utility-chat">
               {(lobby?.chat.length ? lobby.chat.slice(-12) : [
-                { user: 'system', message: 'Connect to the server to receive live room messages.' },
+                { user: 'system', message: connection === 'connected' ? 'Join a room to receive live messages.' : 'Connect to the server to receive live room messages.' },
               ]).map((message, index) => (
                 <p key={`${message.user}-${message.message}-${index}`}><strong>{message.user}</strong> {message.message}</p>
               ))}
@@ -179,18 +260,20 @@ export function UtilityScreen({ view }: { view: UtilityView }) {
           <section className="surface-panel room-list-panel" aria-label="Room list">
             <div className="panel-heading">
               <span>Rooms</span>
-              <strong>Preview</strong>
+              <button type="button" className="secondary-action compact-action" onClick={() => refreshRoomList()}>
+                <RefreshCw size={15} aria-hidden /> Refresh
+              </button>
             </div>
-            {visibleRooms.map(room => (
+            {roomRows.length ? roomRows.map(room => (
               <button className="room-list-row" type="button" key={room.id} onClick={() => joinRoom(room.id)}>
                 <MessageCircle size={16} aria-hidden />
                 <span>
                   <strong>{room.title}</strong>
-                  <small>{room.users.length ? `${room.users.length} users` : room.type}</small>
+                  <small>{room.detail}</small>
                 </span>
-                <em>{room.connected ? 'Joined' : 'Join'}</em>
+                <em>{room.status}</em>
               </button>
-            ))}
+            )) : <p className="inline-status">No rooms loaded yet.</p>}
           </section>
         </>
       )}
@@ -199,28 +282,17 @@ export function UtilityScreen({ view }: { view: UtilityView }) {
         <>
           <section className="surface-panel utility-panel" aria-label="Ladder summary">
             <div className="panel-heading">
-              <span>Selected format</span>
-              <strong>Gen 9 OU</strong>
+              <span>Public ladder</span>
+              <button type="button" className="secondary-action compact-action" onClick={refreshLadder}>
+                <RefreshCw size={15} aria-hidden /> Refresh
+              </button>
             </div>
-            <dl className="stat-list utility-stats">
-              <div>
-                <dt>Your rating</dt>
-                <dd>1516</dd>
-              </div>
-              <div>
-                <dt>GXE</dt>
-                <dd>73.4%</dd>
-              </div>
-              <div>
-                <dt>Next decay</dt>
-                <dd>6 days</dd>
-              </div>
-            </dl>
+            <p>{ladderStatus}</p>
           </section>
           <section className="surface-panel utility-table-panel" aria-label="Ladder standings">
             <div className="panel-heading">
               <span>Top standings</span>
-              <strong>Live preview</strong>
+              <strong>{ladderRows.length || '-'}</strong>
             </div>
             <div className="utility-table">
               {ladderRows.map(row => (
@@ -228,7 +300,7 @@ export function UtilityScreen({ view }: { view: UtilityView }) {
                   <span>{row.rank}</span>
                   <strong>{row.name}</strong>
                   <em>{row.rating}</em>
-                  <small>{row.change}</small>
+                  <small>elo</small>
                 </div>
               ))}
             </div>
@@ -243,27 +315,24 @@ export function UtilityScreen({ view }: { view: UtilityView }) {
               <span>Replay loader</span>
               <strong>PS log</strong>
             </div>
-            <textarea className="utility-textarea" aria-label="Replay log input" placeholder="Paste a replay log or URL" />
+            <textarea
+              className="utility-textarea"
+              aria-label="Replay log input"
+              placeholder="Paste a replay log or replay URL"
+              value={replayInput}
+              onChange={event => setReplayInput(event.currentTarget.value)}
+            />
             <div className="button-row">
-              <button type="button" className="primary-action">Load replay</button>
-              <button type="button" className="secondary-action">Open file</button>
+              <button type="button" className="primary-action" onClick={loadReplay}>Load replay</button>
             </div>
+            <p>{replayStatus}</p>
           </section>
-          <section className="surface-panel utility-table-panel" aria-label="Replay list">
+          <section className="surface-panel utility-table-panel" aria-label="Replay state">
             <div className="panel-heading">
-              <span>Recent replays</span>
-              <strong>3</strong>
+              <span>Loaded log</span>
+              <strong>{replayInput ? `${replayInput.split('\n').length} lines` : '-'}</strong>
             </div>
-            {replayRows.map(row => (
-              <button className="utility-list-row" type="button" key={row.title}>
-                <BookOpen size={16} aria-hidden />
-                <span>
-                  <strong>{row.title}</strong>
-                  <small>{row.meta}</small>
-                </span>
-                <em>{row.tag}</em>
-              </button>
-            ))}
+            <pre className="protocol-log">{replayInput.slice(0, 1200) || 'No replay loaded.'}</pre>
           </section>
         </>
       )}
@@ -272,7 +341,7 @@ export function UtilityScreen({ view }: { view: UtilityView }) {
         <>
           <section className="surface-panel utility-panel" aria-label="Client settings">
             <div className="panel-heading">
-              <span>Client defaults</span>
+              <span>Server connection</span>
               <strong>{connection}</strong>
             </div>
             <button className="utility-list-row" type="button" onClick={() => connection === 'connected' ? disconnect() : connect()}>
@@ -283,17 +352,25 @@ export function UtilityScreen({ view }: { view: UtilityView }) {
               </span>
               <em>{connection === 'connected' ? 'Disconnect' : 'Connect'}</em>
             </button>
+            <button className="utility-list-row" type="button" onClick={reconnect}>
+              <RefreshCw size={16} aria-hidden />
+              <span>
+                <strong>Reconnect</strong>
+                <small>Reconnect and rejoin tracked rooms</small>
+              </span>
+              <em>Run</em>
+            </button>
             {settingRows.map(row => {
               const RowIcon = row.icon;
               return (
-                <button className="utility-list-row" type="button" key={row.title}>
+                <div className="utility-list-row" key={row.title}>
                   <RowIcon size={16} aria-hidden />
                   <span>
                     <strong>{row.title}</strong>
                     <small>{row.meta}</small>
                   </span>
-                  <em>Change</em>
-                </button>
+                  <em>Set</em>
+                </div>
               );
             })}
             <label className="switch-row light-switch-row">
@@ -304,6 +381,7 @@ export function UtilityScreen({ view }: { view: UtilityView }) {
                 onChange={event => toggleProtocolLog(event.currentTarget.checked)}
               />
             </label>
+            {lastError && <p className="inline-error">{lastError}</p>}
           </section>
           <section className="surface-panel utility-panel" aria-label="Legal and source">
             <ClipboardCheck size={22} aria-hidden />

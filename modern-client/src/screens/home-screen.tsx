@@ -1,15 +1,18 @@
 import { Link } from '@tanstack/react-router';
 import * as Tabs from '@radix-ui/react-tabs';
 import { motion } from 'motion/react';
-import { Swords, Timer, UsersRound } from 'lucide-react';
+import { Shield, Swords, Timer, UsersRound } from 'lucide-react';
 import { FormatSelector } from '../components/format-selector';
 import { MiniRoomRail } from '../components/mini-room-rail';
 import { useArenaStore } from '../stores/arena-store';
 
 export function HomeScreen() {
-  const { selectedFormat, formats, setSelectedFormat, searchState, startSearch, cancelSearch, connection, rooms } = useArenaStore();
+  const { selectedFormat, formats, setSelectedFormat, searchState, startSearch, cancelSearch, connection, teams, activeTeamId, lastError, named } = useArenaStore();
   const selected = formats.find(format => format.id === selectedFormat);
-  const liveRooms = Object.values(rooms).filter(room => room.connected);
+  const activeTeam = teams.find(team => team.id === activeTeamId);
+  const requiresTeam = selected?.team !== false;
+  const canSearch = connection === 'connected' && (!requiresTeam || !!activeTeam);
+  const showDemo = import.meta.env.VITE_ENABLE_DEMO_FIXTURES === 'true' || connection === 'offline';
 
   return (
     <section className="home-grid" aria-label="Matchmaking">
@@ -22,16 +25,22 @@ export function HomeScreen() {
         >
           <span className="eyebrow">PS-compatible fork</span>
           <h1>Showdown Arena</h1>
-          <p>Competitive battles, modern controls, and the familiar team-building rhythm.</p>
+          <p>Connect to Showdown, pick a team, and queue without leaving the battle workspace.</p>
         </motion.div>
         <div className="hero-actions" aria-label="Battle search">
           <FormatSelector value={selectedFormat} formats={formats} onValueChange={setSelectedFormat} />
-          <Link to="/battle/$battleId" params={{ battleId: 'demo-gen9ou' }} className="primary-action">
-            <Swords size={19} aria-hidden />
-            Open demo battle
+          <Link to="/teambuilder" className="secondary-action">
+            <Shield size={19} aria-hidden />
+            {activeTeam ? activeTeam.name : 'Choose team'}
           </Link>
+          {showDemo && (
+            <Link to="/battle/$battleId" params={{ battleId: 'demo-gen9ou' }} className="secondary-action">
+              <Swords size={19} aria-hidden />
+              Offline fixture
+            </Link>
+          )}
           {searchState === 'idle' ? (
-            <button className="secondary-action" type="button" onClick={startSearch}>
+            <button className="primary-action" type="button" onClick={startSearch} disabled={!canSearch}>
               <Timer size={19} aria-hidden />
               Search battle
             </button>
@@ -59,17 +68,19 @@ export function HomeScreen() {
           </div>
           <div>
             <dt>Privacy</dt>
-            <dd>Open spectators</dd>
+            <dd>{named ? 'Named' : 'Guest'}</dd>
           </div>
           <div>
             <dt>Server</dt>
             <dd>{connection}</dd>
           </div>
           <div>
-            <dt>Rooms</dt>
-            <dd>{liveRooms.length}</dd>
+            <dt>Team</dt>
+            <dd>{requiresTeam ? activeTeam?.name || 'Required' : 'Preset'}</dd>
           </div>
         </dl>
+        {lastError && <p className="inline-error">{lastError}</p>}
+        <p className="inline-status">{canSearch ? 'Ready to send live search commands.' : 'Connect and choose a valid team before searching.'}</p>
       </div>
 
       <Tabs.Root className="surface-panel activity-panel" defaultValue="rooms">
