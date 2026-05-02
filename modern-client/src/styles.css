@@ -72,7 +72,9 @@ textarea:focus-visible,
   padding: 10px 12px;
   color: #111;
   background: #fffdf7;
+  border: 0;
   border-radius: var(--arena-radius);
+  cursor: pointer;
   transform: translateY(-160%);
   transition: transform 160ms ease;
 }
@@ -446,6 +448,8 @@ textarea:focus-visible,
 .chat-panel,
 .options-panel,
 .placeholder-panel,
+.utility-panel,
+.utility-table-panel,
 .team-builder-panel,
 .room-list-panel {
   padding: 16px;
@@ -574,12 +578,17 @@ textarea:focus-visible,
   cursor: pointer;
 }
 
-.mini-room-row span {
+.mini-room-row span,
+.room-list-row span,
+.utility-list-row span {
   display: grid;
 }
 
 .mini-room-row em,
-.room-list-row em {
+.room-list-row em,
+.utility-list-row em,
+.utility-table-row em,
+.utility-table-row small {
   color: #69645d;
   font-style: normal;
   font-size: 13px;
@@ -633,7 +642,7 @@ textarea:focus-visible,
 
 .battle-field {
   position: relative;
-  min-height: 500px;
+  min-height: clamp(340px, 48svh, 500px);
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 10px;
@@ -764,7 +773,7 @@ textarea:focus-visible,
 .decision-dock {
   position: relative;
   z-index: 2;
-  margin: -34px clamp(10px, 2.2vw, 24px) 0;
+  margin: -28px clamp(10px, 2.2vw, 24px) 0;
   padding: 14px;
   color: var(--arena-dark-text);
   background:
@@ -1076,7 +1085,7 @@ textarea:focus-visible,
 
 .utility-layout {
   display: grid;
-  grid-template-columns: minmax(0, 0.7fr) minmax(320px, 0.55fr);
+  grid-template-columns: minmax(0, 0.74fr) minmax(320px, 0.56fr);
   gap: 18px;
   align-items: start;
 }
@@ -1120,10 +1129,111 @@ textarea:focus-visible,
   resize: vertical;
 }
 
+.utility-textarea {
+  display: block;
+  width: 100%;
+  min-height: 154px;
+  margin-top: 16px;
+  padding: 12px;
+  color: var(--arena-dark-text);
+  background: #fffdf7;
+  border: 1px solid #d8d0c4;
+  border-radius: var(--arena-radius);
+  resize: vertical;
+}
+
 .button-row {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   margin-top: 12px;
+}
+
+.utility-panel,
+.utility-table-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.utility-panel h2 {
+  margin: 0;
+  color: var(--arena-dark-text);
+  font-size: 22px;
+}
+
+.utility-panel p {
+  margin: 0;
+  color: #56514a;
+  line-height: 1.5;
+}
+
+.utility-panel .secondary-action,
+.team-builder-panel .secondary-action,
+.utility-table-panel .secondary-action {
+  color: var(--arena-dark-text);
+  background: rgba(255, 255, 255, 0.64);
+  border-color: rgba(80, 72, 60, 0.14);
+}
+
+.utility-chat {
+  min-height: 170px;
+  color: var(--arena-dark-text);
+  background: rgba(255, 255, 255, 0.42);
+  border: 1px solid rgba(80, 72, 60, 0.12);
+  border-radius: var(--arena-radius);
+  padding: 12px;
+}
+
+.utility-chat p {
+  color: var(--arena-dark-text);
+}
+
+.utility-stats {
+  margin-top: 4px;
+}
+
+.utility-table,
+.utility-table-panel {
+  color: var(--arena-dark-text);
+}
+
+.utility-table {
+  display: grid;
+  gap: 8px;
+}
+
+.utility-table-row,
+.utility-list-row {
+  display: grid;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.56);
+  border: 1px solid rgba(80, 72, 60, 0.12);
+  border-radius: var(--arena-radius);
+}
+
+.utility-table-row {
+  grid-template-columns: 40px minmax(0, 1fr) 64px 48px;
+}
+
+.utility-table-row span {
+  color: var(--arena-red);
+  font-weight: 800;
+}
+
+.utility-list-row {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  width: 100%;
+  color: var(--arena-dark-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.utility-list-row small,
+.room-list-row small {
+  color: #69645d;
 }
 
 .room-list-panel {
@@ -1292,7 +1402,7 @@ textarea:focus-visible,
   }
 
   .battle-field {
-    min-height: 440px;
+    min-height: 400px;
   }
 
   .decision-dock {

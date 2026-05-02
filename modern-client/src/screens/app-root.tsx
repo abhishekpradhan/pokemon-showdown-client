@@ -19,13 +19,14 @@ import { navItems } from '../navigation';
 export function AppRoot() {
   const location = useLocation();
   const { connection, notifications, username, setConnection } = useArenaStore();
+  const focusWorkspace = () => document.getElementById('workspace')?.focus();
 
   return (
     <Tooltip.Provider delayDuration={150}>
       <div className="arena-app">
-        <a className="skip-link" href="#workspace">
+        <button className="skip-link" type="button" onClick={focusWorkspace}>
           Skip to battle workspace
-        </a>
+        </button>
         <aside className="arena-nav" aria-label="Primary">
           <Link to="/" className="brand-lockup" aria-label="Showdown Arena home">
             <img src="https://play.pokemonshowdown.com/favicon-256.png" alt="" />

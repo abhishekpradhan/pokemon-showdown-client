@@ -12,6 +12,24 @@ test('loads home and direct battle route', async ({ page }) => {
   await expect(page.getByRole('button', { name: /Moonblast/i })).toBeVisible();
 });
 
+test('loads every primary route directly', async ({ page }) => {
+  const routes = [
+    ['/', 'Showdown Arena'],
+    ['/teambuilder', 'Teambuilder'],
+    ['/rooms', 'Rooms'],
+    ['/ladder', 'Ladder'],
+    ['/replays', 'Replays'],
+    ['/settings', 'Settings'],
+    ['/battle/demo-gen9ou', 'You vs Rival'],
+  ] as const;
+
+  for (const [route, heading] of routes) {
+    await page.goto(route);
+    await expect(page.getByRole('heading', { name: heading })).toBeVisible();
+    await expect(page.getByText('Compatibility surface')).toHaveCount(0);
+  }
+});
+
 test('demo battle controls produce visible feedback', async ({ page }) => {
   await page.goto('/battle/demo-gen9ou');
   await page.getByRole('button', { name: 'Pause' }).click();
@@ -50,7 +68,7 @@ test('keeps mobile battle controls usable without horizontal overflow', async ({
 test('provides keyboard access to the main workspace', async ({ page }) => {
   await page.goto('/');
   await page.keyboard.press('Tab');
-  await expect(page.getByRole('link', { name: /skip to battle workspace/i })).toBeFocused();
+  await expect(page.getByRole('button', { name: /skip to battle workspace/i })).toBeFocused();
   await page.keyboard.press('Enter');
   await expect(page.locator('#workspace')).toBeFocused();
 });
