@@ -1,5 +1,4 @@
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { ChevronDown } from 'lucide-react';
+import { SearchableSelect } from './searchable-select';
 import type { FormatOption } from '../stores/arena-store';
 
 export function FormatSelector({ value, onValueChange, formats }: {
@@ -7,22 +6,22 @@ export function FormatSelector({ value, onValueChange, formats }: {
   onValueChange: (value: string) => void;
   formats: FormatOption[];
 }) {
-  const selected = formats.find(format => format.id === value);
-  return (
-    <DropdownMenu.Root>
-      <DropdownMenu.Trigger className="format-trigger" aria-label="Select battle format">
-        <span>{selected?.name || value}</span>
-        <ChevronDown size={16} aria-hidden />
-      </DropdownMenu.Trigger>
-      <DropdownMenu.Portal>
-        <DropdownMenu.Content className="menu-surface" align="start">
-          {formats.map(format => (
-            <DropdownMenu.Item className="menu-item" key={format.id} onSelect={() => onValueChange(format.id)}>
-              {format.name}
-            </DropdownMenu.Item>
-          ))}
-        </DropdownMenu.Content>
-      </DropdownMenu.Portal>
-    </DropdownMenu.Root>
-  );
+  return <SearchableSelect
+    ariaLabel="Select battle format"
+    emptyLabel="No formats match"
+    options={formats.map(format => ({
+      value: format.id,
+      label: format.name,
+      group: format.section || 'Formats',
+      description: [
+        format.searchShow ? 'Searchable' : 'Not searchable',
+        format.team === false ? 'Preset team' : 'Team required',
+        format.challengeShow && !format.searchShow ? 'Challenge only' : '',
+      ].filter(Boolean).join(' · '),
+      meta: format.team === false ? 'Preset' : 'Team',
+    }))}
+    placeholder="Select format"
+    value={value}
+    onValueChange={onValueChange}
+  />;
 }

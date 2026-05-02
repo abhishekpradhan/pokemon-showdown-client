@@ -4,10 +4,13 @@ import {
   ChevronRight,
   ClipboardCheck,
   Gauge,
+  Copy,
+  Pencil,
   MessageCircle,
   Moon,
   RadioTower,
   RefreshCw,
+  Trash2,
   Settings,
   Shield,
   Trophy,
@@ -15,6 +18,9 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { type FormEvent, useEffect, useMemo, useState } from 'react';
+import { ConfirmDialog } from '../components/confirm-dialog';
+import { SearchableSelect } from '../components/searchable-select';
+import { StatusCallout } from '../components/status-callout';
 import { TeamBench } from '../components/team-bench';
 import { exportTeam, teamSummary } from '../compat/team-store';
 import { useArenaStore } from '../stores/arena-store';
@@ -75,8 +81,11 @@ export function UtilityScreen({ view }: { view: UtilityView }) {
     activeTeamId,
     connection,
     connect,
+    deleteTeam,
     disconnect,
+    duplicateTeam,
     exportActiveTeam,
+    formats,
     importTeamText,
     joinRoom,
     lastError,
@@ -88,6 +97,10 @@ export function UtilityScreen({ view }: { view: UtilityView }) {
     sendRoomMessage,
     server,
     selectTeam,
+    renameTeam,
+    replaceTeamFromText,
+    updateTeamFormat,
+    selectedFormat,
     teams,
     teamNotice,
     toggleProtocolLog,
@@ -96,6 +109,9 @@ export function UtilityScreen({ view }: { view: UtilityView }) {
   const [roomMessage, setRoomMessage] = useState('');
   const [teamText, setTeamText] = useState(() => exportTeam(activeTeam));
   const [teamName, setTeamName] = useState('');
+  const [teamFormat, setTeamFormat] = useState(selectedFormat);
+  const [editingTeamId, setEditingTeamId] = useState<string | undefined>(activeTeamId);
+  const [teamToDelete, setTeamToDelete] = useState<string | undefined>();
   const [replayInput, setReplayInput] = useState('');
   const [replayStatus, setReplayStatus] = useState('Paste a replay URL or log, then load it locally.');
   const [ladderStatus, setLadderStatus] = useState('Select refresh to fetch public ladder data for the active format.');
@@ -103,7 +119,22 @@ export function UtilityScreen({ view }: { view: UtilityView }) {
   const liveRooms = Object.values(rooms);
   const lobby = rooms.lobby || liveRooms.find(room => room.type !== 'battle') || liveRooms[0];
   const activeStoredTeam = teams.find(team => team.id === activeTeamId);
+  const editingTeam = teams.find(team => team.id === editingTeamId);
   const activeSummary = activeStoredTeam ? teamSummary(activeStoredTeam) : undefined;
+  const teamOptions = teams.map(team => ({
+    value: team.id,
+    label: team.name,
+    group: team.format,
+    description: `${team.sets.length} Pokemon`,
+    meta: team.id === activeTeamId ? 'Active' : 'Team',
+  }));
+  const formatOptions = formats.map(format => ({
+    value: format.id,
+    label: format.name,
+    group: format.section || 'Formats',
+    description: `${format.searchShow ? 'Searchable' : 'Not searchable'} · ${format.team === false ? 'Preset team' : 'Team required'}`,
+    meta: format.team === false ? 'Preset' : 'Team',
+  }));
   const roomRows = useMemo(() => {
     const joined = liveRooms.map(room => ({
       id: room.id,
@@ -131,7 +162,26 @@ export function UtilityScreen({ view }: { view: UtilityView }) {
   };
 
   const importTeam = () => {
-    importTeamText(teamText, teamName);
+    importTeamText(teamText, teamName, teamFormat);
+  };
+
+  const editTeam = (teamId: string) => {
+    const team = teams.find(entry => entry.id === teamId);
+    if (!team) return;
+    setEditingTeamId(team.id);
+    setTeamName(team.name);
+    setTeamFormat(team.format);
+    setTeamText(exportTeam(team.packed));
+  };
+
+  const saveTeamChanges = () => {
+    if (!editingTeamId) {
+      importTeamText(teamText, teamName);
+      return;
+    }
+    if (teamName.trim()) renameTeam(editingTeamId, teamName);
+    replaceTeamFromText(editingTeamId, teamText);
+    updateTeamFormat(editingTeamId, teamFormat);
   };
 
   const refreshLadder = async () => {
@@ -191,6 +241,25 @@ export function UtilityScreen({ view }: { view: UtilityView }) {
               <strong>{activeStoredTeam?.name || 'Unsaved import'}</strong>
             </div>
             {activeSummary && <TeamBench team={activeSummary.pokemon} />}
+            <SearchableSelect
+              ariaLabel="Select active team"
+              emptyLabel="No saved teams"
+              options={teamOptions}
+              placeholder="Choose team"
+              value={activeTeamId}
+              onValueChange={teamId => {
+                selectTeam(teamId);
+                editTeam(teamId);
+              }}
+            />
+            <SearchableSelect
+              ariaLabel="Set team format"
+              emptyLabel="No formats match"
+              options={formatOptions}
+              placeholder="Team format"
+              value={teamFormat}
+              onValueChange={setTeamFormat}
+            />
             <input
               className="utility-input"
               aria-label="Team name"
@@ -205,29 +274,59 @@ export function UtilityScreen({ view }: { view: UtilityView }) {
               onChange={event => setTeamText(event.currentTarget.value)}
             />
             <div className="button-row">
-              <button type="button" className="primary-action" onClick={importTeam}>Import and save</button>
+              <button type="button" className="primary-action" onClick={editingTeamId ? saveTeamChanges : importTeam}>
+                {editingTeamId ? 'Save changes' : 'Import and save'}
+              </button>
+              <button type="button" className="secondary-action" onClick={() => {
+                setEditingTeamId(undefined);
+                setTeamName('');
+                setTeamText('');
+              }}>New team</button>
               <button type="button" className="secondary-action" onClick={() => setTeamText(exportActiveTeam())}>Export active</button>
             </div>
-            {(teamNotice || lastError) && <p className={lastError ? 'inline-error' : 'inline-status'}>{lastError || teamNotice}</p>}
+            {editingTeam && <StatusCallout>Editing {editingTeam.name}</StatusCallout>}
+            {teamNotice && <StatusCallout tone="success">{teamNotice}</StatusCallout>}
+            {lastError && <StatusCallout tone="error">{lastError}</StatusCallout>}
           </section>
           <section className="surface-panel utility-table-panel" aria-label="Saved teams">
             <div className="panel-heading">
               <span>Saved teams</span>
               <strong>{teams.length}</strong>
             </div>
-            {teams.map(team => (
-              <button className="utility-list-row" type="button" key={team.id} onClick={() => {
-                selectTeam(team.id);
-                setTeamText(exportTeam(team.packed));
-              }}>
+            {teams.length ? teams.map(team => (
+              <div className="utility-list-row team-row" key={team.id}>
                 <Shield size={16} aria-hidden />
                 <span>
                   <strong>{team.name}</strong>
                   <small>{team.format} · {team.sets.length} Pokemon</small>
                 </span>
                 <em>{team.id === activeTeamId ? 'Active' : 'Select'}</em>
-              </button>
-            ))}
+                <div className="row-actions">
+                  <button type="button" className="secondary-action compact-action" onClick={() => {
+                    selectTeam(team.id);
+                    editTeam(team.id);
+                  }}>Select</button>
+                  <button type="button" className="icon-button light-icon" aria-label={`Edit ${team.name}`} onClick={() => editTeam(team.id)}>
+                    <Pencil size={15} />
+                  </button>
+                  <button type="button" className="icon-button light-icon" aria-label={`Duplicate ${team.name}`} onClick={() => duplicateTeam(team.id)}>
+                    <Copy size={15} />
+                  </button>
+                  <ConfirmDialog
+                    open={teamToDelete === team.id}
+                    setOpen={open => setTeamToDelete(open ? team.id : undefined)}
+                    title={`Delete ${team.name}?`}
+                    description="This removes the team from local browser storage."
+                    confirmLabel="Delete team"
+                    onConfirm={() => deleteTeam(team.id)}
+                  >
+                    <button type="button" className="icon-button light-icon danger-icon" aria-label={`Delete ${team.name}`} onClick={() => setTeamToDelete(team.id)}>
+                      <Trash2 size={15} />
+                    </button>
+                  </ConfirmDialog>
+                </div>
+              </div>
+            )) : <StatusCallout tone="error">No saved teams. Import a team to search team formats.</StatusCallout>}
           </section>
         </>
       )}
@@ -369,7 +468,7 @@ export function UtilityScreen({ view }: { view: UtilityView }) {
                     <strong>{row.title}</strong>
                     <small>{row.meta}</small>
                   </span>
-                  <em>Set</em>
+                  <em>Status</em>
                 </div>
               );
             })}

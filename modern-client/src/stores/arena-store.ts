@@ -39,8 +39,11 @@ import {
   importTeams,
   loadStoredTeams,
   saveStoredTeams,
+  validateStoredTeam,
+  validateTeamSets,
   type PackedTeam,
   type StoredTeam,
+  type TeamValidationResult,
 } from '../compat/team-store';
 
 type SearchState = 'idle' | 'searching';
@@ -74,6 +77,14 @@ export type RoomState = {
 type LoginCredentials = {
   name: string;
   password?: string;
+};
+
+export type TeamEditorState = {
+  editingTeamId?: string;
+  draftName: string;
+  draftFormat: string;
+  draftText: string;
+  dirty: boolean;
 };
 
 type ArenaState = {
@@ -117,8 +128,14 @@ type ArenaState = {
   sendRoomMessage: (roomId: string, message: string) => void;
   setSelectedFormat: (format: string) => void;
   setActiveTeam: (team: PackedTeam) => void;
-  importTeamText: (text: string, name?: string) => void;
+  importTeamText: (text: string, name?: string, format?: string) => void;
   selectTeam: (teamId: string) => void;
+  deleteTeam: (teamId: string) => void;
+  renameTeam: (teamId: string, name: string) => void;
+  duplicateTeam: (teamId: string) => void;
+  updateTeamFormat: (teamId: string, format: string) => void;
+  replaceTeamFromText: (teamId: string, text: string) => void;
+  validateTeamForFormat: (teamId?: string, formatId?: string) => TeamValidationResult;
   exportActiveTeam: () => string;
   startSearch: () => void;
   cancelSearch: () => void;
@@ -161,6 +178,26 @@ const initialTeams = () => {
 const bootstrappedTeams = initialTeams();
 
 const protocol = new ProtocolClient();
+let loginTimeout: number | undefined;
+let cancelSearchTimeout: number | undefined;
+
+const clearLoginTimeout = () => {
+  if (loginTimeout) window.clearTimeout(loginTimeout);
+  loginTimeout = undefined;
+};
+
+const scheduleLoginTimeout = () => {
+  clearLoginTimeout();
+  loginTimeout = window.setTimeout(() => {
+    const state = useArenaStore.getState();
+    if (state.loginPending) useArenaStore.setState({ loginPending: false, lastError: 'The server did not confirm that name. Try again or reconnect.' });
+  }, 8_000);
+};
+
+const clearCancelSearchTimeout = () => {
+  if (cancelSearchTimeout) window.clearTimeout(cancelSearchTimeout);
+  cancelSearchTimeout = undefined;
+};
 
 const upsertRoom = (rooms: Record<string, RoomState>, roomId: string, patch: Partial<RoomState>): Record<string, RoomState> => {
   const existing = rooms[roomId] || {
@@ -262,7 +299,12 @@ const parseBattleRequest = (line: PsLine): BattleRequest | null => {
 
 protocol.subscribe(event => {
   if (event.type === 'state') {
-    useArenaStore.setState({ connection: event.state, connectionReason: event.reason });
+    useArenaStore.setState(state => ({
+      connection: event.state,
+      connectionReason: event.reason,
+      loginPending: event.state === 'offline' || event.state === 'error' ? false : state.loginPending,
+      lastError: state.loginPending && (event.state === 'offline' || event.state === 'error') ? 'Connection closed before the name was confirmed.' : state.lastError,
+    }));
     if (event.state === 'connected') {
       const state = useArenaStore.getState();
       Object.values(state.rooms)
@@ -313,16 +355,26 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
   chooseName: async name => {
     const trimmed = name.trim();
     if (!trimmed) return;
+    if (get().connection !== 'connected') {
+      set({ lastError: 'Connect to the server before choosing a name.' });
+      return;
+    }
     set({ loginPending: true, lastError: undefined });
+    scheduleLoginTimeout();
     get().protocol.send(`/trn ${trimmed}`);
   },
   login: async ({ name, password }) => {
     const trimmed = name.trim();
     if (!trimmed) return;
     if (!password) return get().chooseName(trimmed);
+    if (get().connection !== 'connected') {
+      set({ lastError: 'Connect to the server before logging in.' });
+      return;
+    }
     const { challstr, server } = get();
     const body = new URLSearchParams({ act: 'login', name: trimmed, pass: password, challstr });
     set({ loginPending: true, lastError: undefined });
+    scheduleLoginTimeout();
     try {
       const response = await fetch(server.loginServer, {
         method: 'POST',
@@ -334,12 +386,12 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
       if (data.assertion) {
         get().protocol.send(`/trn ${trimmed},0,${data.assertion}`);
       } else {
-        set({ lastError: data.error || 'Login did not return an assertion.' });
+        clearLoginTimeout();
+        set({ loginPending: false, lastError: data.error || 'Login did not return an assertion.' });
       }
     } catch (error) {
-      set({ lastError: error instanceof Error ? error.message : 'Login failed.' });
-    } finally {
-      set({ loginPending: false });
+      clearLoginTimeout();
+      set({ loginPending: false, lastError: error instanceof Error ? error.message : 'Login failed.' });
     }
   },
   joinRoom: roomId => get().protocol.send(`/join ${toId(roomId)}`),
@@ -355,10 +407,16 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
   },
   setSelectedFormat: selectedFormat => set({ selectedFormat }),
   setActiveTeam: activeTeam => set({ activeTeam: importPackedTeam(activeTeam), activeTeamId: undefined }),
-  importTeamText: (text, name) => {
-    const imported = importTeams(text, get().selectedFormat);
+  importTeamText: (text, name, format) => {
+    const imported = importTeams(text, format || get().selectedFormat);
     if (!imported.length) {
       set({ teamNotice: 'No Pokemon sets were found in that import.', lastError: 'Team import failed.' });
+      return;
+    }
+    const invalid = imported.find(team => !validateTeamSets(team.sets).ok);
+    if (invalid) {
+      const validation = validateTeamSets(invalid.sets);
+      set({ teamNotice: undefined, lastError: validation.errors.join(' ') || 'Team import failed validation.' });
       return;
     }
     const teams = imported.map((team, index) => ({ ...team, name: name?.trim() || team.name || `Imported team ${index + 1}` }));
@@ -379,27 +437,113 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
     if (!team) return;
     set({ activeTeamId: team.id, activeTeam: team.packed, teamNotice: `${team.name} selected.` });
   },
+  deleteTeam: teamId => {
+    set(state => {
+      const deleted = state.teams.find(team => team.id === teamId);
+      const teams = state.teams.filter(team => team.id !== teamId);
+      const activeTeam = state.activeTeamId === teamId ? teams[0] : state.teams.find(team => team.id === state.activeTeamId);
+      saveStoredTeams(teams);
+      return {
+        teams,
+        activeTeamId: activeTeam?.id,
+        activeTeam: activeTeam?.packed || '',
+        teamNotice: deleted ? `${deleted.name} deleted.` : 'Team deleted.',
+        lastError: undefined,
+      };
+    });
+  },
+  renameTeam: (teamId, name) => {
+    const trimmed = name.trim();
+    if (!trimmed) {
+      set({ lastError: 'Team name cannot be empty.' });
+      return;
+    }
+    set(state => {
+      const teams = state.teams.map(team => team.id === teamId ? { ...team, name: trimmed, updatedAt: Date.now() } : team);
+      saveStoredTeams(teams);
+      return { teams, teamNotice: 'Team renamed.', lastError: undefined };
+    });
+  },
+  duplicateTeam: teamId => {
+    const team = get().teams.find(entry => entry.id === teamId);
+    if (!team) return;
+    const copy: StoredTeam = {
+      ...team,
+      id: `${toId(team.name)}-copy-${Date.now()}`,
+      name: `${team.name} copy`,
+      updatedAt: Date.now(),
+    };
+    set(state => {
+      const teams = [copy, ...state.teams];
+      saveStoredTeams(teams);
+      return { teams, activeTeamId: copy.id, activeTeam: copy.packed, teamNotice: `${copy.name} created.`, lastError: undefined };
+    });
+  },
+  updateTeamFormat: (teamId, format) => {
+    set(state => {
+      const teams = state.teams.map(team => team.id === teamId ? { ...team, format, updatedAt: Date.now() } : team);
+      saveStoredTeams(teams);
+      return { teams, teamNotice: 'Team format updated.', lastError: undefined };
+    });
+  },
+  replaceTeamFromText: (teamId, text) => {
+    const current = get().teams.find(team => team.id === teamId);
+    if (!current) {
+      get().importTeamText(text);
+      return;
+    }
+    const imported = importTeams(text, current.format);
+    const replacement = imported[0];
+    if (!replacement) {
+      set({ lastError: 'No Pokemon sets were found in that import.', teamNotice: undefined });
+      return;
+    }
+    const validation = validateTeamSets(replacement.sets);
+    if (!validation.ok) {
+      set({ lastError: validation.errors.join(' '), teamNotice: undefined });
+      return;
+    }
+    set(state => {
+      const updatedTeam: StoredTeam = {
+        ...current,
+        sets: replacement.sets,
+        packed: replacement.packed,
+        updatedAt: Date.now(),
+      };
+      const teams = state.teams.map(team => team.id === teamId ? updatedTeam : team);
+      saveStoredTeams(teams);
+      return {
+        teams,
+        activeTeam: state.activeTeamId === teamId ? updatedTeam.packed : state.activeTeam,
+        teamNotice: `${current.name} updated.`,
+        lastError: undefined,
+      };
+    });
+  },
+  validateTeamForFormat: (teamId, formatId) => {
+    const team = get().teams.find(entry => entry.id === (teamId || get().activeTeamId));
+    const selectedFormat = get().formats.find(format => format.id === (formatId || get().selectedFormat));
+    if (selectedFormat?.team === false) return { ok: true, errors: [], warnings: [] };
+    return validateStoredTeam(team);
+  },
   exportActiveTeam: () => {
-    const { activeTeam } = get();
-    return exportTeam(activeTeam);
+    const team = get().teams.find(entry => entry.id === get().activeTeamId);
+    return team ? exportTeam(team.packed) : exportTeam(get().activeTeam);
   },
   startSearch: () => {
-    const { protocol: client, selectedFormat, activeTeam, formats, connection, named } = get();
+    const { protocol: client, selectedFormat, activeTeam, activeTeamId, formats, connection, named, searchState } = get();
     const format = formats.find(entry => entry.id === selectedFormat);
-    if (connection !== 'connected') {
-      set({ lastError: 'Connect to a PS-compatible server before searching.' });
-      return;
-    }
-    if (!named) {
-      set({ lastError: 'Choose a name before searching.' });
-      return;
-    }
-    if (!format?.searchShow) {
-      set({ lastError: 'This format is not available for ladder search.' });
-      return;
-    }
-    if (format?.team !== false && !activeTeam) {
-      set({ lastError: 'Select or import a team before searching this format.' });
+    const validation = get().validateTeamForFormat(activeTeamId, selectedFormat);
+    const blockers = [
+      connection !== 'connected' ? 'Connect to a PS-compatible server before searching.' : '',
+      !named ? 'Choose a name before searching.' : '',
+      searchState === 'searching' ? 'You are already searching.' : '',
+      !format?.searchShow ? 'This format is not available for ladder search.' : '',
+      format?.team !== false && !activeTeamId ? 'Select or import a team before searching this format.' : '',
+      format?.team !== false && !validation.ok ? validation.errors.join(' ') : '',
+    ].filter(Boolean);
+    if (blockers.length) {
+      set({ lastError: blockers.join(' ') });
       return;
     }
     if (format?.team !== false && activeTeam) client.send(`/utm ${exportPackedTeam(activeTeam)}`);
@@ -407,8 +551,12 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
     set({ searchState: 'searching', searchFormats: [selectedFormat], notifications: 3, lastError: undefined });
   },
   cancelSearch: () => {
+    clearCancelSearchTimeout();
     get().protocol.send('/cancelsearch');
-    set({ searchState: 'idle' });
+    cancelSearchTimeout = window.setTimeout(() => {
+      const state = useArenaStore.getState();
+      if (state.searchState === 'searching') useArenaStore.setState({ searchState: 'idle', searchFormats: [], lastError: 'Search cancel was sent, but the server did not confirm it.' });
+    }, 4_000);
   },
   submitBattleChoice: (choice, roomId) => {
     const battle = get().battles[roomId || get().battle.id] || get().battle;
@@ -562,6 +710,7 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
         set({ challstr: line.args.join('|') });
         break;
       case 'updateuser':
+        clearLoginTimeout();
         set({
           username: line.args[0] || 'Guest Player',
           named: line.args[1] === '1',
@@ -571,6 +720,7 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
         });
         break;
       case 'nametaken':
+        clearLoginTimeout();
         set({ loginPending: false, lastError: line.args.slice(1).join('|') || `${line.args[0] || 'That name'} is not available.` });
         break;
       case 'formats':
@@ -584,6 +734,7 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
       case 'updatesearch': {
         const update = parseSearchUpdate(line.args.join('|'));
         if (!update) break;
+        clearCancelSearchTimeout();
         set({
           searchFormats: update.searching,
           searchState: update.searching.length ? 'searching' : 'idle',
@@ -591,6 +742,12 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
         });
         break;
       }
+      case 'popup':
+        set({ lastError: line.args.join('|') || 'Server popup received.' });
+        break;
+      case 'error':
+        set({ lastError: line.args.join('|') || 'Server error.' });
+        break;
       case 'updatechallenges':
         set({ notifications: Math.max(get().notifications, 1) });
         break;

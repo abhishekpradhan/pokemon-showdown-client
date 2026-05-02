@@ -8,11 +8,12 @@ import {
   RadioTower,
 } from 'lucide-react';
 import { clsx } from 'clsx';
-import { type FormEvent, useEffect, useState } from 'react';
+import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { useArenaStore } from '../stores/arena-store';
 import { CommandBar } from '../components/command-bar';
 import { LegalFooter } from '../components/legal-footer';
 import { ConnectionPill } from '../components/status-pills';
+import { StatusCallout } from '../components/status-callout';
 import { navItems } from '../navigation';
 
 export function AppRoot() {
@@ -21,17 +22,26 @@ export function AppRoot() {
   const [nameInput, setNameInput] = useState(username === 'Guest Player' ? '' : username);
   const [passwordInput, setPasswordInput] = useState('');
   const [accountOpen, setAccountOpen] = useState(false);
+  const submittedAccountRef = useRef(false);
+  const accountLabel = named ? username : 'Unnamed guest';
   const focusWorkspace = () => document.getElementById('workspace')?.focus();
   const submitName = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    submittedAccountRef.current = true;
     void login({ name: nameInput, password: passwordInput || undefined });
     setPasswordInput('');
-    setAccountOpen(false);
   };
 
   useEffect(() => {
     if (import.meta.env.MODE !== 'test' && import.meta.env.VITE_PS_AUTOCONNECT !== 'false') connect();
   }, [connect]);
+
+  useEffect(() => {
+    if (submittedAccountRef.current && accountOpen && named && !loginPending) {
+      submittedAccountRef.current = false;
+      setAccountOpen(false);
+    }
+  }, [accountOpen, loginPending, named]);
 
   return (
     <Tooltip.Provider delayDuration={150}>
@@ -101,12 +111,12 @@ export function AppRoot() {
                   className="user-trigger"
                   type="button"
                   onClick={() => {
-                    setNameInput(username === 'Guest Player' ? '' : username);
+                    setNameInput(named ? username : '');
                     setAccountOpen(true);
                   }}
                 >
                   <Bot size={18} aria-hidden />
-                  <span>{username}</span>
+                  <span>{accountLabel}</span>
                 </button>
                 <Dialog.Portal>
                   <Dialog.Overlay className="dialog-overlay" />
@@ -142,10 +152,15 @@ export function AppRoot() {
                           onChange={event => setPasswordInput(event.currentTarget.value)}
                         />
                       </label>
-                      {lastError && <p className="form-error">{lastError}</p>}
+                      {connection !== 'connected' && <StatusCallout tone="error">Connect before choosing a name.</StatusCallout>}
+                      {loginPending && <StatusCallout>Waiting for server confirmation.</StatusCallout>}
+                      {lastError && <StatusCallout tone="error">{lastError}</StatusCallout>}
                       <div className="button-row">
                         <button className="primary-action" type="submit" disabled={loginPending || !nameInput.trim()}>
-                          {loginPending ? 'Submitting...' : passwordInput ? 'Log in' : 'Set guest name'}
+                          {loginPending ? 'Submitting...' : passwordInput ? 'Log in' : 'Choose guest name'}
+                        </button>
+                        <button className="secondary-action" type="button" onClick={() => connection === 'connected' ? disconnect() : reconnect()}>
+                          {connection === 'connected' ? 'Disconnect' : 'Reconnect'}
                         </button>
                         <Link className="secondary-action" to="/settings" onClick={() => setAccountOpen(false)}>Settings</Link>
                       </div>

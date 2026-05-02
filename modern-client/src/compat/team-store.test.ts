@@ -1,4 +1,4 @@
-import { exportPackedTeam, exportTeam, importPackedTeam, importTeam, packTeam, unpackTeam } from './team-store';
+import { exportPackedTeam, exportTeam, importPackedTeam, importTeam, packTeam, unpackTeam, validateTeamSets } from './team-store';
 
 describe('team-store compatibility helpers', () => {
   it('imports PS text exports and packs them for /utm', () => {
@@ -15,5 +15,11 @@ describe('team-store compatibility helpers', () => {
     expect(packed).toContain('Iron Valiant');
     expect(unpackTeam(packed)[0]).toMatchObject({ species: 'Iron Valiant', ability: 'Quarkdrive' });
     expect(exportTeam(packed)).toContain('Moonblast');
+  });
+
+  it('validates empty teams and Pokemon without moves', () => {
+    expect(validateTeamSets([])).toMatchObject({ ok: false, errors: ['Add at least one Pokemon.'] });
+    expect(validateTeamSets(importTeam('Pikachu\nAbility: Static')).ok).toBe(false);
+    expect(validateTeamSets(importTeam('Pikachu\nAbility: Static\n- Thunderbolt')).ok).toBe(true);
   });
 });

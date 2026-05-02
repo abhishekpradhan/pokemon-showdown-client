@@ -19,6 +19,12 @@ describe('arena store protocol integration', () => {
       choiceDraftByRoom: {},
       choiceErrorByRoom: {},
       battleModeByRoom: {},
+      teams: [],
+      activeTeam: '',
+      activeTeamId: undefined,
+      teamNotice: undefined,
+      lastError: undefined,
+      loginPending: false,
     });
   });
 
@@ -74,5 +80,76 @@ describe('arena store protocol integration', () => {
 
     store.submitBattleTarget(-1, battle.id);
     expect(send).toHaveBeenCalledWith('/choose move 1 -1|8', battle.id);
+  });
+
+  it('manages team CRUD and active-team deletion', () => {
+    const store = useArenaStore.getState();
+
+    store.importTeamText('Pikachu @ Light Ball\nAbility: Static\n- Thunderbolt', 'Electric test', 'gen9ou');
+    let state = useArenaStore.getState();
+    const teamId = state.activeTeamId;
+    expect(state.teams[0]).toMatchObject({ name: 'Electric test', format: 'gen9ou' });
+
+    store.renameTeam(teamId!, 'Renamed team');
+    expect(useArenaStore.getState().teams[0].name).toBe('Renamed team');
+
+    store.duplicateTeam(teamId!);
+    state = useArenaStore.getState();
+    expect(state.teams).toHaveLength(2);
+    expect(state.activeTeamId).not.toBe(teamId);
+
+    store.deleteTeam(state.activeTeamId!);
+    state = useArenaStore.getState();
+    expect(state.teams).toHaveLength(1);
+    expect(state.activeTeamId).toBe(teamId);
+
+    store.deleteTeam(teamId!);
+    state = useArenaStore.getState();
+    expect(state.teams).toHaveLength(0);
+    expect(state.activeTeamId).toBeUndefined();
+    expect(state.activeTeam).toBe('');
+  });
+
+  it('blocks search with all queue prerequisites and sends valid team search', () => {
+    const send = vi.fn();
+    useArenaStore.setState({
+      protocol: { send } as unknown as ReturnType<typeof useArenaStore.getState>['protocol'],
+      formats: [{ id: 'gen9ou', name: '[Gen 9] OU', searchShow: true, team: true }],
+      selectedFormat: 'gen9ou',
+      connection: 'connected',
+      named: false,
+    });
+    const store = useArenaStore.getState();
+
+    store.startSearch();
+    expect(useArenaStore.getState().lastError).toContain('Choose a name');
+    expect(send).not.toHaveBeenCalled();
+
+    store.handleFrame(parsePsFrame('|updateuser|CodexTester|1|0'));
+    store.startSearch();
+    expect(useArenaStore.getState().lastError).toContain('Select or import a team');
+
+    store.importTeamText('Pikachu\nAbility: Static\n- Thunderbolt', 'Searchable', 'gen9ou');
+    store.startSearch();
+    expect(send).toHaveBeenCalledWith(expect.stringContaining('/utm '));
+    expect(send).toHaveBeenCalledWith('/search gen9ou');
+  });
+
+  it('keeps account pending until updateuser and surfaces nametaken', () => {
+    const send = vi.fn();
+    useArenaStore.setState({
+      protocol: { send } as unknown as ReturnType<typeof useArenaStore.getState>['protocol'],
+      connection: 'connected',
+    });
+    const store = useArenaStore.getState();
+
+    void store.chooseName('CodexTester');
+    expect(useArenaStore.getState().loginPending).toBe(true);
+    store.handleFrame(parsePsFrame('|nametaken|CodexTester|That name is taken.'));
+    expect(useArenaStore.getState()).toMatchObject({ loginPending: false, lastError: 'That name is taken.' });
+
+    void store.chooseName('CodexTester');
+    store.handleFrame(parsePsFrame('|updateuser|CodexTester|1|0'));
+    expect(useArenaStore.getState()).toMatchObject({ loginPending: false, named: true, username: 'CodexTester' });
   });
 });

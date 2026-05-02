@@ -36,6 +36,12 @@ export type TeamSummary = {
   packed: string;
 };
 
+export type TeamValidationResult = {
+  ok: boolean;
+  errors: string[];
+  warnings: string[];
+};
+
 export type PackedTeam = string;
 
 const STORAGE_KEY = 'ps-modern-teams-v1';
@@ -230,9 +236,33 @@ export function teamSummary(team: StoredTeam): TeamSummary {
   };
 }
 
+export function validateTeamSets(sets: TeamSet[]): TeamValidationResult {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  if (!sets.length) errors.push('Add at least one Pokemon.');
+
+  sets.forEach((set, index) => {
+    const label = set.species || set.name || `Pokemon ${index + 1}`;
+    if (!set.species.trim()) errors.push(`${label} is missing a species.`);
+    if (!set.moves.filter(Boolean).length) errors.push(`${label} needs at least one move.`);
+    if (set.moves.filter(Boolean).length > 4) warnings.push(`${label} has more than four moves; only legal moves will be accepted by the server.`);
+  });
+
+  if (sets.length > 6) warnings.push('Teams above six Pokemon may be rejected by standard formats.');
+
+  return { ok: errors.length === 0, errors, warnings };
+}
+
+export function validateStoredTeam(team: StoredTeam | undefined): TeamValidationResult {
+  if (!team) return { ok: false, errors: ['Select or import a team.'], warnings: [] };
+  return validateTeamSets(team.sets);
+}
+
 export function loadStoredTeams(): StoredTeam[] {
   if (typeof window === 'undefined') return [];
   try {
+    if (typeof window.localStorage?.getItem !== 'function') return [];
     const raw = window.localStorage.getItem(STORAGE_KEY);
     return raw ? JSON.parse(raw) as StoredTeam[] : [];
   } catch {
@@ -242,7 +272,12 @@ export function loadStoredTeams(): StoredTeam[] {
 
 export function saveStoredTeams(teams: StoredTeam[]) {
   if (typeof window === 'undefined') return;
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(teams));
+  try {
+    if (typeof window.localStorage?.setItem !== 'function') return;
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(teams));
+  } catch {
+    // Storage can be unavailable in private/test contexts; keep in-memory state working.
+  }
 }
 
 export function importPackedTeam(text: string): PackedTeam {

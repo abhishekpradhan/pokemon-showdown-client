@@ -63,7 +63,11 @@ export async function installMockPs(page: Page) {
         localStorage.setItem('__mockPsSent', JSON.stringify(sent));
         if (message.includes('/trn ')) {
           const name = message.split('/trn ')[1]?.split(',')[0]?.trim() || 'CodexTester';
-          this.emit(`|updateuser|${name}|1|0`);
+          if (name === 'TakenName') {
+            setTimeout(() => this.emit('|nametaken|TakenName|That name is already registered.'), 250);
+          } else {
+            setTimeout(() => this.emit(`|updateuser|${name}|1|0`), 350);
+          }
         }
         if (message.includes('/cmd roomlist')) {
           this.emit(`|queryresponse|roomlist|${JSON.stringify({

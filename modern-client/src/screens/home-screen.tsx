@@ -4,22 +4,34 @@ import { motion } from 'motion/react';
 import { Shield, Swords, Timer, UsersRound } from 'lucide-react';
 import { FormatSelector } from '../components/format-selector';
 import { MiniRoomRail } from '../components/mini-room-rail';
+import { SearchableSelect } from '../components/searchable-select';
+import { StatusCallout } from '../components/status-callout';
 import { useArenaStore } from '../stores/arena-store';
 
 export function HomeScreen() {
-  const { selectedFormat, formats, setSelectedFormat, searchState, searchFormats, startSearch, cancelSearch, connection, teams, activeTeamId, lastError, named } = useArenaStore();
+  const { selectedFormat, formats, setSelectedFormat, searchState, searchFormats, startSearch, cancelSearch, connection, teams, activeTeamId, lastError, named, selectTeam, validateTeamForFormat } = useArenaStore();
   const selected = formats.find(format => format.id === selectedFormat);
   const activeTeam = teams.find(team => team.id === activeTeamId);
   const requiresTeam = selected?.team !== false;
+  const validation = validateTeamForFormat(activeTeamId, selectedFormat);
   const blockers = [
     connection !== 'connected' ? 'Connect to the server' : '',
     !named ? 'Choose a name' : '',
+    searchState === 'searching' ? 'Already searching' : '',
     !selected?.searchShow ? 'Pick a searchable format' : '',
     requiresTeam && !activeTeam ? 'Select a team' : '',
+    requiresTeam && activeTeam && !validation.ok ? validation.errors.join(' ') : '',
   ].filter(Boolean);
-  const canSearch = blockers.length === 0;
+  const canSearch = blockers.filter(blocker => blocker !== 'Already searching').length === 0;
   const queueStatus = searchState === 'searching' ? `Searching ${searchFormats.join(', ') || selectedFormat}` :
     canSearch ? 'Ready to search' : blockers[0];
+  const teamOptions = teams.map(team => ({
+    value: team.id,
+    label: team.name,
+    group: team.format,
+    description: `${team.sets.length} Pokemon`,
+    meta: team.id === activeTeamId ? 'Active' : 'Team',
+  }));
 
   return (
     <section className="home-grid" aria-label="Matchmaking">
@@ -36,10 +48,14 @@ export function HomeScreen() {
         </motion.div>
         <div className="hero-actions" aria-label="Battle search">
           <FormatSelector value={selectedFormat} formats={formats} onValueChange={setSelectedFormat} />
-          <Link to="/teambuilder" className="secondary-action">
-            <Shield size={19} aria-hidden />
-            {activeTeam ? activeTeam.name : 'Choose team'}
-          </Link>
+          <SearchableSelect
+            ariaLabel="Select active team"
+            emptyLabel="No saved teams"
+            options={teamOptions}
+            placeholder="Choose team"
+            value={activeTeamId}
+            onValueChange={selectTeam}
+          />
           {searchState === 'idle' ? (
             <button className="primary-action" type="button" onClick={startSearch} disabled={!canSearch}>
               <Timer size={19} aria-hidden />
@@ -51,6 +67,10 @@ export function HomeScreen() {
               Cancel search
             </button>
           )}
+          <Link to="/teambuilder" className="secondary-action compact-action">
+            <Shield size={17} aria-hidden />
+            Teams
+          </Link>
         </div>
       </div>
 
@@ -80,8 +100,12 @@ export function HomeScreen() {
             <dd>{requiresTeam ? activeTeam?.name || 'Required' : 'Preset'}</dd>
           </div>
         </dl>
-        {lastError && <p className="inline-error">{lastError}</p>}
-        <p className={canSearch ? 'inline-status' : 'inline-error'}>{queueStatus}</p>
+        {lastError && <StatusCallout tone="error">{lastError}</StatusCallout>}
+        {blockers.length > 0 && searchState === 'idle' ? (
+          <div className="blocker-list" aria-label="Queue blockers">
+            {blockers.map(blocker => <StatusCallout tone="error" key={blocker}>{blocker}</StatusCallout>)}
+          </div>
+        ) : <StatusCallout tone={canSearch ? 'success' : 'info'}>{queueStatus}</StatusCallout>}
       </div>
 
       <Tabs.Root className="surface-panel activity-panel" defaultValue="rooms">

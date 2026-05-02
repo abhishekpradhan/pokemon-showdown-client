@@ -9,21 +9,47 @@ test('loads home with real readiness states and no demo language', async ({ page
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Showdown Arena' })).toBeVisible();
   await expect(page.getByText(/demo|fixture|preview/i)).toHaveCount(0);
-  await expect(page.locator('.match-panel .inline-error')).toContainText('Choose a name');
+  await expect(page.getByLabel('Queue blockers').getByText('Choose a name')).toBeVisible();
   await expect(page.getByRole('button', { name: /search battle/i })).toBeDisabled();
 
-  await page.getByRole('button', { name: /Guest/i }).click();
+  await page.getByRole('button', { name: /Unnamed guest/i }).click();
   await page.getByRole('textbox', { name: 'Username' }).fill('CodexTester');
-  await page.getByRole('button', { name: 'Set guest name' }).click();
+  await page.getByRole('button', { name: 'Choose guest name' }).click();
+  await expect(page.getByText('Waiting for server confirmation.')).toBeVisible();
   await expect(page.getByRole('button', { name: /CodexTester/i })).toBeVisible();
   await expect(page.getByRole('button', { name: /search battle/i })).toBeEnabled();
 });
 
+test('format combobox filters and selects live formats', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Select battle format' }).click();
+  await page.getByRole('textbox', { name: 'Select battle format filter' }).fill('random');
+  await page.getByRole('option', { name: /\[Gen 9\] Random Battle/ }).click();
+  await expect(page.getByRole('button', { name: 'Select battle format' })).toContainText('[Gen 9] Random Battle');
+
+  await page.getByRole('button', { name: 'Select battle format' }).click();
+  await page.getByRole('textbox', { name: 'Select battle format filter' }).fill('ou');
+  await page.getByRole('option', { name: /\[Gen 9\] OU/ }).click();
+  await expect(page.getByRole('button', { name: 'Select battle format' })).toContainText('[Gen 9] OU');
+});
+
+test('account dialog stays pending and shows nametaken errors', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: /Unnamed guest/i }).click();
+  await page.getByRole('textbox', { name: 'Username' }).fill('TakenName');
+  await page.getByRole('button', { name: 'Choose guest name' }).click();
+  await expect(page.getByText('Waiting for server confirmation.')).toBeVisible();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByText('That name is already registered.')).toBeVisible();
+  await expect(dialog).toBeVisible();
+});
+
 test('search creates a mock battle room and sends exact battle choices', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: /Guest/i }).click();
+  await page.getByRole('button', { name: /Unnamed guest/i }).click();
   await page.getByRole('textbox', { name: 'Username' }).fill('CodexTester');
-  await page.getByRole('button', { name: 'Set guest name' }).click();
+  await page.getByRole('button', { name: 'Choose guest name' }).click();
+  await expect(page.getByRole('button', { name: /CodexTester/i })).toBeVisible();
   await page.getByRole('button', { name: /search battle/i }).click();
 
   await expect(page.getByRole('button', { name: /cancel search/i })).toBeVisible();
@@ -37,6 +63,26 @@ test('search creates a mock battle room and sends exact battle choices', async (
   await expect.poll(async () => page.evaluate(() => (window as unknown as { __mockPsSent: string[] }).__mockPsSent.join('\n'))).toContain('battle-gen9ou-1|/choose move 1 -1|7');
   await expect.poll(async () => page.evaluate(() => (window as unknown as { __mockPsSent: string[] }).__mockPsSent.join('\n'))).toContain('|/utm ');
   await expect.poll(async () => page.evaluate(() => (window as unknown as { __mockPsSent: string[] }).__mockPsSent.join('\n'))).toContain('|/search gen9ou');
+});
+
+test('teambuilder imports selects duplicates and deletes teams', async ({ page }) => {
+  await page.goto('/teambuilder');
+  await page.getByRole('button', { name: 'New team' }).click();
+  await page.getByRole('textbox', { name: 'Team name' }).fill('Builder Test');
+  await page.getByRole('textbox', { name: 'Team import text' }).fill('Raichu @ Light Ball\nAbility: Static\nTera Type: Electric\n- Thunderbolt');
+  await page.getByRole('button', { name: 'Import and save' }).click();
+  await expect(page.getByLabel('Saved teams').getByText('Builder Test', { exact: true })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Duplicate Builder Test' }).click();
+  await expect(page.getByRole('button', { name: 'Duplicate Builder Test copy' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Delete Builder Test copy' }).click();
+  await page.getByRole('button', { name: 'Delete team' }).click();
+  await expect(page.getByRole('button', { name: 'Delete Builder Test copy' })).toHaveCount(0);
+
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Select active team' }).click();
+  await expect(page.getByRole('option', { name: /Builder Test/ })).toBeVisible();
 });
 
 test('loads every primary route directly without placeholder language', async ({ page }) => {
@@ -59,9 +105,10 @@ test('loads every primary route directly without placeholder language', async ({
 test('keeps mobile battle controls usable without horizontal overflow', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
-  await page.getByRole('button', { name: /Guest/i }).click();
+  await page.getByRole('button', { name: /Unnamed guest/i }).click();
   await page.getByRole('textbox', { name: 'Username' }).fill('CodexTester');
-  await page.getByRole('button', { name: 'Set guest name' }).click();
+  await page.getByRole('button', { name: 'Choose guest name' }).click();
+  await expect(page.getByRole('button', { name: /CodexTester/i })).toBeVisible();
   await page.getByRole('button', { name: /search battle/i }).click();
   await page.goto('/battle/battle-gen9ou-1');
   await expect(page.getByRole('button', { name: /Moonblast/i })).toBeVisible();
