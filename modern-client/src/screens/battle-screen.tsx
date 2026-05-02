@@ -2,6 +2,7 @@ import { useParams } from '@tanstack/react-router';
 import * as Switch from '@radix-ui/react-switch';
 import { motion } from 'motion/react';
 import { FastForward, Flag, MessageSquare, Pause, Play, RotateCcw, Send, TimerReset } from 'lucide-react';
+import { type FormEvent, useState } from 'react';
 import { BattleField } from '../components/battle-field';
 import { MoveControls } from '../components/move-controls';
 import { TeamBench } from '../components/team-bench';
@@ -9,7 +10,14 @@ import { useArenaStore } from '../stores/arena-store';
 
 export function BattleScreen() {
   const params = useParams({ from: '/battle/$battleId' });
-  const { battle, submitBattleChoice, toggleHardcore, hardcoreMode } = useArenaStore();
+  const { battle, submitBattleChoice, toggleHardcore, hardcoreMode, recordBattleEvent, sendBattleChat } = useArenaStore();
+  const [chatMessage, setChatMessage] = useState('');
+
+  const submitChat = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    sendBattleChat(chatMessage);
+    setChatMessage('');
+  };
 
   return (
     <section className="battle-layout battle-console" aria-label={`Battle ${params.battleId}`}>
@@ -20,10 +28,18 @@ export function BattleScreen() {
             <h2>{battle.p1.name} vs {battle.p2.name}</h2>
           </div>
           <div className="toolbar-actions">
-            <button type="button" className="icon-button" aria-label="Replay"><RotateCcw size={17} /></button>
-            <button type="button" className="icon-button" aria-label="Pause"><Pause size={17} /></button>
-            <button type="button" className="icon-button" aria-label="Play"><Play size={17} /></button>
-            <button type="button" className="icon-button" aria-label="Fast forward"><FastForward size={17} /></button>
+            <button type="button" className="icon-button" aria-label="Replay" onClick={() => recordBattleEvent('Replay restarted.')}>
+              <RotateCcw size={17} />
+            </button>
+            <button type="button" className="icon-button" aria-label="Pause" onClick={() => recordBattleEvent('Battle playback paused.')}>
+              <Pause size={17} />
+            </button>
+            <button type="button" className="icon-button" aria-label="Play" onClick={() => recordBattleEvent('Battle playback resumed.')}>
+              <Play size={17} />
+            </button>
+            <button type="button" className="icon-button" aria-label="Fast forward" onClick={() => recordBattleEvent('Skipped to the next decision point.')}>
+              <FastForward size={17} />
+            </button>
           </div>
         </div>
         <BattleField battle={battle} />
@@ -60,12 +76,18 @@ export function BattleScreen() {
             <strong>Room</strong>
           </div>
           <div className="chat-feed">
-            <p><strong>system</strong> Rated battle started.</p>
-            <p><strong>spectator</strong> clean opening position</p>
+            {battle.chat.map((line, index) => (
+              <p key={`${line.user}-${line.message}-${index}`}><strong>{line.user}</strong> {line.message}</p>
+            ))}
           </div>
-          <form className="chat-entry" onSubmit={event => event.preventDefault()}>
+          <form className="chat-entry" onSubmit={submitChat}>
             <MessageSquare size={17} aria-hidden />
-            <input aria-label="Chat message" placeholder="Message battle room" />
+            <input
+              aria-label="Chat message"
+              placeholder="Message battle room"
+              value={chatMessage}
+              onChange={event => setChatMessage(event.currentTarget.value)}
+            />
             <button type="submit" aria-label="Send"><Send size={16} /></button>
           </form>
         </section>
@@ -82,7 +104,7 @@ export function BattleScreen() {
               <Switch.Thumb className="switch-thumb" />
             </Switch.Root>
           </label>
-          <button className="forfeit-button" type="button">
+          <button className="forfeit-button" type="button" onClick={() => recordBattleEvent('Forfeit confirmation would open here.')}>
             <Flag size={16} aria-hidden /> Forfeit
           </button>
         </section>

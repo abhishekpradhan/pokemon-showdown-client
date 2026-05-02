@@ -5,9 +5,23 @@ test('loads home and direct battle route', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Showdown Arena' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Battle', exact: true })).toBeVisible();
 
-  await page.goto('/battle/demo-gen9ou');
+  await page.getByRole('link', { name: /open demo battle/i }).click();
+  await expect(page).toHaveURL(/\/battle\/demo-gen9ou$/);
   await expect(page.getByRole('heading', { name: /You vs Rival/i })).toBeVisible();
   await expect(page.getByRole('button', { name: /Moonblast/i })).toBeVisible();
+});
+
+test('demo battle controls produce visible feedback', async ({ page }) => {
+  await page.goto('/battle/demo-gen9ou');
+  await page.getByRole('button', { name: 'Pause' }).click();
+  await expect(page.getByText('Battle playback paused.')).toBeVisible();
+
+  await page.getByRole('button', { name: /Moonblast/i }).click();
+  await expect(page.getByText('Queued Moonblast.')).toBeVisible();
+
+  await page.getByRole('textbox', { name: /chat message/i }).fill('testing chat');
+  await page.getByRole('button', { name: 'Send' }).click();
+  await expect(page.getByText('Guest Player testing chat')).toBeVisible();
 });
 
 test('captures non-empty visual smoke screenshots', async ({ page }) => {

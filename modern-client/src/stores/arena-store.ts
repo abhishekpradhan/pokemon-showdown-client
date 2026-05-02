@@ -18,6 +18,8 @@ type ArenaState = {
   startSearch: () => void;
   cancelSearch: () => void;
   submitBattleChoice: (choice: BattleChoice | PokemonSet) => void;
+  recordBattleEvent: (event: string) => void;
+  sendBattleChat: (message: string) => void;
   toggleHardcore: (checked: boolean) => void;
 };
 
@@ -49,6 +51,24 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
       battle: {
         ...state.battle,
         log: [logLine, ...state.battle.log].slice(0, 8),
+      },
+    }));
+  },
+  recordBattleEvent: event => {
+    set(state => ({
+      battle: {
+        ...state.battle,
+        log: [event, ...state.battle.log].slice(0, 8),
+      },
+    }));
+  },
+  sendBattleChat: message => {
+    const trimmed = message.trim();
+    if (!trimmed) return;
+    set(state => ({
+      battle: {
+        ...state.battle,
+        chat: [...state.battle.chat, { user: state.username, message: trimmed }].slice(-8),
       },
     }));
   },

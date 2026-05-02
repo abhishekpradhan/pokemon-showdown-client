@@ -28,6 +28,7 @@ export type ArenaBattle = {
   opponentTeam: PokemonSet[];
   moves: BattleChoice[];
   log: string[];
+  chat: { user: string; message: string }[];
 };
 
 export const demoBattle: ArenaBattle = {
@@ -64,6 +65,10 @@ export const demoBattle: ArenaBattle = {
     'Pointed stones dug into Great Tusk.',
     'Iron Valiant awaits your command.',
     'The opposing team still has four Pokemon remaining.',
+  ],
+  chat: [
+    { user: 'system', message: 'Rated battle started.' },
+    { user: 'spectator', message: 'clean opening position' },
   ],
 };
 
