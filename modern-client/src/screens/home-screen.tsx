@@ -24,10 +24,14 @@ export function HomeScreen() {
         </motion.div>
         <div className="hero-actions" aria-label="Battle search">
           <FormatSelector value={selectedFormat} onValueChange={setSelectedFormat} />
+          <Link to="/battle/$battleId" params={{ battleId: 'demo-gen9ou' }} className="primary-action">
+            <Swords size={19} aria-hidden />
+            Open demo battle
+          </Link>
           {searchState === 'idle' ? (
-            <button className="primary-action" type="button" onClick={startSearch}>
-              <Swords size={19} aria-hidden />
-              Battle
+            <button className="secondary-action" type="button" onClick={startSearch}>
+              <Timer size={19} aria-hidden />
+              Start queue preview
             </button>
           ) : (
             <button className="danger-action" type="button" onClick={cancelSearch}>
@@ -35,9 +39,6 @@ export function HomeScreen() {
               Cancel search
             </button>
           )}
-          <Link to="/battle/$battleId" params={{ battleId: 'demo-gen9ou' }} className="secondary-action">
-            Open demo battle
-          </Link>
         </div>
       </div>
 

@@ -3,7 +3,8 @@ import { expect, test } from '@playwright/test';
 test('loads home and direct battle route', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Showdown Arena' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Battle', exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: /open demo battle/i })).toBeVisible();
+  await expect(page.getByRole('button', { name: /start queue preview/i })).toBeVisible();
 
   await page.getByRole('link', { name: /open demo battle/i }).click();
   await expect(page).toHaveURL(/\/battle\/demo-gen9ou$/);
