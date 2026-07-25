@@ -1,0 +1,24 @@
+name: Protocol compatibility
+description: The client mishandles or ignores something a PS server sends
+labels: [compatibility]
+body:
+  - type: textarea
+    id: lines
+    attributes:
+      label: Protocol lines involved
+      description: The exact lines (from Settings → Protocol diagnostics or a replay .log).
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What the official client does with them
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What this client does
+    validations:
+      required: true

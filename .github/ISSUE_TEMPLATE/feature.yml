@@ -1,0 +1,15 @@
+name: Feature request
+description: Something the client should do but does not
+labels: [enhancement]
+body:
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What and why
+      description: What should exist, and what does it unblock for you?
+    validations:
+      required: true
+  - type: textarea
+    id: prior
+    attributes:
+      label: How the official client handles it (if it does)

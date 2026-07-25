@@ -1,5 +1,8 @@
 # Showdown Arena
 
+[![CI](https://github.com/abhishekpradhan/pokemon-showdown-client/actions/workflows/ci.yml/badge.svg)](https://github.com/abhishekpradhan/pokemon-showdown-client/actions/workflows/ci.yml)
+[![License: AGPL-3.0-or-later](https://img.shields.io/badge/license-AGPL--3.0--or--later-blue.svg)](LICENSE)
+
 A modern, standalone battle client for [Pokémon Showdown][ps] servers.
 
 It speaks the Showdown wire protocol, so it connects to the public server — or
@@ -16,6 +19,8 @@ official client's engine. Deploys to Vercel as static assets plus two small
 Edge functions (login and replay-upload proxies).
 
   [ps]: https://pokemonshowdown.com/
+
+![A live battle in Showdown Arena](docs/media/battle.png)
 
 ---
 

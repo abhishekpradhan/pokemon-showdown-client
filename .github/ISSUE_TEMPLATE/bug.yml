@@ -1,0 +1,31 @@
+name: Bug report
+description: Something in the client is broken or behaves wrongly
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What did you do, what did you expect, what happened instead?
+    validations:
+      required: true
+  - type: input
+    id: server
+    attributes:
+      label: Server
+      description: Which server were you connected to?
+      placeholder: sim3.psim.us (default)
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and OS
+      placeholder: Firefox 141 on macOS 15
+  - type: textarea
+    id: protocol
+    attributes:
+      label: Protocol log (if battle-related)
+      description: >
+        Settings → Protocol diagnostics keeps a redacted log of recent server
+        traffic. For battle bugs, the relevant lines make the difference
+        between a guess and a fix.
+      render: text

@@ -5,6 +5,9 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+  schedule:
+    # Nightly live-protocol check: handshake drift shows up here first.
+    - cron: '20 6 * * *'
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -81,8 +84,8 @@ jobs:
     name: Live protocol smoke
     runs-on: ubuntu-latest
     # Talks to the public Showdown server, so keep it off pull requests from
-    # forks and out of the per-commit path.
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    # forks. Non-blocking: a PS outage must not gate merges.
+    if: github.event_name != 'pull_request'
     continue-on-error: true
     steps:
       - uses: actions/checkout@v4
