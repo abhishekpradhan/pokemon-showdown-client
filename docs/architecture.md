@@ -1,7 +1,9 @@
 # Architecture
 
 Why the client is put together the way it is. For how to run it, see the
-[README](../README.md).
+[README](../README.md). For the July 2026 top-down review and the phased
+modernization plan (battle-engine swap, room registry, session model), see
+[architecture-review.md](architecture-review.md).
 
 ## The shape of the problem
 
