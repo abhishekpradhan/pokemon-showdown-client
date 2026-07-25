@@ -88,7 +88,7 @@ export function AppRoot() {
           <Tooltip.Root>
             <Tooltip.Trigger asChild>
               <Link to="/" className="brand-mark" aria-label="Showdown Arena home">
-                <img src="https://play.pokemonshowdown.com/favicon-256.png" alt="" />
+                <img src="/favicon.svg" alt="" />
               </Link>
             </Tooltip.Trigger>
             <Tooltip.Portal>

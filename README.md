@@ -6,8 +6,14 @@ It speaks the Showdown wire protocol, so it connects to the public server — or
 any PS-compatible one — and plays real, rated battles. It is not a server: it
 talks to one.
 
-Built with React 19, TypeScript and Vite. Deploys to Vercel as static assets
-plus a single serverless function.
+Play rated ladder battles, challenge players directly, spectate live games,
+review replays, chat in the full room directory, and build teams in a
+dex-backed editor — in the browser.
+
+Built with React 19, TypeScript and Vite, with battle state maintained by
+[`@pkmn/client`](https://github.com/pkmn/ps), the maintained extraction of the
+official client's engine. Deploys to Vercel as static assets plus two small
+Edge functions (login and replay-upload proxies).
 
   [ps]: https://pokemonshowdown.com/
 
@@ -68,9 +74,12 @@ Step 2 is not optional. A `/trn` without an assertion is rejected with
 ## Layout
 
 ```
-api/          Serverless functions (the login proxy)
+api/          Edge functions (login + replay-upload proxies)
 src/
-  compat/     Wire protocol: framing, battle state, teams, login
+  battle/     @pkmn/client engine wrapper and view projection
+  compat/     Wire protocol: framing, requests/choices, teams, login
+  protocol/   The router: frames → global handlers or owning room
+  rooms/      The registry: ChatRoom | PmRoom | BattleRoom
   data/       Pokédex, sprites, type chart (@pkmn)
   stores/     Client state (zustand)
   screens/    Routed surfaces

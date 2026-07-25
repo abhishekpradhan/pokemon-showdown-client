@@ -153,14 +153,11 @@ mistakes. When fixing a protocol bug, teach the mock to fail on it.
 ## Known gaps
 
 - No battle animations or sound; the field renders state, not choreography.
-- Doubles/VGC target selection works but is not visually mapped to positions.
-- The teambuilder edits sets as text and does not validate against format
-  rules — the server rejects invalid teams at match time.
-- `applyBattleProtocolLine` covers switches, damage, status, stat stages,
-  volatiles, hazards, weather, terrain, reveals and end conditions — the
-  messages that change what the field shows — but not all ~150. Adopting
-  `@pkmn/client` for complete battle state is the natural next step.
-- Chat renders as plain text; no HTML messages, no `/raw` support.
-- No challenge/accept flow: matchmaking is ladder search only.
+- Doubles render true positions via the engine, but target selection is not
+  visually mapped to field positions.
+- The set editor constrains moves to learnsets but does not validate full
+  format legality (clauses, bans) — the server rejects illegal teams at
+  match time.
 - Tournaments are not implemented.
-- The teambuilder has no set editor beyond text import/export.
+- The battle view model renders one active slot per side prominently;
+  doubles show state correctly but the layout is singles-first.

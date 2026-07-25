@@ -15,7 +15,7 @@ const UPSTREAM = process.env.PS_LOGIN_SERVER || 'https://play.pokemonshowdown.co
 // action.php responses are small; this caps abuse of the proxy.
 const MAX_BODY_BYTES = 64 * 1024;
 
-export const config = { runtime: 'nodejs' };
+export const config = { runtime: 'edge' };
 
 export default async function handler(request: Request): Promise<Response> {
   if (request.method === 'OPTIONS') {
