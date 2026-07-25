@@ -135,7 +135,7 @@ export function ReplaysScreen() {
 
   return (
     <section className="utility-workspace replay-workspace" aria-label="Replays">
-      <main className="workspace-stage replay-stage">
+      <div className="workspace-stage replay-stage">
         <header className="stage-heading replay-heading">
           <span>
             <small>Battle review</small>
@@ -175,7 +175,7 @@ export function ReplaysScreen() {
           />
           <span>{lines.length ? `${cursor + 1} / ${lines.length}` : '0 / 0'}</span>
         </div>
-      </main>
+      </div>
 
       <aside className="workspace-inspector replay-inspector">
         <div className="replay-loader">

@@ -44,7 +44,7 @@ export function SettingsScreen() {
 
   return (
     <section className="utility-workspace settings-workspace" aria-label="Settings">
-      <main className="workspace-stage settings-stage">
+      <div className="workspace-stage settings-stage">
         <header className="stage-heading">
           <span>
             <small>Client preferences</small>
@@ -175,7 +175,7 @@ export function SettingsScreen() {
             </a>
           </div>
         </section>
-      </main>
+      </div>
 
       <aside className="workspace-inspector diagnostics-inspector">
         <header className="inspector-heading">

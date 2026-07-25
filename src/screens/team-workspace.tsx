@@ -134,7 +134,7 @@ export function TeamWorkspace() {
         </button>
       </aside>
 
-      <main className="workspace-stage team-editor-stage">
+      <div className="workspace-stage team-editor-stage">
         <header className="stage-heading">
           <span>
             <small>{editingTeamId ? 'Editing team' : 'New team'}</small>
@@ -235,7 +235,7 @@ export function TeamWorkspace() {
           {teamNotice && <StatusCallout tone="success">{teamNotice}</StatusCallout>}
           {lastError && <StatusCallout tone="error">{lastError}</StatusCallout>}
         </div>
-      </main>
+      </div>
 
       <aside className="workspace-inspector set-inspector" aria-label="Selected Pokémon details">
         <header className="inspector-heading">

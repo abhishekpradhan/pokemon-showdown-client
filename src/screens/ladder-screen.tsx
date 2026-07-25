@@ -90,7 +90,7 @@ export function LadderScreen() {
 
   return (
     <section className="utility-workspace ladder-workspace" aria-label="Ladder">
-      <main className="workspace-stage ladder-stage">
+      <div className="workspace-stage ladder-stage">
         <header className="stage-heading ladder-heading">
           <span>
             <small>Public rankings</small>
@@ -134,7 +134,7 @@ export function LadderScreen() {
             )}
           </div>
         </div>
-      </main>
+      </div>
       <aside className="workspace-inspector ladder-inspector">
         <header className="inspector-heading">
           <span>

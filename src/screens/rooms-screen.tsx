@@ -159,7 +159,7 @@ export function RoomsScreen() {
         </div>
       </aside>
 
-      <main className="workspace-stage room-stage">
+      <div className="workspace-stage room-stage">
         <header className="stage-heading room-stage-heading">
           <span>
             <small>{selectedRoom?.type || 'Room session'}</small>
@@ -207,7 +207,7 @@ export function RoomsScreen() {
             <ChevronRight size={17} />
           </button>
         </form>
-      </main>
+      </div>
 
       <aside className="workspace-inspector member-inspector" aria-label="Room members">
         <header className="inspector-heading">
