@@ -56,14 +56,14 @@
 }
 
 .battle-room-title strong i {
-  color: #687486;
+  color: var(--arena-faint);
   font-style: normal;
   font-weight: 500;
 }
 
 .battle-room-title small {
   margin-top: 2px;
-  color: #6f7a8a;
+  color: var(--arena-faint);
   font-size: 9px;
 }
 
@@ -428,8 +428,8 @@
 }
 
 .decision-heading .eyebrow {
-  color: #6f7b8c;
-  font-size: 8px;
+  color: var(--arena-faint);
+  font-size: 10px;
   letter-spacing: 0.08em;
 }
 
@@ -458,7 +458,7 @@
   color: #8fbcff;
   background: rgba(91, 156, 255, 0.1);
   border-radius: 4px;
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 760;
   text-transform: uppercase;
 }
@@ -717,7 +717,7 @@
   justify-self: start;
   padding: 1px 5px;
   color: #0d1015;
-  font-size: 8px;
+  font-size: 10px;
   font-style: normal;
   font-weight: 800;
   background: var(--status-color);
@@ -734,7 +734,7 @@
   gap: 9px;
   min-height: 70px;
   padding: 0 12px;
-  color: #818d9d;
+  color: var(--arena-faint);
   background: #191f28;
   border: 1px dashed rgba(255, 255, 255, 0.1);
   border-radius: 6px;
@@ -782,7 +782,7 @@
   justify-content: center;
   gap: 5px;
   min-height: 31px;
-  color: #778394;
+  color: var(--arena-faint);
   background: transparent;
   border: 0;
   border-radius: 5px;
@@ -821,7 +821,7 @@
 }
 
 .battle-log-panel .panel-heading span {
-  color: #6d7989;
+  color: var(--arena-faint);
   font-size: 9px;
 }
 
@@ -909,7 +909,7 @@
 }
 
 .battle-facts dt {
-  color: #6f7b8b;
+  color: var(--arena-faint);
 }
 
 .battle-facts dd {
@@ -930,8 +930,8 @@
 
 .battle-info-panel .switch-row small {
   margin-top: 3px;
-  color: #707c8c;
-  font-size: 8px;
+  color: var(--arena-faint);
+  font-size: 10px;
 }
 
 .battle-inspector-actions {

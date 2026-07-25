@@ -37,7 +37,7 @@ export function SessionSidebar() {
             <strong>Matchmaking</strong>
             <small>{searchState === 'searching' ? `Searching ${searchFormats[0] || ''}` : 'Queue console'}</small>
           </span>
-          {searchState === 'searching' && <i className="session-live-dot" aria-label="Searching" />}
+          {searchState === 'searching' && <i className="session-live-dot" role="img" aria-label="Searching" />}
         </Link>
 
         {battleSessions.map(battle => (
@@ -55,7 +55,7 @@ export function SessionSidebar() {
                 <strong>{battle.p1.name} · {battle.p2.name}</strong>
                 <small>{battle.ended ? battle.winner ? `${battle.winner} won` : 'Battle ended' : `Turn ${battle.turn || '—'} · ${battle.format}`}</small>
               </span>
-              {!battle.ended && <i className="session-live-dot" aria-label="Live" />}
+              {!battle.ended && <i className="session-live-dot" role="img" aria-label="Live" />}
             </button>
             {battle.id !== 'demo-gen9ou' && (
               <button className="session-close" type="button" aria-label={`Leave ${battle.id}`} onClick={() => leaveRoom(battle.id)}>

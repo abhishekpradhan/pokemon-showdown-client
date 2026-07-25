@@ -34,8 +34,8 @@
 }
 
 .settings-section-heading small {
-  color: #6f7b8b;
-  font-size: 8px;
+  color: var(--arena-faint);
+  font-size: 10px;
   text-transform: capitalize;
 }
 
@@ -58,7 +58,7 @@
   place-items: center;
   width: 30px;
   height: 30px;
-  color: #7c8898;
+  color: var(--arena-faint);
   background: rgba(255, 255, 255, 0.035);
   border-radius: 6px;
 }
@@ -74,14 +74,14 @@
 
 .setting-row small {
   margin-top: 3px;
-  color: #6f7b8b;
-  font-size: 8px;
+  color: var(--arena-faint);
+  font-size: 10px;
 }
 
 .setting-row .secondary-action {
   min-height: 31px;
   padding: 0 9px;
-  font-size: 8px;
+  font-size: 10px;
 }
 
 .setting-segmented {
@@ -93,12 +93,12 @@
 .setting-segmented button {
   min-height: 27px;
   padding: 0 8px;
-  color: #788496;
+  color: var(--arena-faint);
   background: transparent;
   border: 0;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 8px;
+  font-size: 10px;
 }
 
 .setting-segmented button.is-active {
@@ -153,23 +153,23 @@
 }
 
 .source-section > p {
-  color: #7b8797;
+  color: var(--arena-faint);
   font-size: 9px;
 }
 
 .source-section .secondary-action {
   min-height: 32px;
-  font-size: 8px;
+  font-size: 10px;
 }
 
 .diagnostics-inspector .protocol-log {
   flex: 1;
   min-height: 180px;
   margin-top: 10px;
-  color: #7f8b9b;
+  color: var(--arena-faint);
   background: #0e1319;
   border-color: rgba(255, 255, 255, 0.07);
-  font-size: 8px;
+  font-size: 10px;
   line-height: 1.55;
 }
 

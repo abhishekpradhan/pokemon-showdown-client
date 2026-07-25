@@ -61,7 +61,7 @@ function SideConditions({ conditions, label, side }: {
 }) {
   if (!conditions?.length) return null;
   return (
-    <div className={`side-conditions is-${side}`} aria-label={label}>
+    <div className={`side-conditions is-${side}`} role="group" aria-label={label}>
       {conditions.map(condition => (
         <span key={condition.name}>
           {condition.name}{condition.layers > 1 && <i>×{condition.layers}</i>}
@@ -136,7 +136,11 @@ function Combatant({ battle, hideHealth = false, pokemon, side }: {
 function RosterPips({ team, hidden, label }: { team: PokemonSet[]; hidden: boolean; label: string }) {
   const remaining = team.filter(pokemon => !(pokemon.fainted || pokemon.hp <= 0)).length;
   return (
-    <span className="roster-pips" aria-label={`${label}: ${remaining} of ${team.length} remaining`}>
+    <span
+      className="roster-pips"
+      role="img"
+      aria-label={`${label}: ${remaining} of ${team.length} remaining`}
+    >
       {team.map(pokemon => (
         <i
           key={`${pokemon.slot}-${pokemon.species}`}
@@ -173,7 +177,7 @@ export function BattleField({ battle, hardcore = false }: { battle: ArenaBattle;
       <SideConditions conditions={battle.sideConditions} label="Your side conditions" side="near" />
 
       {effects.length > 0 && (
-        <div className="field-effects" aria-label="Field conditions">
+        <div className="field-effects" role="group" aria-label="Field conditions">
           {effects.map(effect => <span key={effect}>{effect}</span>)}
         </div>
       )}

@@ -65,7 +65,7 @@ export function MoveControls({ moves, onChoose }: {
         </div>
       )}
 
-      <div className="move-grid" aria-label="Move choices">
+      <div className="move-grid" role="group" aria-label="Move choices">
         {moves.map(move => {
           const tone = effectivenessTone(move.effectiveness);
           return (

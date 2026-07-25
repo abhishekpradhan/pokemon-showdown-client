@@ -129,7 +129,7 @@
 
 .control-field > span,
 .deck-label {
-  color: #788496;
+  color: var(--arena-faint);
   font-size: 9px;
   font-weight: 780;
   letter-spacing: 0.08em;
@@ -173,7 +173,7 @@
 }
 
 .queue-action:disabled {
-  color: #758092;
+  color: var(--arena-faint);
   background: #202630;
   border-color: rgba(255, 255, 255, 0.08);
   cursor: not-allowed;
@@ -216,7 +216,7 @@
 
 .searching-deck small {
   margin-top: 3px;
-  color: #8490a0;
+  color: var(--arena-faint);
   font-size: 10px;
 }
 
@@ -282,7 +282,7 @@
 }
 
 .inspector-heading small {
-  color: #697587;
+  color: var(--arena-faint);
   font-size: 9px;
   font-weight: 760;
   letter-spacing: 0.08em;
@@ -352,7 +352,7 @@
 }
 
 .readiness-row small {
-  color: #697587;
+  color: var(--arena-faint);
   font-size: 9px;
 }
 
@@ -381,7 +381,7 @@
   display: flex;
   justify-content: space-between;
   padding: 17px 1px 7px;
-  color: #778395;
+  color: var(--arena-faint);
   font-size: 9px;
   font-weight: 760;
   letter-spacing: 0.07em;
@@ -412,7 +412,7 @@
 }
 
 .match-inspector .mini-room-row em {
-  color: #6e7989;
+  color: var(--arena-faint);
   font-size: 9px;
 }
 
@@ -421,7 +421,7 @@
   gap: 8px;
   margin-top: auto;
   padding-top: 13px;
-  color: #687486;
+  color: var(--arena-faint);
   border-top: 1px solid var(--arena-line);
   font-size: 9px;
   line-height: 1.45;

@@ -22,8 +22,8 @@
   /* Text. */
   --arena-text: #f4f7fb;
   --arena-soft: #d9e0e9;
-  --arena-muted: #8c98a8;
-  --arena-faint: #6b7789;
+  --arena-muted: #9aa5b4;
+  --arena-faint: #8894a6;
   --arena-dark-text: #111722;
 
   /* Accents. */
@@ -31,6 +31,9 @@
   --arena-accent-strong: #3f84f0;
   --arena-cyan: #5b9cff;
   --arena-red: #f05a5a;
+  /* Red text needs to be lighter than the red used for fills and borders to
+     clear 4.5:1 on our panel backgrounds. */
+  --arena-red-text: #ff8a8a;
   --arena-green: #48c78e;
   --arena-gold: #e7b95c;
   --arena-purple: #a78bfa;

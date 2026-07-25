@@ -67,13 +67,13 @@ textarea:focus-visible,
   gap: 2px;
   min-height: 49px;
   padding: 5px 2px;
-  color: #778293;
+  color: var(--arena-faint);
   border-radius: 7px;
   transition: color 140ms ease, background 140ms ease, transform 140ms ease;
 }
 
 .primary-nav-link span {
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 650;
   line-height: 1;
 }
@@ -144,7 +144,7 @@ textarea:focus-visible,
 .session-sidebar-heading {
   min-height: 30px;
   padding: 0 7px 8px;
-  color: #778293;
+  color: var(--arena-faint);
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.1em;
@@ -155,7 +155,7 @@ textarea:focus-visible,
 .session-close {
   display: grid;
   place-items: center;
-  color: #7f8998;
+  color: var(--arena-faint);
   background: transparent;
   border: 0;
   border-radius: 5px;
@@ -232,7 +232,7 @@ textarea:focus-visible,
 
 .session-item small {
   margin-top: 3px;
-  color: #758091;
+  color: var(--arena-faint);
   font-size: 10px;
 }
 
@@ -282,7 +282,7 @@ textarea:focus-visible,
 .session-empty {
   margin: 10px 6px;
   padding: 14px 10px;
-  color: #667181;
+  color: var(--arena-faint);
   border-top: 1px solid var(--arena-line);
 }
 
@@ -309,7 +309,7 @@ textarea:focus-visible,
   display: block;
   padding: 1px 8px 0;
   overflow: hidden;
-  color: #596474;
+  color: var(--arena-faint);
   font-size: 9px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -369,7 +369,7 @@ textarea:focus-visible,
 
 .workspace-context small {
   margin-top: 2px;
-  color: #697586;
+  color: var(--arena-faint);
   font-size: 9px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -395,11 +395,11 @@ textarea:focus-visible,
 }
 
 .command-bar input::placeholder {
-  color: #687486;
+  color: var(--arena-faint);
 }
 
 .command-bar kbd {
-  color: #717d8e;
+  color: var(--arena-faint);
   background: #0d1117;
   border-color: rgba(255, 255, 255, 0.09);
 }
@@ -485,7 +485,7 @@ textarea:focus-visible,
 .notification-row small,
 .popover-empty {
   margin-top: 3px;
-  color: #7c8797;
+  color: var(--arena-faint);
   font-size: 10px;
 }
 

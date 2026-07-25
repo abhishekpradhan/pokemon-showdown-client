@@ -12,7 +12,7 @@
 .replay-status {
   max-width: 54%;
   overflow: hidden;
-  color: #7a8697;
+  color: var(--arena-faint);
   font-size: 9px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -35,7 +35,7 @@
   place-items: center;
   align-content: center;
   gap: 9px;
-  color: #6b7788;
+  color: var(--arena-faint);
   background: rgba(10, 14, 19, 0.56);
   backdrop-filter: blur(4px);
 }
@@ -83,8 +83,8 @@
 }
 
 .replay-transport > span {
-  color: #738092;
-  font-size: 8px;
+  color: var(--arena-faint);
+  font-size: 10px;
 }
 
 .replay-inspector {
@@ -117,8 +117,8 @@
   display: flex;
   justify-content: space-between;
   padding: 11px 14px 7px;
-  color: #6f7b8b;
-  font-size: 8px;
+  color: var(--arena-faint);
+  font-size: 10px;
   font-weight: 750;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -172,11 +172,11 @@
 
 .replay-event-list span {
   color: #6f9fe6;
-  font-size: 8px;
+  font-size: 10px;
 }
 
 .replay-event-list strong {
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 600;
   line-height: 1.4;
 }

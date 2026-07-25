@@ -6,7 +6,7 @@
   min-height: 36px;
   margin: 8px 8px 2px;
   padding: 0 9px;
-  color: #6f7b8b;
+  color: var(--arena-faint);
   background: #191f28;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 6px;
@@ -24,8 +24,8 @@
 
 .directory-section-label {
   padding: 14px 11px 5px;
-  color: #626e7e;
-  font-size: 8px;
+  color: var(--arena-faint);
+  font-size: 10px;
   font-weight: 760;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -85,14 +85,14 @@
 
 .directory-row small {
   margin-top: 3px;
-  color: #667283;
-  font-size: 8px;
+  color: var(--arena-faint);
+  font-size: 10px;
 }
 
 .directory-row i {
   color: #729ee0;
   font-style: normal;
-  font-size: 7px;
+  font-size: 10px;
 }
 
 .room-stage {
@@ -153,8 +153,8 @@
 }
 
 .room-message time {
-  color: #5f6b7b;
-  font-size: 7px;
+  color: var(--arena-faint);
+  font-size: 10px;
 }
 
 .room-message.is-error p {
@@ -165,7 +165,7 @@
   display: grid;
   place-items: center;
   min-height: 100%;
-  color: #647081;
+  color: var(--arena-faint);
   text-align: center;
 }
 
@@ -187,7 +187,7 @@
   gap: 5px;
   margin: 9px;
   padding: 5px 5px 5px 9px;
-  color: #758193;
+  color: var(--arena-faint);
   background: #191f28;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 7px;
@@ -216,7 +216,7 @@
 }
 
 .room-composer button:disabled {
-  color: #677283;
+  color: var(--arena-faint);
   background: #242b35;
   cursor: default;
 }

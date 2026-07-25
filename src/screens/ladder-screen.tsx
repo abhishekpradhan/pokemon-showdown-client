@@ -107,32 +107,41 @@ export function LadderScreen() {
           </span>
           <p role="status" aria-live="polite">{status}</p>
         </div>
-        <div className="ladder-table" role="table" aria-label={`${selected?.name || selectedFormat} standings`}>
-          <div className="ladder-table-head" role="row">
-            <span role="columnheader">Rank</span>
-            <span role="columnheader">Player</span>
-            <span role="columnheader">Elo</span>
-            <span role="columnheader">GXE</span>
-            <span role="columnheader">Record</span>
-          </div>
-          <div className="ladder-table-body">
-            {rows.map(row => (
-              <div className="ladder-table-row" role="row" key={`${row.rank}-${row.name}`}>
-                <span role="cell">{String(row.rank).padStart(2, '0')}</span>
-                <strong role="cell">{row.name}</strong>
-                <span role="cell">{row.elo}</span>
-                <span role="cell">{row.gxe?.toFixed(1) || '—'}</span>
-                <span role="cell">{row.record || '—'}</span>
-              </div>
-            ))}
-            {!rows.length && (
-              <div className="table-empty">
-                <TrendingUp size={22} aria-hidden />
-                <strong>{loading ? 'Loading standings…' : 'No standings available.'}</strong>
-                <span>{loading ? 'Fetching the public ladder.' : 'This format may not have a ranked ladder yet.'}</span>
-              </div>
-            )}
-          </div>
+        {/* A real table: ARIA table roles on divs kept producing structural
+            violations, and this data is genuinely tabular. */}
+        <div className="ladder-table-scroll" tabIndex={0} role="region" aria-label="Standings, scrollable">
+          <table className="ladder-table">
+            <caption className="visually-hidden">
+              {`${selected?.name || selectedFormat} standings, top ${rows.length}`}
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Rank</th>
+                <th scope="col">Player</th>
+                <th scope="col">Elo</th>
+                <th scope="col">GXE</th>
+                <th scope="col">Record</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map(row => (
+                <tr key={`${row.rank}-${row.name}`}>
+                  <td>{String(row.rank).padStart(2, '0')}</td>
+                  <th scope="row">{row.name}</th>
+                  <td>{row.elo}</td>
+                  <td>{row.gxe?.toFixed(1) || '—'}</td>
+                  <td>{row.record || '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {!rows.length && (
+            <div className="table-empty">
+              <TrendingUp size={22} aria-hidden />
+              <strong>{loading ? 'Loading standings…' : 'No standings available.'}</strong>
+              <span>{loading ? 'Fetching the public ladder.' : 'This format may not have a ranked ladder yet.'}</span>
+            </div>
+          )}
         </div>
       </div>
       <aside className="workspace-inspector ladder-inspector">

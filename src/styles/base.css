@@ -427,7 +427,7 @@ textarea:focus-visible,
 
 .select-section > span {
   padding: 6px 8px 2px;
-  color: #796f62;
+  color: var(--arena-faint);
   font-size: 11px;
   font-weight: 800;
   text-transform: uppercase;
@@ -471,7 +471,7 @@ textarea:focus-visible,
 
 .select-option small,
 .select-empty {
-  color: #6f675d;
+  color: var(--arena-faint);
 }
 
 
@@ -499,6 +499,11 @@ textarea:focus-visible,
   border-color: var(--arena-accent);
 }
 
+.primary-action:hover:not(:disabled) {
+  background: var(--arena-accent-strong);
+  border-color: var(--arena-accent-strong);
+}
+
 
 
 .primary-action:disabled,
@@ -515,7 +520,7 @@ textarea:focus-visible,
 .forfeit-button {
   color: #fff;
   background: #9f2f2f;
-  border-color: #c74c3e;
+  border-color: var(--arena-faint);
   font-weight: 800;
 }
 
@@ -540,7 +545,7 @@ textarea:focus-visible,
 
 
 .panel-heading span {
-  color: #6e6c65;
+  color: var(--arena-faint);
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0;
@@ -592,7 +597,7 @@ textarea:focus-visible,
 .utility-list-row em,
 .utility-table-row em,
 .utility-table-row small {
-  color: #69645d;
+  color: var(--arena-faint);
   font-style: normal;
   font-size: 13px;
 }
@@ -840,7 +845,7 @@ textarea:focus-visible,
 
 .decision-note {
   margin: 5px 0 0;
-  color: #6a5f52;
+  color: var(--arena-faint);
   font-size: 13px;
 }
 
@@ -848,7 +853,7 @@ textarea:focus-visible,
 
 .decision-error {
   margin: 7px 0 0;
-  color: #8c2b22;
+  color: var(--arena-red-text);
   font-size: 13px;
   font-weight: 800;
 }
@@ -1128,7 +1133,7 @@ textarea:focus-visible,
 
 
 .danger-icon {
-  color: #982b2b;
+  color: var(--arena-red-text);
 }
 
 
@@ -1202,7 +1207,7 @@ textarea:focus-visible,
 .account-form label {
   display: grid;
   gap: 6px;
-  color: #4e493f;
+  color: var(--arena-faint);
   font-size: 13px;
   font-weight: 800;
 }
@@ -1327,4 +1332,14 @@ textarea:focus-visible,
       text-overflow: ellipsis;
       white-space: nowrap;
     }
+}
+
+/* Available to screen readers, invisible on screen. */
+.visually-hidden {
+  position: absolute;
+  overflow: hidden;
+  clip-path: inset(50%);
+  inline-size: 1px;
+  block-size: 1px;
+  white-space: nowrap;
 }

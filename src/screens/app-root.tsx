@@ -125,7 +125,12 @@ export function AppRoot() {
               );
             })}
           </nav>
-          <i className={clsx('rail-connection-dot', `is-${connection}`)} aria-label={`Server ${connection}`} />
+          {/* role is required for aria-label to be permitted on a generic element. */}
+          <i
+            className={clsx('rail-connection-dot', `is-${connection}`)}
+            role="img"
+            aria-label={`Server ${connection}`}
+          />
         </aside>
 
         <SessionSidebar />

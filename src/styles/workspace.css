@@ -60,8 +60,8 @@
 
 .pane-heading small,
 .stage-heading small {
-  color: #697587;
-  font-size: 8px;
+  color: var(--arena-faint);
+  font-size: 10px;
   font-weight: 770;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -131,15 +131,10 @@
   font-size: 10px;
 }
 
+/* Colour comes from the token-driven rule in base.css; redefining it here
+   with a hardcoded blue dropped white-on-blue to 4.05:1. */
 .primary-action {
-  color: #fff;
-  background: #397de0;
-  border-color: #5997ed;
   font-weight: 740;
-}
-
-.primary-action:hover {
-  background: #4388ea;
 }
 
 .secondary-action {
@@ -166,7 +161,7 @@
 .pane-empty {
   padding: 12px;
   margin: 0;
-  color: #6e7989;
+  color: var(--arena-faint);
   font-size: 10px;
   line-height: 1.5;
 }
@@ -185,7 +180,7 @@
 }
 
 .select-section > span {
-  color: #718092;
+  color: var(--arena-faint);
 }
 
 .select-option {
@@ -201,5 +196,5 @@
 
 .select-option small,
 .select-empty {
-  color: #778394;
+  color: var(--arena-faint);
 }

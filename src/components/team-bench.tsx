@@ -8,7 +8,7 @@ export function TeamBench({ team, onSwitch }: {
   onSwitch?: (pokemon: PokemonSet) => void;
 }) {
   return (
-    <div className="team-bench" aria-label="Team bench">
+    <div className="team-bench" role="group" aria-label="Team bench">
       {team.map(pokemon => {
         const fainted = pokemon.fainted || pokemon.hp <= 0;
         const status = pokemon.status ? STATUS_LABELS[pokemon.status] : null;
