@@ -26,6 +26,12 @@ import {
   type ServerConfig,
 } from '../compat/protocol-client';
 import {
+  getAssertion,
+  loginWithPassword,
+  logout,
+  type AssertionOutcome,
+} from '../compat/login-server';
+import {
   parseFormats,
   parseQueryResponse,
   parseRoomList,
@@ -90,6 +96,9 @@ export type TeamEditorState = {
 
 type ArenaState = {
   username: string;
+  /** Global group symbol from `|updateuser|` (e.g. `+`, `%`, `@`). */
+  userGroup: string;
+  avatar?: string;
   named: boolean;
   challstr: string;
   connection: ConnectionState;
@@ -113,6 +122,8 @@ type ArenaState = {
   activeTeamId?: string;
   teamNotice?: string;
   loginPending: boolean;
+  /** Set when the login server reports the chosen name is registered. */
+  needsPassword: boolean;
   hardcoreMode: boolean;
   protocolLogEnabled: boolean;
   rawProtocolLog: string[];
@@ -124,6 +135,7 @@ type ArenaState = {
   reconnect: () => void;
   chooseName: (name: string) => Promise<void>;
   login: (credentials: LoginCredentials) => Promise<void>;
+  logout: () => Promise<void>;
   joinRoom: (roomId: string) => void;
   leaveRoom: (roomId: string) => void;
   focusRoom: (roomId?: string) => void;
@@ -201,6 +213,35 @@ const scheduleLoginTimeout = () => {
 const clearCancelSearchTimeout = () => {
   if (cancelSearchTimeout) window.clearTimeout(cancelSearchTimeout);
   cancelSearchTimeout = undefined;
+};
+
+/**
+ * Turns a login-server assertion into either a `/trn` handshake or a UI state.
+ * The server confirms the name with `|updateuser|`, which clears loginPending.
+ */
+const applyAssertion = (name: string, outcome: AssertionOutcome) => {
+  if (outcome.kind === 'assertion') {
+    useArenaStore.getState().protocol.send(`/trn ${name},0,${outcome.assertion}`);
+    return;
+  }
+  clearLoginTimeout();
+  if (outcome.kind === 'needs-password') {
+    useArenaStore.setState({
+      loginPending: false,
+      needsPassword: true,
+      lastError: `${name} is a registered account. Enter its password to log in.`,
+    });
+    return;
+  }
+  if (outcome.kind === 'needs-google') {
+    useArenaStore.setState({
+      loginPending: false,
+      needsPassword: false,
+      lastError: `${name} is linked to a Google account, which this client does not support yet. Choose a different name.`,
+    });
+    return;
+  }
+  useArenaStore.setState({ loginPending: false, needsPassword: false, lastError: outcome.message });
 };
 
 const upsertRoom = (rooms: Record<string, RoomState>, roomId: string, patch: Partial<RoomState>): Record<string, RoomState> => {
@@ -329,7 +370,8 @@ protocol.subscribe(event => {
 });
 
 export const useArenaStore = create<ArenaState>((set, get) => ({
-  username: 'Guest Player',
+  username: 'Guest',
+  userGroup: '',
   named: false,
   challstr: '',
   connection: 'offline',
@@ -351,6 +393,7 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
   teams: bootstrappedTeams,
   activeTeamId: bootstrappedTeams[0]?.id,
   loginPending: false,
+  needsPassword: false,
   hardcoreMode: false,
   protocolLogEnabled: import.meta.env.DEV,
   rawProtocolLog: [],
@@ -362,44 +405,64 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
   chooseName: async name => {
     const trimmed = name.trim();
     if (!trimmed) return;
-    if (get().connection !== 'connected') {
+    const userid = toId(trimmed);
+    if (!userid) {
+      set({ lastError: 'Usernames must contain at least one letter or number.' });
+      return;
+    }
+    const { challstr, connection } = get();
+    if (connection !== 'connected') {
       set({ lastError: 'Connect to the server before choosing a name.' });
       return;
     }
-    set({ loginPending: true, lastError: undefined });
+    if (!challstr) {
+      set({ lastError: 'Still handshaking with the server. Try again in a moment.' });
+      return;
+    }
+
+    set({ loginPending: true, lastError: undefined, needsPassword: false });
     scheduleLoginTimeout();
-    get().protocol.send(`/trn ${trimmed}`);
+    try {
+      applyAssertion(trimmed, await getAssertion(userid, challstr));
+    } catch (error) {
+      clearLoginTimeout();
+      set({
+        loginPending: false,
+        lastError: error instanceof Error ? error.message : 'Could not reach the login server.',
+      });
+    }
   },
   login: async ({ name, password }) => {
     const trimmed = name.trim();
     if (!trimmed) return;
     if (!password) return get().chooseName(trimmed);
-    if (get().connection !== 'connected') {
+    const { challstr, connection } = get();
+    if (connection !== 'connected') {
       set({ lastError: 'Connect to the server before logging in.' });
       return;
     }
-    const { challstr, server } = get();
-    const body = new URLSearchParams({ act: 'login', name: trimmed, pass: password, challstr });
-    set({ loginPending: true, lastError: undefined });
+    if (!challstr) {
+      set({ lastError: 'Still handshaking with the server. Try again in a moment.' });
+      return;
+    }
+
+    set({ loginPending: true, lastError: undefined, needsPassword: false });
     scheduleLoginTimeout();
     try {
-      const response = await fetch(server.loginServer, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body,
-      });
-      const text = await response.text();
-      const data = JSON.parse(text.startsWith(']') ? text.slice(1) : text) as { assertion?: string; error?: string };
-      if (data.assertion) {
-        get().protocol.send(`/trn ${trimmed},0,${data.assertion}`);
-      } else {
-        clearLoginTimeout();
-        set({ loginPending: false, lastError: data.error || 'Login did not return an assertion.' });
-      }
+      applyAssertion(trimmed, await loginWithPassword(trimmed, password, challstr));
     } catch (error) {
       clearLoginTimeout();
-      set({ loginPending: false, lastError: error instanceof Error ? error.message : 'Login failed.' });
+      set({
+        loginPending: false,
+        lastError: error instanceof Error ? error.message : 'Login failed.',
+      });
     }
+  },
+  logout: async () => {
+    const { username, protocol: client } = get();
+    client.send('/logout');
+    set({ named: false, username: 'Guest', needsPassword: false, lastError: undefined });
+    await logout(toId(username));
   },
   joinRoom: roomId => {
     const id = toId(roomId);
@@ -738,19 +801,29 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
       case 'challstr':
         set({ challstr: line.args.join('|') });
         break;
-      case 'updateuser':
+      case 'updateuser': {
         clearLoginTimeout();
+        // The name arrives prefixed with the user's group symbol (e.g. " Zarel").
+        const rawName = line.args[0] || '';
+        const group = /^[^A-Za-z0-9]/.test(rawName) ? rawName.charAt(0).trim() : '';
         set({
-          username: line.args[0] || 'Guest Player',
+          username: (group ? rawName.slice(1) : rawName) || 'Guest',
+          userGroup: group,
           named: line.args[1] === '1',
+          avatar: line.args[2] || undefined,
           connection: 'connected',
           loginPending: false,
+          needsPassword: false,
           lastError: undefined,
         });
         break;
+      }
       case 'nametaken':
         clearLoginTimeout();
-        set({ loginPending: false, lastError: line.args.slice(1).join('|') || `${line.args[0] || 'That name'} is not available.` });
+        set({
+          loginPending: false,
+          lastError: line.args.slice(1).join('|') || `${line.args[0] || 'That name'} is not available.`,
+        });
         break;
       case 'formats':
         set(state => {

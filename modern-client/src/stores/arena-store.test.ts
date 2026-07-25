@@ -5,7 +5,7 @@ import { vi } from 'vitest';
 describe('arena store protocol integration', () => {
   beforeEach(() => {
     useArenaStore.setState({
-      username: 'Guest Player',
+      username: 'Guest',
       named: false,
       challstr: '',
       rooms: {},

@@ -37,7 +37,7 @@ export function AppRoot() {
     username,
   } = useArenaStore();
   const { contrast, density, motion, notificationsEnabled } = useWorkspaceStore();
-  const [nameInput, setNameInput] = useState(username === 'Guest Player' ? '' : username);
+  const [nameInput, setNameInput] = useState(named ? username : '');
   const [passwordInput, setPasswordInput] = useState('');
   const [accountOpen, setAccountOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
