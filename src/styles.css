@@ -21,3 +21,6 @@
 
 /* Shell chrome loads last: it refines surfaces the app frame wraps. */
 @import "./styles/shell.css";
+
+/* Touch minimums must beat the per-surface desktop sizing. */
+@import "./styles/touch.css";

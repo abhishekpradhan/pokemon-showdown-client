@@ -73,3 +73,38 @@ test('every surface keeps its primary heading', async ({ page }) => {
     ).toBeVisible();
   }
 });
+
+/**
+ * Touch-target floor. Desktop density is fine at smaller sizes; a coarse
+ * pointer is not, so styles/touch.css enforces a minimum. This asserts the
+ * minimum actually survives the cascade — it did not on the first attempt,
+ * because per-surface rules outranked it.
+ */
+test.describe('touch targets', () => {
+  test.use({ viewport: { width: 390, height: 664 }, hasTouch: true, isMobile: true });
+
+  for (const route of ROUTES) {
+    test(`${route.name} controls are large enough to tap`, async ({ page }) => {
+      await page.goto(route.path);
+      await expect(page.locator('#workspace')).toBeVisible();
+
+      const undersized = await page.evaluate(() => {
+        // Half a pixel of tolerance: a 40px min-height can compute to
+        // 39.996 after layout rounding.
+        const MIN = 39.5;
+        const bad: string[] = [];
+        const selector = 'button, a[href], input:not([type=range]), [role="button"], [role="option"]';
+        for (const el of document.querySelectorAll(selector)) {
+          const rect = el.getBoundingClientRect();
+          if (rect.width === 0 && rect.height === 0) continue;
+          if (rect.height < MIN) {
+            const cls = (el.className || '').toString().split(' ')[0];
+            bad.push(`${el.tagName.toLowerCase()}.${cls} ${Math.round(rect.width)}x${Math.round(rect.height)}`);
+          }
+        }
+        return [...new Set(bad)];
+      });
+      expect(undersized, undersized.join('; ')).toEqual([]);
+    });
+  }
+});

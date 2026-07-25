@@ -1,0 +1,64 @@
+/**
+ * Touch-target minimums.
+ *
+ * Loaded last, and deliberately `!important`: this is an accessibility floor,
+ * not a style preference. Surface files set explicit heights tuned for dense
+ * desktop layouts, several at higher specificity than a bare class, and none
+ * of them should be able to shrink a control below a usable tap size on a
+ * touch device. Scoped to coarse pointers so desktop density is untouched.
+ */
+
+@media (pointer: coarse) {
+  button,
+  a[href],
+  [role="button"],
+  [role="option"],
+  [role="tab"],
+  input:not([type="range"]),
+  select,
+  summary {
+    min-block-size: 40px !important;
+  }
+
+  .icon-button,
+  .pane-icon-button,
+  .notification-button,
+  .user-trigger,
+  .transport-play,
+  .replay-transport button {
+    min-inline-size: 40px !important;
+    min-block-size: 40px !important;
+  }
+
+  /* Inline links inside prose keep their flow, but get vertical padding so
+     the tap area reaches the minimum without shifting the text. */
+  p a[href],
+  small a[href],
+  li a[href] {
+    display: inline-block;
+    min-block-size: auto !important;
+    padding-block: 10px;
+  }
+
+  .command-bar input,
+  .pane-search input,
+  .server-form span input,
+  .chat-entry input,
+  .account-form input {
+    min-block-size: 40px !important;
+  }
+
+  /* Surface files set explicit heights for desktop density; on touch the
+     minimum wins. */
+  .primary-action,
+  .secondary-action,
+  .danger-action,
+  .format-trigger,
+  .new-team-button,
+  .stage-actions .primary-action,
+  .stage-heading .primary-action,
+  .segmented-control button,
+  .density-toggle button {
+    min-block-size: 40px !important;
+  }
+}
