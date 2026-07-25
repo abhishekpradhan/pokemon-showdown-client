@@ -23,6 +23,12 @@ const teambuilderRoute = createRoute({
   component: lazyRouteComponent(() => import('./screens/team-workspace'), 'TeamWorkspace'),
 });
 
+const roomRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/room/$roomId',
+  component: lazyRouteComponent(() => import('./screens/room-screen'), 'RoomScreen'),
+});
+
 const roomsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/rooms',
@@ -50,6 +56,7 @@ const settingsRoute = createRoute({
 const routeTree = rootRoute.addChildren([
   indexRoute,
   battleRoute,
+  roomRoute,
   teambuilderRoute,
   roomsRoute,
   ladderRoute,
@@ -57,7 +64,17 @@ const routeTree = rootRoute.addChildren([
   settingsRoute,
 ]);
 
-export const router = createRouter({ routeTree });
+export const router = createRouter({
+  routeTree,
+  defaultNotFoundComponent: () => (
+    <section className="empty-state" aria-label="Page not found">
+      <span className="eyebrow">Not found</span>
+      <h1>That page does not exist</h1>
+      <p>The address may be stale — battles and rooms close when you leave them.</p>
+      <a className="primary-action" href="/">Back to matchmaking</a>
+    </section>
+  ),
+});
 
 declare module '@tanstack/react-router' {
   interface Register {

@@ -38,13 +38,14 @@ export function BattleScreen() {
   const battleRoom = room?.type === 'battle' ? room : null;
   const battle = battleRoom?.battle ?? null;
 
+  const battleRoomId = battleRoom?.id;
   useEffect(() => {
-    if (battle) {
-      focusRoom(battle.id);
+    if (battleRoomId) {
+      focusRoom(battleRoomId);
       return;
     }
     if (params.battleId.startsWith('battle-') && connection === 'connected') joinRoom(params.battleId);
-  }, [battle, connection, focusRoom, joinRoom, params.battleId]);
+  }, [battleRoomId, connection, focusRoom, joinRoom, params.battleId]);
 
   if (!battle || (params.battleId === 'demo-gen9ou' && !demoFixturesEnabled)) {
     return (

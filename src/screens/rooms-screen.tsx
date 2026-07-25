@@ -1,44 +1,32 @@
 import { useNavigate } from '@tanstack/react-router';
-import {
-  ChevronRight,
-  Hash,
-  LogOut,
-  MessageCircle,
-  RefreshCw,
-  Search,
-  Swords,
-  Users,
-} from 'lucide-react';
-import { type FormEvent, useEffect, useMemo, useState } from 'react';
+import { Hash, RefreshCw, Search, Swords } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useArenaStore } from '../stores/arena-store';
 
+/**
+ * The room directory: browse and join. Open rooms live in the session tabs
+ * and render at /room/:id — this screen deliberately does not host chat, so
+ * there is exactly one place a conversation appears.
+ */
 export function RoomsScreen() {
   const navigate = useNavigate();
-  const {
-    activeRoomId, chatRoomList, connection, focusRoom, joinRoom, leaveRoom,
-    refreshChatRooms, refreshRoomList, roomList, rooms, sendRoomMessage,
-  } = useArenaStore(
+  const { chatRoomList, connection, focusRoom, joinRoom, refreshChatRooms, refreshRoomList, roomList } = useArenaStore(
     useShallow(state => ({
-      activeRoomId: state.activeRoomId, chatRoomList: state.chatRoomList, connection: state.connection,
-      focusRoom: state.focusRoom, joinRoom: state.joinRoom, leaveRoom: state.leaveRoom,
-      refreshChatRooms: state.refreshChatRooms, refreshRoomList: state.refreshRoomList,
-      roomList: state.roomList, rooms: state.rooms, sendRoomMessage: state.sendRoomMessage,
+      chatRoomList: state.chatRoomList,
+      connection: state.connection,
+      focusRoom: state.focusRoom,
+      joinRoom: state.joinRoom,
+      refreshChatRooms: state.refreshChatRooms,
+      refreshRoomList: state.refreshRoomList,
+      roomList: state.roomList,
     }))
   );
-  const [selectedRoomId, setSelectedRoomId] = useState(() =>
-    activeRoomId && !activeRoomId.startsWith('battle-') ? activeRoomId : 'lobby'
-  );
   const [query, setQuery] = useState('');
-  const [message, setMessage] = useState('');
-  const joinedRooms = Object.values(rooms).filter(room => room.type !== 'battle');
-  const selectedRoom = rooms[selectedRoomId] || rooms.lobby || joinedRooms[0];
   const normalized = query.trim().toLowerCase();
   const matches = (title: string, id: string) =>
     !normalized || title.toLowerCase().includes(normalized) || id.includes(normalized);
 
-  // Chat rooms are the point of this screen; battles are secondary and live
-  // under Battle. They come from different commands.
   // Grouped by the server's own sections, in the server's own order.
   const chatSections = useMemo(() => {
     const visible = chatRoomList.rooms.filter(room => matches(room.title, room.id));
@@ -56,6 +44,7 @@ export function RoomsScreen() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [normalized, chatRoomList.rooms, chatRoomList.sectionTitles]);
+
   const battleDirectory = useMemo(
     () => roomList.rooms.filter(room => matches(room.title, room.id)).slice(0, 30),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -75,74 +64,66 @@ export function RoomsScreen() {
       void navigate({ to: '/battle/$battleId', params: { battleId: roomId } });
       return;
     }
-    setSelectedRoomId(roomId);
-  };
-
-  const sendMessage = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!selectedRoom) return;
-    sendRoomMessage(selectedRoom.id, message);
-    setMessage('');
+    void navigate({ to: '/room/$roomId', params: { roomId } });
   };
 
   return (
-    <section className="utility-workspace rooms-workspace" aria-label="Rooms">
-      <aside className="workspace-pane room-directory">
-        <header className="pane-heading">
-          <span>
-            <small>Community</small>
-            <h1>Rooms</h1>
-          </span>
-          <button type="button" className="pane-icon-button" aria-label="Refresh rooms" onClick={() => { refreshChatRooms(); refreshRoomList(); }}>
+    <section className="room-directory-surface" aria-label="Room directory">
+      <header className="stage-heading directory-heading">
+        <span>
+          <small>Community</small>
+          <h1>Rooms</h1>
+        </span>
+        <div className="directory-tools">
+          <label className="pane-search">
+            <Search size={14} aria-hidden />
+            <input
+              aria-label="Filter rooms"
+              placeholder="Filter rooms and battles"
+              value={query}
+              onChange={event => setQuery(event.currentTarget.value)}
+            />
+          </label>
+          <button
+            type="button"
+            className="pane-icon-button"
+            aria-label="Refresh rooms"
+            onClick={() => { refreshChatRooms(); refreshRoomList(); }}
+          >
             <RefreshCw size={15} />
           </button>
-        </header>
-        <label className="pane-search">
-          <Search size={14} aria-hidden />
-          <input aria-label="Filter rooms" placeholder="Filter rooms" value={query} onChange={event => setQuery(event.currentTarget.value)} />
-        </label>
-        <div className="directory-section-label">Open sessions</div>
-        <div className="joined-room-list">
-          {joinedRooms.map(room => (
-            <button
-              type="button"
-              className={`directory-row ${selectedRoom?.id === room.id ? 'is-active' : ''}`}
-              key={room.id}
-              onClick={() => {
-                focusRoom(room.id);
-                setSelectedRoomId(room.id);
-              }}
-            >
-              <MessageCircle size={14} aria-hidden />
-              <span><strong>{room.title}</strong><small>{room.connected ? 'Joined' : 'Disconnected'}</small></span>
-              {room.chat.length > 0 && <i>{room.chat.length}</i>}
-            </button>
-          ))}
-          {!joinedRooms.length && <p className="pane-empty">No room sessions open.</p>}
         </div>
-        {chatSections.map(([section, sectionRooms]) => (
-          <div key={section}>
-            <div className="directory-section-label">{section}</div>
-            <div className="public-room-list">
-              {sectionRooms.map(room => (
-                <button type="button" className="directory-row" key={room.id} onClick={() => chooseRoom(room.id)} title={room.desc}>
-                  <Hash size={14} aria-hidden />
-                  <span>
-                    <strong>{room.title}</strong>
-                    <small>{room.desc || `${room.userCount.toLocaleString()} users`}</small>
-                  </span>
-                  <i>{room.userCount.toLocaleString()}</i>
-                </button>
-              ))}
-            </div>
-          </div>
-        ))}
-        {!chatSections.length && (
-          <p className="pane-empty">{connection === 'connected' ? 'No chat rooms match.' : 'Connect to load rooms.'}</p>
-        )}
+      </header>
 
-        <div className="directory-section-label">Live battles</div>
-        <div className="public-room-list">
+      <div className="directory-columns">
+        <div className="directory-chat">
+          {chatSections.map(([section, sectionRooms]) => (
+            <section key={section} aria-label={section}>
+              <div className="directory-section-label">{section}</div>
+              <div className="directory-grid">
+                {sectionRooms.map(room => (
+                  <button
+                    type="button"
+                    className="directory-card"
+                    key={room.id}
+                    onClick={() => chooseRoom(room.id)}
+                    title={room.desc}
+                  >
+                    <span className="directory-card-title"><Hash size={13} aria-hidden /> {room.title}</span>
+                    <small>{room.desc || 'Chat room'}</small>
+                    <i>{room.userCount.toLocaleString()} online</i>
+                  </button>
+                ))}
+              </div>
+            </section>
+          ))}
+          {!chatSections.length && (
+            <p className="pane-empty">{connection === 'connected' ? 'No chat rooms match.' : 'Connect to load rooms.'}</p>
+          )}
+        </div>
+
+        <aside className="directory-battles" aria-label="Live battles">
+          <div className="directory-section-label">Live battles</div>
           {battleDirectory.map(room => (
             <button type="button" className="directory-row" key={room.id} onClick={() => chooseRoom(room.id, true)}>
               <Swords size={14} aria-hidden />
@@ -156,80 +137,8 @@ export function RoomsScreen() {
           {!battleDirectory.length && (
             <p className="pane-empty">{connection === 'connected' ? 'No battles match.' : 'Connect to load battles.'}</p>
           )}
-        </div>
-      </aside>
-
-      <div className="workspace-stage room-stage">
-        <header className="stage-heading room-stage-heading">
-          <span>
-            <small>{selectedRoom?.type || 'Room session'}</small>
-            <h2>{selectedRoom?.title || 'Select a room'}</h2>
-          </span>
-          {selectedRoom && (
-            <button type="button" className="secondary-action" onClick={() => {
-              leaveRoom(selectedRoom.id);
-              setSelectedRoomId('lobby');
-            }}>
-              <LogOut size={14} aria-hidden /> Leave
-            </button>
-          )}
-        </header>
-
-        <div className="room-transcript" role="log" aria-live="polite" aria-label="Room activity">
-          {selectedRoom?.chat.length ? selectedRoom.chat.map((entry, index) => (
-            <article className={`room-message is-${entry.kind || 'chat'}`} key={`${entry.user}-${entry.message}-${index}`}>
-              <span className="message-avatar">{entry.user.slice(0, 1).toUpperCase()}</span>
-              <span>
-                <strong>{entry.user}</strong>
-                <p>{entry.message}</p>
-              </span>
-              {entry.timestamp && <time>{new Date(entry.timestamp * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</time>}
-            </article>
-          )) : (
-            <div className="transcript-empty">
-              <MessageCircle size={24} aria-hidden />
-              <strong>{selectedRoom ? 'No messages yet.' : 'Choose a room from the directory.'}</strong>
-              <span>Room history appears here while this session stays open.</span>
-            </div>
-          )}
-        </div>
-
-        <form className="room-composer" onSubmit={sendMessage}>
-          <MessageCircle size={16} aria-hidden />
-          <input
-            aria-label="Room message"
-            placeholder={selectedRoom ? `Message ${selectedRoom.title}` : 'Select a room to chat'}
-            value={message}
-            disabled={!selectedRoom}
-            onChange={event => setMessage(event.currentTarget.value)}
-          />
-          <button type="submit" aria-label="Send room message" disabled={!selectedRoom || !message.trim()}>
-            <ChevronRight size={17} />
-          </button>
-        </form>
+        </aside>
       </div>
-
-      <aside className="workspace-inspector member-inspector" aria-label="Room members">
-        <header className="inspector-heading">
-          <span>
-            <small>Participants</small>
-            <strong>{selectedRoom?.users.length || 0} users</strong>
-          </span>
-          <Users size={16} aria-hidden />
-        </header>
-        <div className="member-list">
-          {selectedRoom?.users.map((user, index) => {
-            const cleanUser = user.replace(/^[^a-zA-Z0-9]+/, '') || user;
-            return (
-              <div className="member-row" key={`${user}-${index}`}>
-                <span>{cleanUser.slice(0, 1).toUpperCase()}</span>
-                <strong>{cleanUser}</strong>
-              </div>
-            );
-          })}
-          {!selectedRoom?.users.length && <p className="pane-empty">The server has not sent a user list for this room.</p>}
-        </div>
-      </aside>
     </section>
   );
 }

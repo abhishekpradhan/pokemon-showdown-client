@@ -14,15 +14,15 @@ import { useShallow } from 'zustand/react/shallow';
 import { useArenaStore } from '../stores/arena-store';
 import { useWorkspaceStore } from '../stores/workspace-store';
 import { CommandBar } from '../components/command-bar';
-import { SessionSidebar } from '../components/session-sidebar';
+import { SessionTabs } from '../components/session-tabs';
 import { StatusCallout } from '../components/status-callout';
 import { navItems } from '../navigation';
 
 export function AppRoot() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { activeRoomId, clearNotifications, connect, connection, disconnect, lastError, login, loginPending, logout, named, needsPassword, notifications, reconnect, rooms, username } = useArenaStore(
-    useShallow(state => ({ activeRoomId: state.activeRoomId, clearNotifications: state.clearNotifications, connect: state.connect, connection: state.connection, disconnect: state.disconnect, lastError: state.lastError, login: state.login, loginPending: state.loginPending, logout: state.logout, named: state.named, needsPassword: state.needsPassword, notifications: state.notifications, reconnect: state.reconnect, rooms: state.rooms, username: state.username }))
+  const { acceptChallenge, activeRoomId, challenges, clearNotifications, connect, connection, disconnect, lastError, login, loginPending, logout, named, needsPassword, notifications, reconnect, rejectChallenge, rooms, username } = useArenaStore(
+    useShallow(state => ({ acceptChallenge: state.acceptChallenge, activeRoomId: state.activeRoomId, challenges: state.challenges, clearNotifications: state.clearNotifications, rejectChallenge: state.rejectChallenge, connect: state.connect, connection: state.connection, disconnect: state.disconnect, lastError: state.lastError, login: state.login, loginPending: state.loginPending, logout: state.logout, named: state.named, needsPassword: state.needsPassword, notifications: state.notifications, reconnect: state.reconnect, rooms: state.rooms, username: state.username }))
   );
   const { contrast, density, motion, notificationsEnabled } = useWorkspaceStore();
   const [nameInput, setNameInput] = useState(named ? username : '');
@@ -44,21 +44,10 @@ export function AppRoot() {
     location.pathname === '/replays' ? { label: 'Replay lab', meta: 'Review' } :
     location.pathname === '/settings' ? { label: 'Client settings', meta: 'Preferences' } :
     { label: 'Matchmaking', meta: 'Battle queue' };
-  const recentSessions = [
-    ...Object.values(rooms).filter(room => room.type === 'battle').map(room => {
-      const battle = (room as import('../rooms/types').BattleRoom).battle;
-      return {
-        id: room.id,
-        title: battle.ended ? 'Battle finished' : 'Battle session ready',
-        detail: `${battle.p1.name} vs ${battle.p2.name}`,
-      };
-    }),
-    ...Object.values(rooms).filter(room => room.type === 'pm').map(room => ({
-      id: room.id,
-      title: room.title,
-      detail: room.chat.at(-1)?.message || 'Private message',
-    })),
-  ].slice(-4).reverse();
+  const incomingChallenges = Object.entries(challenges.from);
+  const unreadPms = Object.values(rooms)
+    .filter(room => room.type === 'pm' && room.unread > 0)
+    .slice(0, 4);
   const submitName = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     submittedAccountRef.current = true;
@@ -140,8 +129,6 @@ export function AppRoot() {
           />
         </aside>
 
-        <SessionSidebar />
-
         <div className="arena-main">
           <header className="topbar">
             <div className="workspace-context">
@@ -175,21 +162,44 @@ export function AppRoot() {
                         <X size={15} />
                       </button>
                     </div>
-                    {!notificationsEnabled ? <p className="popover-empty">Activity notifications are disabled in Settings.</p> :
-                      recentSessions.length ? recentSessions.map(item => (
-                      <button
-                        type="button"
-                        className="notification-row"
-                        key={item.id}
-                        onClick={() => {
-                          setNotificationsOpen(false);
-                          if (item.id.startsWith('battle-')) void navigate({ to: '/battle/$battleId', params: { battleId: item.id } });
-                        }}
-                      >
-                        <strong>{item.title}</strong>
-                        <small>{item.detail}</small>
-                      </button>
-                      )) : <p className="popover-empty">No unread activity.</p>}
+                    {!notificationsEnabled ? <p className="popover-empty">Activity notifications are disabled in Settings.</p> : (
+                      <>
+                        {incomingChallenges.map(([challenger, format]) => (
+                          <div className="notification-row is-challenge" key={challenger}>
+                            <span>
+                              <strong>{challenger} challenged you</strong>
+                              <small>{format}</small>
+                            </span>
+                            <span className="challenge-actions">
+                              <button type="button" className="primary-action" onClick={() => {
+                                acceptChallenge(challenger);
+                                setNotificationsOpen(false);
+                              }}>Accept</button>
+                              <button type="button" className="secondary-action" onClick={() => rejectChallenge(challenger)}>
+                                Reject
+                              </button>
+                            </span>
+                          </div>
+                        ))}
+                        {unreadPms.map(room => (
+                          <button
+                            type="button"
+                            className="notification-row"
+                            key={room.id}
+                            onClick={() => {
+                              setNotificationsOpen(false);
+                              void navigate({ to: '/room/$roomId', params: { roomId: room.id } });
+                            }}
+                          >
+                            <strong>{room.title}</strong>
+                            <small>{room.chat.at(-1)?.message.slice(0, 60) || 'Private message'}</small>
+                          </button>
+                        ))}
+                        {!incomingChallenges.length && !unreadPms.length && (
+                          <p className="popover-empty">No challenges or unread messages.</p>
+                        )}
+                      </>
+                    )}
                   </div>
                 )}
               </div>
@@ -270,6 +280,8 @@ export function AppRoot() {
               </Dialog.Root>
             </div>
           </header>
+
+          <SessionTabs />
 
           <main id="workspace" className="workspace" tabIndex={-1}>
             <Outlet />

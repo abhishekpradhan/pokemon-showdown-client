@@ -249,3 +249,285 @@
 }
 
 .directory-row[title] { cursor: pointer; }
+
+/* ── Room surface (/room/:id) ─────────────────────────────────────────── */
+
+.room-surface {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  block-size: 100%;
+  min-block-size: 0;
+}
+
+.room-surface-heading {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--arena-panel);
+  border: 1px solid var(--arena-line);
+  border-radius: var(--arena-radius-lg);
+}
+
+.room-surface-title {
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+  color: var(--arena-accent);
+}
+
+.room-surface-title h1 {
+  margin: 0;
+  color: var(--arena-text);
+  font-size: 16px;
+  font-weight: 750;
+}
+
+.room-surface-title small {
+  color: var(--arena-muted);
+  font-size: 11px;
+}
+
+.room-surface-actions {
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.room-user-count {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  color: var(--arena-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.room-surface-feed {
+  overflow-y: auto;
+  padding: 12px 16px;
+  background: var(--arena-panel);
+  border: 1px solid var(--arena-line);
+  border-radius: var(--arena-radius-lg);
+}
+
+.room-surface-entry {
+  margin: 0;
+}
+
+/* ── Chat feed (shared: rooms, PMs, battle chat) ──────────────────────── */
+
+.chat-feed-list {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chat-line {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  padding: 3px 6px;
+  border-radius: var(--arena-radius-sm);
+  font-size: 13px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.chat-line:hover { background: rgb(255 255 255 / 3%); }
+
+.chat-author {
+  flex: none;
+  color: var(--arena-accent);
+  font-weight: 700;
+}
+
+.chat-line.is-self .chat-author { color: var(--arena-green); }
+
+.chat-body { color: var(--arena-soft); }
+
+.chat-body a { color: var(--arena-accent); text-decoration: underline; }
+.chat-body code {
+  padding: 1px 5px;
+  font-size: 12px;
+  background: rgb(255 255 255 / 8%);
+  border-radius: 4px;
+}
+
+.chat-greentext { color: var(--arena-green); }
+
+.chat-line time {
+  flex: none;
+  margin-inline-start: auto;
+  color: var(--arena-faint);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.chat-line.is-me em { color: var(--arena-purple); font-style: italic; }
+
+.chat-line.is-announce {
+  padding: 6px 10px;
+  color: #08121f;
+  background: var(--arena-gold);
+  font-weight: 650;
+}
+.chat-line.is-announce strong { margin-inline-end: 6px; }
+
+.chat-line.is-system { color: var(--arena-muted); font-size: 12px; }
+.chat-line.is-error { color: var(--arena-red-text); font-size: 12px; }
+
+.chat-line.is-html {
+  display: block;
+  padding: 6px 10px;
+  color: var(--arena-soft);
+  font-size: 12px;
+  background: rgb(255 255 255 / 4%);
+  border-inline-start: 2px solid var(--arena-line-strong);
+}
+.chat-line.is-html a { color: var(--arena-accent); }
+
+.chat-empty { color: var(--arena-faint); font-size: 12px; }
+
+/* ── Directory rework ─────────────────────────────────────────────────── */
+
+.room-directory-surface {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 12px;
+  block-size: 100%;
+  min-block-size: 0;
+}
+
+.directory-heading {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.directory-tools {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.directory-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 12px;
+  min-block-size: 0;
+}
+
+.directory-chat {
+  overflow-y: auto;
+  display: grid;
+  gap: 14px;
+  align-content: start;
+  padding-inline-end: 4px;
+}
+
+.directory-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px;
+}
+
+.directory-card {
+  display: grid;
+  gap: 4px;
+  padding: 11px 12px;
+  color: var(--arena-soft);
+  text-align: start;
+  background: var(--arena-panel);
+  border: 1px solid var(--arena-line);
+  border-radius: var(--arena-radius);
+  cursor: pointer;
+  transition: background var(--arena-fast) var(--arena-ease);
+}
+
+.directory-card:hover {
+  background: var(--arena-panel-raised);
+  border-color: var(--arena-line-strong);
+}
+
+.directory-card-title {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  color: var(--arena-text);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.directory-card small {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  color: var(--arena-muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.directory-card i {
+  color: var(--arena-faint);
+  font-size: 10px;
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+}
+
+.directory-battles {
+  overflow-y: auto;
+  display: grid;
+  gap: 6px;
+  align-content: start;
+}
+
+/* Challenge rows (home + notifications). */
+.challenge-list { display: grid; gap: 6px; }
+
+.challenge-row,
+.notification-row.is-challenge {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 11px;
+  background: rgb(91 156 255 / 8%);
+  border: 1px solid rgb(91 156 255 / 26%);
+  border-radius: var(--arena-radius);
+}
+
+.challenge-row strong,
+.notification-row.is-challenge strong {
+  display: block;
+  font-size: 12px;
+}
+
+.challenge-row small,
+.notification-row.is-challenge small {
+  color: var(--arena-muted);
+  font-size: 11px;
+}
+
+.challenge-actions {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.challenge-actions .primary-action,
+.challenge-actions .secondary-action {
+  min-block-size: 30px;
+  padding: 0 10px;
+  font-size: 11px;
+}
+
+@media (max-width: 900px) {
+  .directory-columns { grid-template-columns: 1fr; }
+  .directory-battles { max-block-size: 300px; }
+}

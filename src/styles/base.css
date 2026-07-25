@@ -1015,13 +1015,13 @@ textarea:focus-visible,
 
 .chat-entry {
   display: flex;
+  gap: 9px;
   align-items: center;
-  gap: 8px;
-  min-height: 42px;
-  padding: 0 8px;
-  background: rgba(255, 253, 247, 0.94);
-  border: 1px solid rgba(255, 255, 255, 0.24);
-  border-radius: var(--arena-radius);
+  padding: 8px 12px;
+  color: var(--arena-muted);
+  background: var(--arena-panel);
+  border: 1px solid var(--arena-line);
+  border-radius: var(--arena-radius-lg);
 }
 
 
@@ -1030,7 +1030,7 @@ textarea:focus-visible,
 .team-builder-panel textarea {
   flex: 1;
   min-width: 0;
-  color: #1d1d1b;
+  color: var(--arena-text);
   background: transparent;
   border: 0;
   outline: 0;
@@ -1039,14 +1039,15 @@ textarea:focus-visible,
 
 
 .chat-entry button {
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  color: #fff;
-  background: var(--arena-red);
-  border: 0;
-  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 38px;
+  block-size: 38px;
+  color: #08121f;
+  background: var(--arena-accent);
+  border: none;
+  border-radius: var(--arena-radius-sm);
   cursor: pointer;
 }
 

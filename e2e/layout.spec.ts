@@ -108,3 +108,15 @@ test.describe('touch targets', () => {
     });
   }
 });
+
+test('a joined chat room renders as a full surface with tabs', async ({ page }) => {
+  await page.goto('/rooms');
+  await expect(page.locator('#workspace')).toBeVisible();
+  // The mock serves a lobby; opening it must land on /room/lobby with a tab,
+  // and must not loop (the error boundary would show "Something went wrong").
+  await page.goto('/room/lobby');
+  await expect(page.getByRole('heading', { name: 'Lobby' })).toBeVisible();
+  await expect(page.locator('.session-tab-title')).toContainText(['Lobby']);
+  await expect(page.getByText('Something went wrong')).toHaveCount(0);
+  await expect(page.locator('.chat-line').first()).toBeVisible();
+});

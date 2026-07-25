@@ -16,7 +16,7 @@ textarea:focus-visible,
 
 .arena-app {
   display: grid;
-  grid-template-columns: 58px 214px minmax(0, 1fr);
+  grid-template-columns: 58px minmax(0, 1fr);
   width: 100%;
   height: 100svh;
   min-height: 0;
@@ -120,199 +120,6 @@ textarea:focus-visible,
 .rail-connection-dot.is-reconnecting {
   background: var(--arena-gold);
   animation: pulse 1.2s ease-in-out infinite;
-}
-
-.session-sidebar {
-  display: flex;
-  flex-direction: column;
-  grid-column: 2;
-  grid-row: 1;
-  min-width: 0;
-  min-height: 0;
-  padding: 14px 10px 10px;
-  background: #10141b;
-  border-right: 1px solid var(--arena-line);
-}
-
-.session-sidebar-heading,
-.popover-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.session-sidebar-heading {
-  min-height: 30px;
-  padding: 0 7px 8px;
-  color: var(--arena-faint);
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.session-add,
-.session-close {
-  display: grid;
-  place-items: center;
-  color: var(--arena-faint);
-  background: transparent;
-  border: 0;
-  border-radius: 5px;
-  cursor: pointer;
-}
-
-.session-add {
-  width: 28px;
-  height: 28px;
-}
-
-.session-add:hover,
-.session-close:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.07);
-}
-
-.session-list {
-  display: grid;
-  align-content: start;
-  gap: 3px;
-  min-height: 0;
-  overflow: auto;
-}
-
-.session-row {
-  position: relative;
-}
-
-.session-item {
-  display: grid;
-  grid-template-columns: 26px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 7px;
-  width: 100%;
-  min-height: 51px;
-  padding: 7px 8px;
-  color: #a9b3c0;
-  text-align: left;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 7px;
-  cursor: pointer;
-  transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
-}
-
-.session-item:hover {
-  color: #eef3f9;
-  background: rgba(255, 255, 255, 0.035);
-}
-
-.session-item.is-active {
-  color: #f5f8fc;
-  background: #19202b;
-  border-color: rgba(255, 255, 255, 0.08);
-}
-
-.session-item > span:nth-child(2) {
-  display: grid;
-  min-width: 0;
-}
-
-.session-item strong,
-.session-item small {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.session-item strong {
-  font-size: 12px;
-  font-weight: 650;
-}
-
-.session-item small {
-  margin-top: 3px;
-  color: var(--arena-faint);
-  font-size: 10px;
-}
-
-.session-mark {
-  display: grid;
-  place-items: center;
-  width: 26px;
-  height: 26px;
-  color: #8d99aa;
-  background: rgba(255, 255, 255, 0.045);
-  border-radius: 6px;
-}
-
-.session-item.is-active .session-mark {
-  color: #8bb6ff;
-  background: rgba(91, 156, 255, 0.12);
-}
-
-.session-live-dot {
-  width: 6px;
-  height: 6px;
-  margin-right: 2px;
-  background: var(--arena-green);
-  border-radius: 50%;
-  box-shadow: 0 0 0 3px rgba(72, 199, 142, 0.09);
-}
-
-.session-close {
-  position: absolute;
-  top: 50%;
-  right: 5px;
-  width: 24px;
-  height: 24px;
-  opacity: 0;
-  transform: translateY(-50%);
-}
-
-.session-row:hover .session-close,
-.session-close:focus-visible {
-  opacity: 1;
-}
-
-.session-row:has(.session-close) .session-live-dot {
-  margin-right: 19px;
-}
-
-.session-empty {
-  margin: 10px 6px;
-  padding: 14px 10px;
-  color: var(--arena-faint);
-  border-top: 1px solid var(--arena-line);
-}
-
-.session-empty p {
-  margin: 8px 0 0;
-  font-size: 11px;
-  line-height: 1.5;
-}
-
-.session-connection {
-  margin-top: auto;
-  padding: 10px 6px 2px;
-  border-top: 1px solid var(--arena-line);
-}
-
-.session-connection .connection-pill {
-  min-height: 30px;
-  padding: 5px 8px;
-  font-size: 11px;
-  border: 0;
-}
-
-.session-connection small {
-  display: block;
-  padding: 1px 8px 0;
-  overflow: hidden;
-  color: var(--arena-faint);
-  font-size: 9px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .arena-main {
@@ -516,7 +323,7 @@ textarea:focus-visible,
 
 @media (max-width: 1180px) {
   .arena-app {
-    grid-template-columns: 58px 184px minmax(0, 1fr);
+    grid-template-columns: 58px minmax(0, 1fr);
   }
 
   .topbar {
@@ -635,3 +442,94 @@ textarea:focus-visible,
   }
 }
 
+
+/* ── Session tabs ────────────────────────────────────────────────────────
+   The one list of open rooms. Horizontal, scrollable, always visible when
+   anything is open. */
+
+.session-tabs {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  overflow-x: auto;
+  padding: 6px 14px 0;
+  scrollbar-width: thin;
+}
+
+.session-tab {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  max-inline-size: 240px;
+  background: var(--arena-panel);
+  border: 1px solid var(--arena-line);
+  border-radius: var(--arena-radius) var(--arena-radius) 0 0;
+  border-block-end: none;
+}
+
+.session-tab.is-active {
+  background: var(--arena-panel-strong);
+  border-color: var(--arena-line-strong);
+}
+
+.session-tab.is-searching {
+  gap: 7px;
+  padding: 7px 12px;
+  color: var(--arena-accent);
+  font-size: 12px;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.session-tab-open {
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  min-inline-size: 0;
+  padding: 7px 4px 7px 12px;
+  color: var(--arena-soft);
+  font-size: 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.session-tab.is-active .session-tab-open { color: var(--arena-text); }
+
+.session-tab-title {
+  overflow: hidden;
+  max-inline-size: 150px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-tab-live {
+  inline-size: 7px;
+  block-size: 7px;
+  background: var(--arena-green);
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+
+.session-tab-unread {
+  padding: 1px 6px;
+  color: #08121f;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 800;
+  background: var(--arena-accent);
+  border-radius: 999px;
+}
+
+.session-tab-close {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 8px;
+  color: var(--arena-faint);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.session-tab-close:hover { color: var(--arena-red-text); }

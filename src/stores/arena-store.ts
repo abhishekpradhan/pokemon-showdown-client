@@ -425,12 +425,18 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
       rooms: patchRoom(state.rooms, id, { connected: false }),
     }));
   },
-  focusRoom: activeRoomId => set(state => ({
-    activeRoomId,
-    rooms: activeRoomId && state.rooms[activeRoomId] ?
-      patchRoom(state.rooms, activeRoomId, { unread: 0 }) :
-      state.rooms,
-  })),
+  focusRoom: activeRoomId => set(state => {
+    // No-op when nothing changes — components call this from effects, and a
+    // fresh state object here would re-fire them forever.
+    const room = activeRoomId ? state.rooms[activeRoomId] : undefined;
+    if (state.activeRoomId === activeRoomId && (!room || room.unread === 0)) return state;
+    return {
+      activeRoomId,
+      rooms: room && room.unread > 0 ?
+        patchRoom(state.rooms, activeRoomId!, { unread: 0 }) :
+        state.rooms,
+    };
+  }),
   clearNotifications: () => set({ notifications: 0 }),
   refreshRoomList: format => {
     const suffix = format ? ` ${toId(format)},,` : '';

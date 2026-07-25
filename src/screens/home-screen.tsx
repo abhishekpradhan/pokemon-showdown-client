@@ -12,14 +12,13 @@ import {
   Wifi,
 } from 'lucide-react';
 import { FormatSelector } from '../components/format-selector';
-import { MiniRoomRail } from '../components/mini-room-rail';
 import { SearchableSelect } from '../components/searchable-select';
 import { useShallow } from 'zustand/react/shallow';
 import { useArenaStore } from '../stores/arena-store';
 
 export function HomeScreen() {
-  const { activeTeamId, cancelSearch, connection, formats, lastError, named, searchFormats, searchState, selectTeam, selectedFormat, setSelectedFormat, startSearch, teams, username, validateTeamForFormat } = useArenaStore(
-    useShallow(state => ({ activeTeamId: state.activeTeamId, cancelSearch: state.cancelSearch, connection: state.connection, formats: state.formats, lastError: state.lastError, named: state.named, searchFormats: state.searchFormats, searchState: state.searchState, selectTeam: state.selectTeam, selectedFormat: state.selectedFormat, setSelectedFormat: state.setSelectedFormat, startSearch: state.startSearch, teams: state.teams, username: state.username, validateTeamForFormat: state.validateTeamForFormat }))
+  const { acceptChallenge, activeTeamId, cancelSearch, challenges, rejectChallenge, connection, formats, lastError, named, searchFormats, searchState, selectTeam, selectedFormat, setSelectedFormat, startSearch, teams, username, validateTeamForFormat } = useArenaStore(
+    useShallow(state => ({ acceptChallenge: state.acceptChallenge, activeTeamId: state.activeTeamId, cancelSearch: state.cancelSearch, challenges: state.challenges, rejectChallenge: state.rejectChallenge, connection: state.connection, formats: state.formats, lastError: state.lastError, named: state.named, searchFormats: state.searchFormats, searchState: state.searchState, selectTeam: state.selectTeam, selectedFormat: state.selectedFormat, setSelectedFormat: state.setSelectedFormat, startSearch: state.startSearch, teams: state.teams, username: state.username, validateTeamForFormat: state.validateTeamForFormat }))
   );
   const selected = formats.find(format => format.id === selectedFormat);
   const activeTeam = teams.find(team => team.id === activeTeamId);
@@ -181,11 +180,27 @@ export function HomeScreen() {
           </div>
         )}
 
-        <div className="inspector-section-heading">
-          <span>Open activity</span>
-          <Link to="/rooms">View all</Link>
-        </div>
-        <MiniRoomRail mode="battles" />
+        {Object.keys(challenges.from).length > 0 && (
+          <>
+            <div className="inspector-section-heading">
+              <span>Incoming challenges</span>
+            </div>
+            <div className="challenge-list">
+              {Object.entries(challenges.from).map(([challenger, format]) => (
+                <div className="challenge-row" key={challenger}>
+                  <span>
+                    <strong>{challenger}</strong>
+                    <small>{format}</small>
+                  </span>
+                  <span className="challenge-actions">
+                    <button type="button" className="primary-action" onClick={() => acceptChallenge(challenger)}>Accept</button>
+                    <button type="button" className="secondary-action" onClick={() => rejectChallenge(challenger)}>Reject</button>
+                  </span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
 
         <div className="match-inspector-footer">
           <Timer size={14} aria-hidden />
