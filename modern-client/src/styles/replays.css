@@ -1,0 +1,182 @@
+/* Replay lab */
+.replay-stage {
+  display: grid;
+  grid-template-rows: 64px minmax(240px, 1fr) 54px;
+  overflow: hidden;
+}
+
+.replay-heading {
+  min-width: 0;
+}
+
+.replay-status {
+  max-width: 54%;
+  overflow: hidden;
+  color: #7a8697;
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.replay-canvas {
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.replay-canvas .battle-field {
+  min-height: 100%;
+}
+
+.replay-empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 9px;
+  color: #6b7788;
+  background: rgba(10, 14, 19, 0.56);
+  backdrop-filter: blur(4px);
+}
+
+.replay-empty strong {
+  color: #bcc6d2;
+  font-size: 11px;
+}
+
+.replay-transport {
+  display: grid;
+  grid-template-columns: repeat(4, 34px) minmax(90px, 1fr) auto;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 12px;
+  background: #151a22;
+  border-top: 1px solid var(--arena-line);
+}
+
+.replay-transport button {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  color: #9ca7b5;
+  background: #1c222c;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.replay-transport button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.replay-transport .transport-play {
+  color: #fff;
+  background: #397de0;
+}
+
+.replay-transport input {
+  min-width: 0;
+  accent-color: var(--arena-cyan);
+}
+
+.replay-transport > span {
+  color: #738092;
+  font-size: 8px;
+}
+
+.replay-inspector {
+  padding: 0;
+  overflow: hidden;
+}
+
+.replay-loader {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border-bottom: 1px solid var(--arena-line);
+}
+
+.replay-loader .inspector-heading {
+  padding-bottom: 9px;
+}
+
+.replay-loader textarea {
+  min-height: 105px;
+  max-height: 170px;
+  resize: vertical;
+}
+
+.replay-loader .primary-action {
+  min-height: 34px;
+}
+
+.replay-event-heading {
+  display: flex;
+  justify-content: space-between;
+  padding: 11px 14px 7px;
+  color: #6f7b8b;
+  font-size: 8px;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.replay-event-list {
+  min-height: 0;
+  padding: 0 8px 12px;
+  margin: 0;
+  overflow: auto;
+  list-style: none;
+}
+
+.replay-event-list li {
+  position: relative;
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.replay-event-list li::before {
+  content: "";
+  position: absolute;
+  top: 16px;
+  left: -3px;
+  width: 5px;
+  height: 5px;
+  background: #4b5665;
+  border-radius: 50%;
+}
+
+.replay-event-list li.is-past::before {
+  background: var(--arena-cyan);
+}
+
+.replay-event-list button {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 5px;
+  width: 100%;
+  padding: 9px 7px 9px 10px;
+  color: #8995a5;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.replay-event-list button:hover {
+  color: #dbe3ed;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.replay-event-list span {
+  color: #6f9fe6;
+  font-size: 8px;
+}
+
+.replay-event-list strong {
+  font-size: 8px;
+  font-weight: 600;
+  line-height: 1.4;
+}

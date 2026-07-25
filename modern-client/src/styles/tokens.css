@@ -1,0 +1,82 @@
+/**
+ * Design tokens — the single source of truth for colour, spacing and motion.
+ *
+ * This file previously existed twice: a light palette at the top of styles.css
+ * and a dark "cockpit" palette appended 4700 lines later that silently
+ * overrode it. Anything styled only by the first palette (the account dialog,
+ * most notably) rendered light-on-white inside a dark app. One block now.
+ */
+
+:root {
+  color-scheme: dark;
+
+  /* Surfaces, back to front. */
+  --arena-ink: #0d1015;
+  --arena-ink-2: #131821;
+  --arena-panel: #171d27;
+  --arena-panel-strong: #1d2430;
+  --arena-panel-raised: #232b39;
+  --arena-line: rgb(226 232 240 / 11%);
+  --arena-line-strong: rgb(226 232 240 / 20%);
+
+  /* Text. */
+  --arena-text: #f4f7fb;
+  --arena-soft: #d9e0e9;
+  --arena-muted: #8c98a8;
+  --arena-faint: #6b7789;
+  --arena-dark-text: #111722;
+
+  /* Accents. */
+  --arena-accent: #5b9cff;
+  --arena-accent-strong: #3f84f0;
+  --arena-cyan: #5b9cff;
+  --arena-red: #f05a5a;
+  --arena-green: #48c78e;
+  --arena-gold: #e7b95c;
+  --arena-purple: #a78bfa;
+
+  /* Health states, shared by the field bars and the bench. */
+  --hp-high: #48c78e;
+  --hp-mid: #e7b95c;
+  --hp-low: #f05a5a;
+
+  /* Shape. */
+  --arena-radius: 7px;
+  --arena-radius-lg: 12px;
+  --arena-radius-sm: 5px;
+
+  /* Elevation. */
+  --arena-shadow: 0 12px 32px rgb(0 0 0 / 38%);
+  --arena-shadow-sm: 0 4px 14px rgb(0 0 0 / 28%);
+
+  /* Motion. Reduced-motion collapses these to zero (see base.css). */
+  --arena-fast: 120ms;
+  --arena-base: 200ms;
+  --arena-slow: 320ms;
+  --arena-ease: cubic-bezier(0.2, 0.8, 0.3, 1);
+
+  /* Density scale, driven by the Settings toggle via [data-density]. */
+  --density-gap: 12px;
+  --density-pad: 14px;
+  --row-height: 38px;
+}
+
+:root[data-density="compact"] {
+  --density-gap: 8px;
+  --density-pad: 10px;
+  --row-height: 32px;
+}
+
+:root[data-density="comfortable"] {
+  --density-gap: 16px;
+  --density-pad: 18px;
+  --row-height: 44px;
+}
+
+/* Raises border and text contrast for the Settings accessibility toggle. */
+:root[data-contrast="high"] {
+  --arena-line: rgb(226 232 240 / 32%);
+  --arena-line-strong: rgb(226 232 240 / 48%);
+  --arena-muted: #b6c1cf;
+  --arena-faint: #96a2b1;
+}

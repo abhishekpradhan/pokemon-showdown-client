@@ -1,0 +1,329 @@
+/* Settings */
+.settings-stage {
+  padding-bottom: 16px;
+}
+
+.settings-section {
+  margin: 14px 16px 0;
+  overflow: hidden;
+  background: #151b24;
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  border-radius: 7px;
+}
+
+.settings-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 40px;
+  padding: 8px 11px;
+  background: rgba(255, 255, 255, 0.025);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.settings-section-heading > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #8bb5f5;
+}
+
+.settings-section-heading strong {
+  color: #d9e1ea;
+  font-size: 10px;
+}
+
+.settings-section-heading small {
+  color: #6f7b8b;
+  font-size: 8px;
+  text-transform: capitalize;
+}
+
+.setting-row {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  min-height: 58px;
+  padding: 8px 11px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.setting-row:last-child {
+  border-bottom: 0;
+}
+
+.setting-icon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  color: #7c8898;
+  background: rgba(255, 255, 255, 0.035);
+  border-radius: 6px;
+}
+
+.setting-row > span:nth-child(2) {
+  display: grid;
+}
+
+.setting-row strong {
+  color: #ccd5df;
+  font-size: 10px;
+}
+
+.setting-row small {
+  margin-top: 3px;
+  color: #6f7b8b;
+  font-size: 8px;
+}
+
+.setting-row .secondary-action {
+  min-height: 31px;
+  padding: 0 9px;
+  font-size: 8px;
+}
+
+.setting-segmented {
+  padding: 3px;
+  background: #10151c;
+  border-radius: 5px;
+}
+
+.setting-segmented button {
+  min-height: 27px;
+  padding: 0 8px;
+  color: #788496;
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 8px;
+}
+
+.setting-segmented button.is-active {
+  color: #e9eef5;
+  background: #242c38;
+}
+
+.settings-section .switch-root,
+.battle-info-panel .switch-root {
+  background: #282f3a;
+}
+
+.settings-section .switch-root[data-state="checked"],
+.battle-info-panel .switch-root[data-state="checked"] {
+  background: #397de0;
+}
+
+.server-state {
+  width: 9px;
+  height: 9px;
+  margin-left: 9px;
+  background: var(--arena-red);
+  border-radius: 50%;
+}
+
+.server-state.is-connected {
+  background: var(--arena-green);
+  box-shadow: 0 0 0 4px rgba(72, 199, 142, 0.08);
+}
+
+.server-state.is-connecting,
+.server-state.is-reconnecting {
+  background: var(--arena-gold);
+}
+
+.settings-error {
+  margin: 9px 11px;
+  padding: 9px;
+  color: #e8a1a1;
+  background: rgba(240, 90, 90, 0.08);
+  border-radius: 5px;
+  font-size: 9px;
+}
+
+.source-section {
+  padding-bottom: 12px;
+}
+
+.source-section > p,
+.source-section > .button-row {
+  margin-inline: 11px;
+}
+
+.source-section > p {
+  color: #7b8797;
+  font-size: 9px;
+}
+
+.source-section .secondary-action {
+  min-height: 32px;
+  font-size: 8px;
+}
+
+.diagnostics-inspector .protocol-log {
+  flex: 1;
+  min-height: 180px;
+  margin-top: 10px;
+  color: #7f8b9b;
+  background: #0e1319;
+  border-color: rgba(255, 255, 255, 0.07);
+  font-size: 8px;
+  line-height: 1.55;
+}
+
+html[data-contrast="high"] {
+  --arena-line: rgba(233, 239, 247, 0.22);
+  --arena-muted: #b4becb;
+}
+
+html[data-density="comfortable"] .session-item,
+html[data-density="comfortable"] .directory-row,
+html[data-density="comfortable"] .ladder-table-row {
+  min-height: 56px;
+}
+
+html[data-motion="reduced"] *,
+html[data-motion="reduced"] *::before,
+html[data-motion="reduced"] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+}
+
+@media (max-width: 1120px) {
+  .team-workspace,
+  .rooms-workspace {
+    grid-template-columns: 210px minmax(0, 1fr);
+  }
+
+  .team-workspace > .workspace-inspector,
+  .rooms-workspace > .workspace-inspector {
+    display: none;
+  }
+}
+
+@media (max-width: 820px) {
+  .utility-workspace {
+    grid-template-columns: minmax(0, 1fr);
+    height: auto;
+  }
+
+  .workspace-pane,
+  .workspace-stage,
+  .workspace-inspector {
+    min-height: 420px;
+  }
+
+  .team-library,
+  .room-directory {
+    min-height: 300px;
+    max-height: 390px;
+  }
+
+  .team-workspace > .workspace-inspector,
+  .rooms-workspace > .workspace-inspector {
+    display: none;
+  }
+
+  .team-editor-stage,
+  .room-stage,
+  .ladder-stage,
+  .replay-stage,
+  .settings-stage {
+    min-height: 650px;
+  }
+
+  .ladder-workspace > .workspace-inspector,
+  .settings-workspace > .workspace-inspector {
+    min-height: 300px;
+  }
+
+  .replay-workspace > .workspace-inspector {
+    min-height: 480px;
+  }
+}
+
+@media (max-width: 560px) {
+  .stage-heading {
+    padding-inline: 11px;
+  }
+
+  .team-meta-controls {
+    grid-template-columns: minmax(0, 1fr);
+    padding-inline: 11px;
+  }
+
+  .team-editor-stage > .team-bench {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin-inline: 11px;
+  }
+
+  .set-workbench {
+    padding-inline: 11px;
+  }
+
+  .set-row {
+    grid-template-columns: 44px minmax(0, 1fr) 18px;
+  }
+
+  .set-moves {
+    display: none;
+  }
+
+  .import-editor {
+    margin-inline: 11px;
+  }
+
+  .ladder-table-head,
+  .ladder-table-row {
+    grid-template-columns: 42px minmax(110px, 1fr) 60px 56px;
+  }
+
+  .ladder-table-head span:last-child,
+  .ladder-table-row span:last-child {
+    display: none;
+  }
+
+  .replay-stage {
+    min-height: 610px;
+    grid-template-rows: 64px minmax(270px, 1fr) 54px;
+  }
+
+  .replay-transport {
+    grid-template-columns: repeat(4, 31px) minmax(60px, 1fr);
+  }
+
+  .replay-transport > span {
+    display: none;
+  }
+
+  .settings-section {
+    margin-inline: 10px;
+  }
+
+  .setting-row {
+    grid-template-columns: 30px minmax(0, 1fr);
+  }
+
+  .setting-row > :last-child {
+    grid-column: 2;
+    justify-self: start;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.001ms !important;
+  }
+}

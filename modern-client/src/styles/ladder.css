@@ -1,0 +1,101 @@
+/* Ladder */
+.ladder-stage {
+  display: grid;
+  grid-template-rows: 64px auto minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.ladder-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 54px;
+  padding: 9px 16px;
+  border-bottom: 1px solid var(--arena-line);
+}
+
+.ladder-summary > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #e3b656;
+}
+
+.ladder-summary strong {
+  color: #dce4ed;
+  font-size: 11px;
+}
+
+.ladder-summary p {
+  margin: 0;
+  color: #758193;
+  font-size: 9px;
+}
+
+.ladder-table {
+  min-height: 0;
+  padding: 0 12px 12px;
+  overflow: hidden;
+}
+
+.ladder-table-head,
+.ladder-table-row {
+  display: grid;
+  grid-template-columns: 58px minmax(150px, 1fr) 80px 80px 80px;
+  align-items: center;
+  gap: 8px;
+}
+
+.ladder-table-head {
+  min-height: 38px;
+  color: #647081;
+  border-bottom: 1px solid var(--arena-line);
+  font-size: 8px;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.ladder-table-body {
+  min-height: 0;
+  height: calc(100% - 38px);
+  overflow: auto;
+}
+
+.ladder-table-row {
+  min-height: 42px;
+  color: #9ca7b5;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.045);
+  font-size: 9px;
+}
+
+.ladder-table-row strong {
+  color: #d2dae4;
+}
+
+.table-empty {
+  display: grid;
+  place-items: center;
+  min-height: 250px;
+  color: #697586;
+  text-align: center;
+}
+
+.table-empty strong {
+  margin-top: 10px;
+  color: #aeb8c5;
+  font-size: 11px;
+}
+
+.table-empty span {
+  margin-top: 4px;
+  font-size: 9px;
+}
+
+.ladder-inspector .inspector-control {
+  margin-top: 14px;
+}
+
+.ladder-inspector .select-trigger {
+  min-height: 39px;
+}
