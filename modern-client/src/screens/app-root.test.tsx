@@ -15,12 +15,10 @@ function renderWithRouter() {
 }
 
 describe('modern app shell', () => {
-  it('renders the arena workspace and source link', async () => {
+  it('renders the cockpit shell and matchmaking workspace', async () => {
     renderWithRouter();
-    expect(await screen.findByRole('heading', { name: /showdown arena/i })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /source code/i })).toHaveAttribute(
-      'href',
-      'https://github.com/abhishekpradhan/pokemon-showdown-client'
-    );
+    expect(await screen.findByRole('heading', { name: /ready when you are/i })).toBeInTheDocument();
+    expect(screen.getByRole('navigation')).toBeInTheDocument();
+    expect(screen.getByLabelText('Open sessions')).toBeInTheDocument();
   });
 });

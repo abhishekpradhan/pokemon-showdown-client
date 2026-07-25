@@ -1,8 +1,5 @@
-import { createRootRoute, createRoute, createRouter } from '@tanstack/react-router';
+import { createRootRoute, createRoute, createRouter, lazyRouteComponent } from '@tanstack/react-router';
 import { AppRoot } from './screens/app-root';
-import { BattleScreen } from './screens/battle-screen';
-import { HomeScreen } from './screens/home-screen';
-import { UtilityScreen } from './screens/utility-screen';
 
 const rootRoute = createRootRoute({
   component: AppRoot,
@@ -11,43 +8,43 @@ const rootRoute = createRootRoute({
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/',
-  component: HomeScreen,
+  component: lazyRouteComponent(() => import('./screens/home-screen'), 'HomeScreen'),
 });
 
 const battleRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/battle/$battleId',
-  component: BattleScreen,
+  component: lazyRouteComponent(() => import('./screens/battle-screen'), 'BattleScreen'),
 });
 
 const teambuilderRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/teambuilder',
-  component: () => <UtilityScreen view="teambuilder" />,
+  component: lazyRouteComponent(() => import('./screens/team-workspace'), 'TeamWorkspace'),
 });
 
 const roomsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/rooms',
-  component: () => <UtilityScreen view="rooms" />,
+  component: lazyRouteComponent(() => import('./screens/rooms-screen'), 'RoomsScreen'),
 });
 
 const ladderRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/ladder',
-  component: () => <UtilityScreen view="ladder" />,
+  component: lazyRouteComponent(() => import('./screens/ladder-screen'), 'LadderScreen'),
 });
 
 const replaysRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/replays',
-  component: () => <UtilityScreen view="replays" />,
+  component: lazyRouteComponent(() => import('./screens/replays-screen'), 'ReplaysScreen'),
 });
 
 const settingsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/settings',
-  component: () => <UtilityScreen view="settings" />,
+  component: lazyRouteComponent(() => import('./screens/settings-screen'), 'SettingsScreen'),
 });
 
 const routeTree = rootRoute.addChildren([

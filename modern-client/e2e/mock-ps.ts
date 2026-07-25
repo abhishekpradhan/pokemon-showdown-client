@@ -113,6 +113,7 @@ export async function installMockPs(page: Page) {
 
       emitBattle() {
         this.emit('>battle-gen9ou-1\n|init|battle\n|title|CodexTester vs. MockRival\n|player|p1|CodexTester|1000\n|player|p2|MockRival|1000');
+        this.emit('>battle-gen9ou-1\n|clearpoke\n|poke|p1|Iron Valiant, L80\n|poke|p1|Heatran, L80\n|poke|p1|Dragapult, L80\n|poke|p2|Great Tusk, L80\n|poke|p2|Gholdengo, L80\n|poke|p2|Dragonite, L80\n|start\n|switch|p1a: Iron Valiant|Iron Valiant, L80|156/200\n|switch|p2a: Great Tusk|Great Tusk, L80|88/200\n|turn|12');
         this.emit(`>battle-gen9ou-1\n|request|${battleRequest}`);
       }
     }

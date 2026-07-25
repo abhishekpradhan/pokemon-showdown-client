@@ -34,28 +34,29 @@ export function MoveControls({ moves, onChoose }: {
   return (
     <div className="move-grid" aria-label="Move choices">
       {moves.map(move => (
-        <button
-          type="button"
-          key={move.name}
-          className={clsx('move-button', typeClass[move.type], move.disabled && 'is-disabled')}
-          disabled={move.disabled}
-          aria-label={`${move.name}, ${move.type}, ${move.pp} PP, effectiveness ${move.effectiveness}`}
-          onClick={() => onChoose(move)}
-        >
-          <strong>{move.name}</strong>
-          <span>{move.type}</span>
-          <em>{move.effectiveness}</em>
-          <small>{move.pp}</small>
+        <div className={clsx('move-choice', typeClass[move.type], move.disabled && 'is-disabled')} key={`${move.slot}-${move.name}`}>
+          <button
+            type="button"
+            className="move-button"
+            disabled={move.disabled}
+            aria-label={`${move.name}, ${move.type}, ${move.pp} PP, effectiveness ${move.effectiveness}`}
+            onClick={() => onChoose(move)}
+          >
+            <strong>{move.name}</strong>
+            <span>{move.type}</span>
+            <em>{move.effectiveness}</em>
+            <small>{move.pp}</small>
+          </button>
           {(move.canTerastallize || move.canMegaEvo || move.canZMove || move.canDynamax || move.canUltraBurst) && (
-            <span className="move-flags" aria-label={`${move.name} battle modifiers`}>
-              {move.canTerastallize && <i onClick={event => { event.stopPropagation(); onChoose(withFlag(move, 'terastallize')); }}>Tera</i>}
-              {move.canMegaEvo && <i onClick={event => { event.stopPropagation(); onChoose(withFlag(move, 'mega')); }}>Mega</i>}
-              {move.canZMove && <i onClick={event => { event.stopPropagation(); onChoose(withFlag(move, 'zmove')); }}>Z</i>}
-              {move.canDynamax && <i onClick={event => { event.stopPropagation(); onChoose(withFlag(move, 'dynamax')); }}>Max</i>}
-              {move.canUltraBurst && <i onClick={event => { event.stopPropagation(); onChoose(withFlag(move, 'ultra')); }}>Ultra</i>}
-            </span>
+            <div className="move-flags" aria-label={`${move.name} battle modifiers`}>
+              {move.canTerastallize && <button type="button" onClick={() => onChoose(withFlag(move, 'terastallize'))}>Tera</button>}
+              {move.canMegaEvo && <button type="button" onClick={() => onChoose(withFlag(move, 'mega'))}>Mega</button>}
+              {move.canZMove && <button type="button" onClick={() => onChoose(withFlag(move, 'zmove'))}>Z</button>}
+              {move.canDynamax && <button type="button" onClick={() => onChoose(withFlag(move, 'dynamax'))}>Max</button>}
+              {move.canUltraBurst && <button type="button" onClick={() => onChoose(withFlag(move, 'ultra'))}>Ultra</button>}
+            </div>
           )}
-        </button>
+        </div>
       ))}
     </div>
   );

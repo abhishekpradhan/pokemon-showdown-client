@@ -1,5 +1,6 @@
 import {
   addBattleChoice,
+  applyBattleProtocolLine,
   battleFromRequest,
   commandForChoice,
   createBattleChoiceSession,
@@ -127,5 +128,40 @@ describe('battle request adapter', () => {
     expect(one.complete).toBe(false);
     const two = addBattleChoice(one.session, { kind: 'team', order: [1] });
     expect(two.command).toBe('/choose team 2, 1|13');
+  });
+
+  it('projects live protocol into the visible field for either player side', () => {
+    const playerBattle = battleFromRequest('battle-gen9ou-2', {
+      rqid: 14,
+      side: {
+        id: 'p2',
+        name: 'Codex',
+        pokemon: [
+          { ident: 'p2: Dragapult', details: 'Dragapult, L80', condition: '200/200', active: true },
+        ],
+      },
+      active: [{ moves: [] }],
+    });
+    const withOpponent = applyBattleProtocolLine(playerBattle, {
+      command: 'switch',
+      args: ['p1a: Great Tusk', 'Great Tusk, L80', '150/200'],
+    });
+    const damaged = applyBattleProtocolLine(withOpponent, {
+      command: '-damage',
+      args: ['p2a: Dragapult', '50/200 brn'],
+    });
+    const weather = applyBattleProtocolLine(damaged, {
+      command: '-weather',
+      args: ['Sandstorm'],
+    });
+    const ended = applyBattleProtocolLine(weather, {
+      command: 'win',
+      args: ['Codex'],
+    });
+
+    expect(damaged.opponentActive).toMatchObject({ name: 'Great Tusk', hp: 75 });
+    expect(damaged.active).toMatchObject({ name: 'Dragapult', hp: 25, status: 'BRN' });
+    expect(ended.weather).toBe('Sandstorm');
+    expect(ended).toMatchObject({ ended: true, winner: 'Codex', mode: 'ended' });
   });
 });

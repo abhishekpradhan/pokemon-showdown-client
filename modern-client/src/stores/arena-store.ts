@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import {
   addBattleChoice,
+  applyBattleProtocolLine,
   battleFromRequest,
   battleDecisionState,
   buildBattleCommand,
@@ -100,6 +101,7 @@ type ArenaState = {
   searchFormats: string[];
   battle: ArenaBattle;
   battles: Record<string, ArenaBattle>;
+  activeRoomId?: string;
   choiceSessionByRoom: Record<string, BattleChoiceSession>;
   choiceDraftByRoom: Record<string, BattleDecisionState['draft']>;
   choiceErrorByRoom: Record<string, string | undefined>;
@@ -124,6 +126,8 @@ type ArenaState = {
   login: (credentials: LoginCredentials) => Promise<void>;
   joinRoom: (roomId: string) => void;
   leaveRoom: (roomId: string) => void;
+  focusRoom: (roomId?: string) => void;
+  clearNotifications: () => void;
   refreshRoomList: (format?: string) => void;
   sendRoomMessage: (roomId: string, message: string) => void;
   setSelectedFormat: (format: string) => void;
@@ -258,20 +262,22 @@ const parseChatLine = (line: PsLine): ChatMessage | null => {
 };
 
 const battleLogLine = (line: PsLine) => {
+  const pokemonName = (value = '') => value.split(': ').at(-1) || value;
+  const speciesName = (value = '') => value.split(',')[0] || value;
   switch (line.command) {
   case 'turn':
     return `Turn ${line.args[0]} started.`;
   case 'switch':
   case 'drag':
-    return `${line.args[0]} switched to ${line.args[1]}.`;
+    return `${pokemonName(line.args[0])} entered as ${speciesName(line.args[1])}.`;
   case 'move':
-    return `${line.args[0]} used ${line.args[1]}.`;
+    return `${pokemonName(line.args[0])} used ${line.args[1]}.`;
   case '-damage':
-    return `${line.args[0]} took damage (${line.args[1]}).`;
+    return `${pokemonName(line.args[0])} took damage (${line.args[1]}).`;
   case '-heal':
-    return `${line.args[0]} recovered HP (${line.args[1]}).`;
+    return `${pokemonName(line.args[0])} recovered HP (${line.args[1]}).`;
   case 'faint':
-    return `${line.args[0]} fainted.`;
+    return `${pokemonName(line.args[0])} fainted.`;
   case 'win':
     return `${line.args[0]} won the battle.`;
   case 'tie':
@@ -327,13 +333,14 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
   named: false,
   challstr: '',
   connection: 'offline',
-  notifications: 2,
+  notifications: 0,
   selectedFormat: 'gen9ou',
   formats: defaultFormats,
   searchState: 'idle',
   searchFormats: [],
   battle: emptyBattle,
   battles: import.meta.env.MODE === 'test' || import.meta.env.VITE_ENABLE_DEMO_FIXTURES === 'true' ? { [demoBattle.id]: demoBattle } : {},
+  activeRoomId: undefined,
   choiceSessionByRoom: {},
   choiceDraftByRoom: {},
   choiceErrorByRoom: {},
@@ -394,8 +401,22 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
       set({ loginPending: false, lastError: error instanceof Error ? error.message : 'Login failed.' });
     }
   },
-  joinRoom: roomId => get().protocol.send(`/join ${toId(roomId)}`),
-  leaveRoom: roomId => get().protocol.send('/leave', toId(roomId)),
+  joinRoom: roomId => {
+    const id = toId(roomId);
+    if (!id) return;
+    set({ activeRoomId: id });
+    get().protocol.send(`/join ${id}`);
+  },
+  leaveRoom: roomId => {
+    const id = toId(roomId);
+    get().protocol.send('/leave', id);
+    set(state => ({
+      activeRoomId: state.activeRoomId === id ? undefined : state.activeRoomId,
+      rooms: upsertRoom(state.rooms, id, { connected: false }),
+    }));
+  },
+  focusRoom: activeRoomId => set({ activeRoomId }),
+  clearNotifications: () => set({ notifications: 0 }),
   refreshRoomList: format => {
     const suffix = format ? ` ${toId(format)},,` : '';
     get().protocol.send(`/cmd roomlist${suffix}`);
@@ -548,7 +569,7 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
     }
     if (format?.team !== false && activeTeam) client.send(`/utm ${exportPackedTeam(activeTeam)}`);
     client.send(`/search ${selectedFormat}`);
-    set({ searchState: 'searching', searchFormats: [selectedFormat], notifications: 3, lastError: undefined });
+    set({ searchState: 'searching', searchFormats: [selectedFormat], lastError: undefined });
   },
   cancelSearch: () => {
     clearCancelSearchTimeout();
@@ -667,8 +688,16 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
   },
   toggleBattleTimer: roomId => {
     const battle = get().battles[roomId || get().battle.id] || get().battle;
-    get().protocol.send('/timer on', roomId || battle.id);
-    get().recordBattleEvent('Battle timer command sent.', battle.id);
+    const timerOn = !battle.timerOn;
+    get().protocol.send(`/timer ${timerOn ? 'on' : 'off'}`, roomId || battle.id);
+    set(state => {
+      const updated = { ...battle, timerOn };
+      return {
+        battle: updated,
+        battles: { ...state.battles, [battle.id]: updated },
+      };
+    });
+    get().recordBattleEvent(`Battle timer ${timerOn ? 'enabled' : 'disabled'}.`, battle.id);
   },
   forfeitBattle: roomId => {
     const battle = get().battles[roomId || get().battle.id] || get().battle;
@@ -790,7 +819,15 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
       }
       case 'init': {
         const type = line.args[0] || (roomId.startsWith('battle-') ? 'battle' : 'chat');
-        const initialBattle = { ...emptyBattle, id: roomId, format: roomId.split('-')[1] || 'Battle' };
+        const initialBattle = {
+          ...emptyBattle,
+          id: roomId,
+          format: roomId.split('-')[1] || 'Battle',
+          team: [],
+          opponentTeam: [],
+          log: [],
+          chat: [],
+        };
         set(state => ({
           rooms: upsertRoom(state.rooms, roomId, {
             id: roomId,
@@ -800,12 +837,17 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
           }),
           battles: type === 'battle' ? { ...state.battles, [roomId]: state.battles[roomId] || initialBattle } : state.battles,
           battle: type === 'battle' ? state.battles[roomId] || initialBattle : state.battle,
+          activeRoomId: roomId,
+          notifications: type === 'battle' ? state.notifications + 1 : state.notifications,
           battleModeByRoom: type === 'battle' ? { ...state.battleModeByRoom, [roomId]: 'waiting' } : state.battleModeByRoom,
         }));
         break;
       }
       case 'deinit':
-        set(state => ({ rooms: upsertRoom(state.rooms, roomId, { connected: false }) }));
+        set(state => ({
+          rooms: upsertRoom(state.rooms, roomId, { connected: false }),
+          activeRoomId: state.activeRoomId === roomId ? undefined : state.activeRoomId,
+        }));
         break;
       case 'noinit':
         set(state => ({
@@ -830,6 +872,7 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
             battle: updated,
             battles: { ...state.battles, [roomId]: updated },
             searchState: 'idle',
+            activeRoomId: roomId,
             choiceSessionByRoom: { ...state.choiceSessionByRoom, [roomId]: session },
             choiceDraftByRoom: { ...state.choiceDraftByRoom, [roomId]: session.draft },
             choiceErrorByRoom: { ...state.choiceErrorByRoom, [roomId]: undefined },
@@ -859,20 +902,30 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
       default: {
         const chat = parseChatLine(line);
         if (chat) {
-          set(state => ({
-            rooms: { ...state.rooms, [roomId]: appendRoomChat(state.rooms[roomId], chat) },
-            lastError: chat.kind === 'error' ? chat.message : state.lastError,
-          }));
+          set(state => {
+            const battle = state.battles[roomId];
+            const updatedBattle = battle ? {
+              ...battle,
+              chat: [...battle.chat, { user: chat.user, message: chat.message }].slice(-120),
+            } : undefined;
+            return {
+              rooms: { ...state.rooms, [roomId]: appendRoomChat(state.rooms[roomId], chat) },
+              battle: updatedBattle || state.battle,
+              battles: updatedBattle ? { ...state.battles, [roomId]: updatedBattle } : state.battles,
+              lastError: chat.kind === 'error' ? chat.message : state.lastError,
+            };
+          });
         }
         const logLine = roomId.startsWith('battle-') ? battleLogLine(line) : '';
-        if (logLine) {
+        if (roomId.startsWith('battle-')) {
           set(state => {
             const battle = state.battles[roomId] || { ...emptyBattle, id: roomId };
-            const updated = { ...battle, log: [logLine, ...battle.log].slice(0, 12) };
+            const projected = applyBattleProtocolLine(battle, line);
+            const updated = logLine ? { ...projected, log: [logLine, ...projected.log].slice(0, 40) } : projected;
             return {
               battle: updated,
               battles: { ...state.battles, [roomId]: updated },
-              rooms: { ...state.rooms, [roomId]: appendRoomLog(state.rooms[roomId], logLine) },
+              rooms: logLine ? { ...state.rooms, [roomId]: appendRoomLog(state.rooms[roomId], logLine) } : state.rooms,
             };
           });
         }

@@ -1,6 +1,6 @@
 import { useNavigate } from '@tanstack/react-router';
 import { Search } from 'lucide-react';
-import { type FormEvent, useState } from 'react';
+import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { navItems } from '../navigation';
 import { toId } from '../compat/protocol-parsers';
 import { useArenaStore } from '../stores/arena-store';
@@ -9,6 +9,24 @@ export function CommandBar() {
   const navigate = useNavigate();
   const { formats, setSelectedFormat } = useArenaStore();
   const [query, setQuery] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handleShortcut = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const isTyping = target?.matches('input, textarea, [contenteditable="true"]');
+      if (event.key === '/' && !isTyping) {
+        event.preventDefault();
+        inputRef.current?.focus();
+      }
+      if (event.key === 'Escape' && document.activeElement === inputRef.current) {
+        inputRef.current?.blur();
+        setQuery('');
+      }
+    };
+    window.addEventListener('keydown', handleShortcut);
+    return () => window.removeEventListener('keydown', handleShortcut);
+  }, []);
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -32,6 +50,7 @@ export function CommandBar() {
     <form className="command-bar" onSubmit={submit}>
       <Search size={17} aria-hidden />
       <input
+        ref={inputRef}
         placeholder="Jump to Teams, Rooms, Settings, or a format"
         aria-label="Command search"
         value={query}

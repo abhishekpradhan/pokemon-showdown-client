@@ -33,12 +33,18 @@ export type ArenaBattle = {
   id: string;
   format: string;
   turn: number;
+  playerSide?: 'p1' | 'p2';
   p1: { name: string; rating: number };
   p2: { name: string; rating: number };
   active: PokemonSet;
   opponentActive: PokemonSet;
   team: PokemonSet[];
   opponentTeam: PokemonSet[];
+  weather?: string;
+  fieldConditions?: string[];
+  winner?: string;
+  ended?: boolean;
+  timerOn?: boolean;
   moves: BattleChoice[];
   log: string[];
   chat: { user: string; message: string }[];
@@ -352,6 +358,7 @@ export function normalizeBattleRequest(request: BattleRequest, previousBattle?: 
 
 export function battleFromRequest(roomId: string, request: BattleRequest, previous: ArenaBattle = emptyBattle): ArenaBattle {
   const normalized = normalizeBattleRequest(request, previous);
+  const playerSide = request.side?.id === 'p2' ? 'p2' : request.side?.id === 'p1' ? 'p1' : previous.playerSide;
   const team = request.side?.pokemon?.map((pokemon, index): PokemonSet => {
     const name = pokemon.ident.split(': ')[1] || speciesFromDetails(pokemon.details);
     return {
@@ -394,10 +401,12 @@ export function battleFromRequest(roomId: string, request: BattleRequest, previo
   return {
     ...previous,
     id: roomId || previous.id,
+    playerSide,
     rqid: request.rqid,
     requestType: normalized.requestType,
     waiting: !!request.wait || normalized.requestType === 'wait',
-    p1: { ...previous.p1, name: request.side?.name || previous.p1.name },
+    p1: playerSide === 'p2' ? previous.p1 : { ...previous.p1, name: request.side?.name || previous.p1.name },
+    p2: playerSide === 'p2' ? { ...previous.p2, name: request.side?.name || previous.p2.name } : previous.p2,
     active,
     team,
     moves,
@@ -410,6 +419,184 @@ export function battleFromRequest(roomId: string, request: BattleRequest, previo
     choiceError: undefined,
     choiceDraft: { choices: [] },
   };
+}
+
+type BattleProtocolLine = {
+  command: string;
+  args: string[];
+};
+
+const protocolIdent = (ident: string) => {
+  const match = ident.match(/^(p[12])([a-z])?:\s*(.+)$/i);
+  if (!match) return null;
+  return {
+    side: match[1].toLowerCase() as 'p1' | 'p2',
+    activeIndex: match[2] ? Math.max(0, match[2].toLowerCase().charCodeAt(0) - 97) : 0,
+    name: match[3].trim(),
+  };
+};
+
+const statusFromCondition = (condition: string): PokemonSet['status'] => {
+  if (condition.includes(' brn')) return 'BRN';
+  if (condition.includes(' par')) return 'PAR';
+  if (condition.includes(' psn') || condition.includes(' tox')) return 'PSN';
+  if (condition.includes(' slp')) return 'SLP';
+  if (condition.includes(' frz')) return 'FRZ';
+  return undefined;
+};
+
+const samePokemon = (pokemon: PokemonSet, name: string, species?: string) =>
+  speciesId(pokemon.name) === speciesId(name) ||
+  (!!species && speciesId(pokemon.species) === speciesId(species));
+
+const updateRosterPokemon = (
+  roster: PokemonSet[],
+  name: string,
+  patch: Partial<PokemonSet>,
+  species?: string
+) => {
+  const index = roster.findIndex(pokemon => samePokemon(pokemon, name, species));
+  if (index < 0) {
+    return [...roster, {
+      slot: roster.length + 1,
+      name,
+      species: species || speciesId(name),
+      hp: 100,
+      ...patch,
+    }];
+  }
+  return roster.map((pokemon, pokemonIndex) => pokemonIndex === index ? { ...pokemon, ...patch } : pokemon);
+};
+
+const conditionPatch = (condition: string): Partial<PokemonSet> => {
+  const hp = parseHpPercent(condition);
+  return {
+    hp,
+    status: statusFromCondition(condition),
+    fainted: condition.includes('fnt') || hp <= 0,
+  };
+};
+
+const updatePokemonFromIdent = (
+  battle: ArenaBattle,
+  identText: string,
+  patch: Partial<PokemonSet>,
+  species?: string
+): ArenaBattle => {
+  const ident = protocolIdent(identText);
+  if (!ident) return battle;
+  const ownSide = battle.playerSide || 'p1';
+  const isOwn = ident.side === ownSide;
+  const activeKey = isOwn ? 'active' : 'opponentActive';
+  const rosterKey = isOwn ? 'team' : 'opponentTeam';
+  const active = battle[activeKey];
+  const nextActive = samePokemon(active, ident.name, species) ? { ...active, ...patch } : active;
+  return {
+    ...battle,
+    [activeKey]: nextActive,
+    [rosterKey]: updateRosterPokemon(battle[rosterKey], ident.name, patch, species),
+  };
+};
+
+const switchPokemon = (
+  battle: ArenaBattle,
+  identText: string,
+  details: string,
+  condition: string
+): ArenaBattle => {
+  const ident = protocolIdent(identText);
+  if (!ident) return battle;
+  const ownSide = battle.playerSide || 'p1';
+  const isOwn = ident.side === ownSide;
+  const activeKey = isOwn ? 'active' : 'opponentActive';
+  const rosterKey = isOwn ? 'team' : 'opponentTeam';
+  const species = speciesId(speciesFromDetails(details));
+  const patch: Partial<PokemonSet> = {
+    ...conditionPatch(condition),
+    active: true,
+    name: ident.name,
+    species,
+  };
+  const roster = updateRosterPokemon(
+    battle[rosterKey].map(pokemon => ({ ...pokemon, active: false })),
+    ident.name,
+    patch,
+    species
+  );
+  const active = roster.find(pokemon => samePokemon(pokemon, ident.name, species)) || {
+    slot: ident.activeIndex + 1,
+    name: ident.name,
+    species,
+    hp: parseHpPercent(condition),
+    active: true,
+  };
+  return { ...battle, [activeKey]: active, [rosterKey]: roster };
+};
+
+const conditionLabel = (raw: string) => raw
+  .replace(/^move:\s*/i, '')
+  .replace(/^ability:\s*/i, '')
+  .replace(/^item:\s*/i, '');
+
+/**
+ * Projects the subset of PS battle protocol needed by the React battle scene.
+ * The legacy simulator remains authoritative; this adapter keeps the modern HUD
+ * in sync without coupling components to raw protocol strings.
+ */
+export function applyBattleProtocolLine(battle: ArenaBattle, line: BattleProtocolLine): ArenaBattle {
+  const { command, args } = line;
+  switch (command) {
+  case 'switch':
+  case 'drag':
+  case 'replace':
+    return switchPokemon(battle, args[0] || '', args[1] || '', args[2] || '');
+  case '-damage':
+  case '-heal':
+    return updatePokemonFromIdent(battle, args[0] || '', conditionPatch(args[1] || ''));
+  case '-status':
+    return updatePokemonFromIdent(battle, args[0] || '', { status: statusFromCondition(` ${args[1] || ''}`) });
+  case '-curestatus':
+    return updatePokemonFromIdent(battle, args[0] || '', { status: undefined });
+  case 'faint':
+    return updatePokemonFromIdent(battle, args[0] || '', { hp: 0, fainted: true, active: true });
+  case 'poke': {
+    const side = args[0] === 'p2' ? 'p2' : 'p1';
+    const ownSide = battle.playerSide || 'p1';
+    const rosterKey = side === ownSide ? 'team' : 'opponentTeam';
+    const name = speciesFromDetails(args[1] || 'Pokemon');
+    if (battle[rosterKey].some(pokemon => speciesId(pokemon.species) === speciesId(name))) return battle;
+    return {
+      ...battle,
+      [rosterKey]: [...battle[rosterKey], {
+        slot: battle[rosterKey].length + 1,
+        name,
+        species: speciesId(name),
+        hp: 100,
+      }],
+    };
+  }
+  case 'clearpoke':
+    return { ...battle, team: [], opponentTeam: [] };
+  case '-weather':
+    return { ...battle, weather: !args[0] || args[0] === 'none' ? undefined : conditionLabel(args[0]) };
+  case '-fieldstart': {
+    const condition = conditionLabel(args[0] || '');
+    const fieldConditions = [...new Set([...(battle.fieldConditions || []), condition])].filter(Boolean);
+    return { ...battle, fieldConditions };
+  }
+  case '-fieldend': {
+    const condition = conditionLabel(args[0] || '');
+    return { ...battle, fieldConditions: (battle.fieldConditions || []).filter(entry => entry !== condition) };
+  }
+  case 'start':
+    return { ...battle, waiting: false, ended: false, mode: battle.mode === 'spectator' ? 'spectator' : battle.mode };
+  case 'win':
+    return { ...battle, winner: args[0], ended: true, waiting: true, mode: 'ended' };
+  case 'tie':
+    return { ...battle, winner: undefined, ended: true, waiting: true, mode: 'ended' };
+  default:
+    return battle;
+  }
 }
 
 export function buildBattleCommand(choice: BattleChoice | PokemonSet, rqid?: number) {

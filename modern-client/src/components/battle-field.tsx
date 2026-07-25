@@ -1,7 +1,11 @@
 import { motion } from 'motion/react';
 import type { ArenaBattle, PokemonSet } from '../compat/battle-adapter';
 
-function Combatant({ pokemon, side }: { pokemon: PokemonSet; side: 'near' | 'far' }) {
+function Combatant({ hideHealth = false, pokemon, side }: {
+  hideHealth?: boolean;
+  pokemon: PokemonSet;
+  side: 'near' | 'far';
+}) {
   return (
     <motion.div
       className={`combatant combatant-${side}`}
@@ -21,9 +25,9 @@ function Combatant({ pokemon, side }: { pokemon: PokemonSet; side: 'near' | 'far
       <div className="combatant-bar">
         <div className="combatant-meta">
           <strong>{pokemon.name}</strong>
-          <span>{pokemon.hp}%</span>
+          <span>{!hideHealth && pokemon.status && <i>{pokemon.status}</i>}{hideHealth ? '—' : `${pokemon.hp}%`}</span>
         </div>
-        <div className="hp-track" aria-hidden>
+        <div className={`hp-track ${hideHealth ? 'is-hidden' : ''}`} aria-hidden>
           <i style={{ inlineSize: `${Math.max(pokemon.hp, 1)}%` }} data-critical={pokemon.hp < 25} />
         </div>
       </div>
@@ -31,18 +35,35 @@ function Combatant({ pokemon, side }: { pokemon: PokemonSet; side: 'near' | 'far
   );
 }
 
-export function BattleField({ battle }: { battle: ArenaBattle }) {
+export function BattleField({ battle, hardcore = false }: { battle: ArenaBattle; hardcore?: boolean }) {
+  const nearPlayer = battle.playerSide === 'p2' ? battle.p2 : battle.p1;
+  const farPlayer = battle.playerSide === 'p2' ? battle.p1 : battle.p2;
+
   return (
-    <div className="battle-field" aria-label="Battle field">
+    <div className="battle-field" aria-label="Battle field" data-weather={battle.weather || 'clear'}>
       <div className="field-backdrop" />
       <div className="field-vignette" />
-      <Combatant pokemon={battle.opponentActive} side="far" />
+      <Combatant hideHealth={hardcore} pokemon={battle.opponentActive} side="far" />
       <Combatant pokemon={battle.active} side="near" />
       <div className="field-hud">
-        <span>{battle.p1.name} · {battle.p1.rating}</span>
-        <strong>Turn {battle.turn}</strong>
-        <span>{battle.p2.name} · {battle.p2.rating}</span>
+        <span>{nearPlayer.name} {nearPlayer.rating > 0 && <i>{nearPlayer.rating}</i>}</span>
+        <strong>Turn {battle.turn || '—'}</strong>
+        <span>{farPlayer.name} {farPlayer.rating > 0 && <i>{farPlayer.rating}</i>}</span>
       </div>
+      <div className="field-rosters" aria-label="Remaining team members">
+        <span>
+          {battle.team.map(pokemon => <i key={pokemon.slot} data-fainted={pokemon.fainted || pokemon.hp <= 0} title={pokemon.name} />)}
+        </span>
+        <span>
+          {battle.opponentTeam.map(pokemon => <i key={pokemon.slot} data-fainted={!hardcore && (pokemon.fainted || pokemon.hp <= 0)} title={hardcore ? 'Opponent team slot' : pokemon.name} />)}
+        </span>
+      </div>
+      {!hardcore && (battle.weather || battle.fieldConditions?.length) && (
+        <div className="field-effects">
+          {battle.weather && <span>{battle.weather}</span>}
+          {battle.fieldConditions?.map(condition => <span key={condition}>{condition}</span>)}
+        </div>
+      )}
     </div>
   );
 }
