@@ -1185,3 +1185,80 @@
   from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* ── Stat stages, volatiles and hazards ──────────────────────────────────
+   Boosts and hazards decide most turns, so they sit on the field rather
+   than being buried in the log. */
+
+.boost-chip {
+  padding: 2px 6px;
+  font-size: 9px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.03em;
+  border-radius: 999px;
+}
+
+.boost-chip[data-direction="up"] {
+  color: #06210f;
+  background: var(--hp-high);
+}
+
+.boost-chip[data-direction="down"] {
+  color: #ffe6e6;
+  background: rgb(240 90 90 / 82%);
+}
+
+.volatile-chip {
+  padding: 2px 7px;
+  color: var(--arena-soft);
+  font-size: 9px;
+  font-weight: 700;
+  background: rgb(255 255 255 / 12%);
+  border: 1px solid rgb(255 255 255 / 16%);
+  border-radius: 999px;
+}
+
+.side-conditions {
+  position: absolute;
+  z-index: 3;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-inline-size: 42%;
+}
+
+/* Hazards sit on the side they affect. Keyed on an explicit class: with
+   :first-of-type/:last-of-type, a single rendered element matched both. */
+.side-conditions.is-far {
+  inset-block-start: 52px;
+  inset-inline-end: 12px;
+  justify-content: flex-end;
+}
+
+.side-conditions.is-near {
+  inset-block-end: 52px;
+  inset-inline-start: 12px;
+}
+
+.side-conditions span {
+  display: inline-flex;
+  gap: 3px;
+  align-items: center;
+  padding: 3px 8px;
+  color: #ffd9a8;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  background: rgb(9 13 20 / 78%);
+  border: 1px solid rgb(231 185 92 / 40%);
+  border-radius: 999px;
+  backdrop-filter: blur(6px);
+}
+
+.side-conditions i {
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.75;
+}

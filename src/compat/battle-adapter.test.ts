@@ -238,3 +238,85 @@ describe('side assignment', () => {
     expect(corrected.opponentActive.hp).toBe(100);
   });
 });
+
+describe('protocol coverage', () => {
+  const base: ArenaBattle = { ...emptyBattle, id: 'battle-gen9ou-1', format: 'gen9ou', playerSide: 'p1' };
+  const apply = (battle: ArenaBattle, raw: string) => {
+    const parts = raw.split('|').slice(1);
+    return applyBattleProtocolLine(battle, { command: parts[0], args: parts.slice(1) });
+  };
+
+  it('accumulates and clears stat stages', () => {
+    let battle = apply(base, '|switch|p1a: Iron Valiant|Iron Valiant, L80|156/200');
+    battle = apply(battle, '|-boost|p1a: Iron Valiant|atk|2');
+    expect(battle.active.boosts).toEqual({ atk: 2 });
+
+    battle = apply(battle, '|-boost|p1a: Iron Valiant|atk|1');
+    battle = apply(battle, '|-unboost|p1a: Iron Valiant|spe|1');
+    expect(battle.active.boosts).toEqual({ atk: 3, spe: -1 });
+
+    // Returning to neutral drops the key rather than rendering "+0 Spe".
+    battle = apply(battle, '|-boost|p1a: Iron Valiant|spe|1');
+    expect(battle.active.boosts).toEqual({ atk: 3 });
+
+    battle = apply(battle, '|-clearboost|p1a: Iron Valiant');
+    expect(battle.active.boosts).toBeUndefined();
+  });
+
+  it('caps stages at +-6', () => {
+    let battle = apply(base, '|switch|p1a: Iron Valiant|Iron Valiant, L80|156/200');
+    for (let i = 0; i < 5; i++) battle = apply(battle, '|-boost|p1a: Iron Valiant|atk|2');
+    expect(battle.active.boosts?.atk).toBe(6);
+  });
+
+  it('drops stat stages and volatiles when a Pokemon switches out', () => {
+    let battle = apply(base, '|switch|p1a: Iron Valiant|Iron Valiant, L80|156/200');
+    battle = apply(battle, '|-boost|p1a: Iron Valiant|atk|2');
+    battle = apply(battle, '|-start|p1a: Iron Valiant|move: Substitute');
+    expect(battle.active.volatiles).toEqual(['Substitute']);
+
+    battle = apply(battle, '|switch|p1a: Heatran|Heatran, L80|180/180');
+    expect(battle.active.boosts).toBeUndefined();
+    expect(battle.active.volatiles).toBeUndefined();
+  });
+
+  it('tracks volatiles by display name', () => {
+    let battle = apply(base, '|switch|p1a: Iron Valiant|Iron Valiant, L80|156/200');
+    battle = apply(battle, '|-start|p1a: Iron Valiant|move: Leech Seed');
+    battle = apply(battle, '|-start|p1a: Iron Valiant|confusion');
+    expect(battle.active.volatiles).toEqual(['Leech Seed', 'confusion']);
+
+    battle = apply(battle, '|-end|p1a: Iron Valiant|confusion');
+    expect(battle.active.volatiles).toEqual(['Leech Seed']);
+  });
+
+  it('stacks hazard layers on the correct side', () => {
+    let battle = apply(base, '|-sidestart|p2: Rival|Spikes');
+    battle = apply(battle, '|-sidestart|p2: Rival|Spikes');
+    battle = apply(battle, '|-sidestart|p1: You|move: Stealth Rock');
+
+    expect(battle.opponentSideConditions).toEqual([{ name: 'Spikes', layers: 2 }]);
+    expect(battle.sideConditions).toEqual([{ name: 'Stealth Rock', layers: 1 }]);
+
+    battle = apply(battle, '|-sideend|p2: Rival|Spikes');
+    expect(battle.opponentSideConditions).toEqual([]);
+  });
+
+  it('assigns hazards by our side, not by p1', () => {
+    // As p2, `-sidestart|p2:` is ours.
+    let battle = apply({ ...base, playerSide: 'p2' }, '|-sidestart|p2: Me|Spikes');
+    expect(battle.sideConditions).toEqual([{ name: 'Spikes', layers: 1 }]);
+    battle = apply(battle, '|-sidestart|p1: Them|move: Stealth Rock');
+    expect(battle.opponentSideConditions).toEqual([{ name: 'Stealth Rock', layers: 1 }]);
+  });
+
+  it('records item and ability reveals', () => {
+    let battle = apply(base, '|switch|p2a: Great Tusk|Great Tusk, L80|100/100');
+    battle = apply(battle, '|-item|p2a: Great Tusk|Booster Energy');
+    battle = apply(battle, '|-ability|p2a: Great Tusk|Protosynthesis');
+    expect(battle.opponentActive).toMatchObject({ item: 'Booster Energy', ability: 'Protosynthesis' });
+
+    battle = apply(battle, '|-enditem|p2a: Great Tusk|Booster Energy');
+    expect(battle.opponentActive.item).toBeUndefined();
+  });
+});

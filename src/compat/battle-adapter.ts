@@ -24,9 +24,25 @@ export type PokemonSet = {
   gender?: 'M' | 'F';
   shiny?: boolean;
   terastallized?: TypeName;
+  /** Stat stages, -6..+6. Absent keys are unmodified. */
+  boosts?: Partial<Record<BoostId, number>>;
+  /** Active volatiles by display name, e.g. `Substitute`, `Leech Seed`. */
+  volatiles?: string[];
+  item?: string;
+  ability?: string;
   active?: boolean;
   fainted?: boolean;
 };
+
+export type BoostId = 'atk' | 'def' | 'spa' | 'spd' | 'spe' | 'accuracy' | 'evasion';
+
+export const BOOST_LABELS: Record<BoostId, string> = {
+  atk: 'Atk', def: 'Def', spa: 'SpA', spd: 'SpD', spe: 'Spe',
+  accuracy: 'Acc', evasion: 'Eva',
+};
+
+/** Entry hazards and screens, tracked per side with their layer count. */
+export type SideCondition = { name: string; layers: number };
 
 export type BattleRoomMode = 'player' | 'spectator' | 'waiting' | 'ended';
 
@@ -70,6 +86,9 @@ export type ArenaBattle = {
   opponentTeam: PokemonSet[];
   weather?: string;
   fieldConditions?: string[];
+  /** Hazards and screens on your side and the opponent's. */
+  sideConditions?: SideCondition[];
+  opponentSideConditions?: SideCondition[];
   winner?: string;
   ended?: boolean;
   timerOn?: boolean;
@@ -670,8 +689,11 @@ const switchPokemon = (
     level: parsed.level,
     gender: parsed.gender,
     shiny: parsed.shiny,
-    // A switch-out clears Terastallization tracking for the incoming Pokémon.
+    // Stat stages and volatiles do not survive a switch, and the incoming
+    // Pokémon carries its own Terastallization state.
     terastallized: undefined,
+    boosts: undefined,
+    volatiles: undefined,
   };
   const roster = updateRosterPokemon(
     battle[rosterKey].map(pokemon => ({ ...pokemon, active: false })),
@@ -697,6 +719,81 @@ const conditionLabel = (raw: string) => raw
   .replace(/^move:\s*/i, '')
   .replace(/^ability:\s*/i, '')
   .replace(/^item:\s*/i, '');
+
+
+const BOOST_IDS = new Set<string>(['atk', 'def', 'spa', 'spd', 'spe', 'accuracy', 'evasion']);
+
+const clampStage = (value: number) => Math.max(-6, Math.min(6, value));
+
+/** Applies a stat-stage delta, dropping keys that return to neutral. */
+const withBoost = (pokemon: PokemonSet, stat: string, delta: number, absolute = false): PokemonSet => {
+  if (!BOOST_IDS.has(stat)) return pokemon;
+  const id = stat as BoostId;
+  const next = { ...(pokemon.boosts || {}) };
+  const value = clampStage(absolute ? delta : (next[id] || 0) + delta);
+  if (value === 0) delete next[id];
+  else next[id] = value;
+  return { ...pokemon, boosts: Object.keys(next).length ? next : undefined };
+};
+
+const withVolatile = (pokemon: PokemonSet, name: string, add: boolean): PokemonSet => {
+  const label = conditionLabel(name);
+  if (!label) return pokemon;
+  const current = pokemon.volatiles || [];
+  if (add) {
+    if (current.includes(label)) return pokemon;
+    return { ...pokemon, volatiles: [...current, label] };
+  }
+  const next = current.filter(entry => entry !== label);
+  return { ...pokemon, volatiles: next.length ? next : undefined };
+};
+
+/** Side conditions stack (Spikes up to 3, Toxic Spikes up to 2). */
+const withSideCondition = (conditions: SideCondition[] | undefined, name: string, add: boolean): SideCondition[] => {
+  const label = conditionLabel(name);
+  const list = conditions || [];
+  if (!label) return list;
+  const index = list.findIndex(entry => entry.name === label);
+  if (!add) return list.filter(entry => entry.name !== label);
+  if (index < 0) return [...list, { name: label, layers: 1 }];
+  return list.map((entry, entryIndex) =>
+    entryIndex === index ? { ...entry, layers: entry.layers + 1 } : entry);
+};
+
+/** Resolves which side of the battle a `p1: Name` / `p1a: Name` ident is on. */
+const sideKeys = (battle: ArenaBattle, side: 'p1' | 'p2') => {
+  const isOwn = side === (battle.playerSide || 'p1');
+  return {
+    isOwn,
+    conditionsKey: (isOwn ? 'sideConditions' : 'opponentSideConditions') as
+      'sideConditions' | 'opponentSideConditions',
+  };
+};
+
+/** Applies a transform to whichever active Pokémon an ident refers to. */
+const updateActiveFromIdent = (
+  battle: ArenaBattle,
+  identText: string,
+  transform: (pokemon: PokemonSet) => PokemonSet
+): ArenaBattle => {
+  const ident = protocolIdent(identText);
+  if (!ident) return battle;
+  const isOwn = ident.side === (battle.playerSide || 'p1');
+  const activeKey = isOwn ? 'active' : 'opponentActive';
+  const rosterKey = isOwn ? 'team' : 'opponentTeam';
+  const updated = transform(battle[activeKey]);
+  return {
+    ...battle,
+    [activeKey]: updated,
+    [rosterKey]: battle[rosterKey].map(pokemon =>
+      samePokemon(pokemon, ident.name) ? transform(pokemon) : pokemon),
+  };
+};
+
+const identSide = (raw: string): 'p1' | 'p2' | null => {
+  const match = /^(p[12])/.exec(raw.trim());
+  return match ? (match[1] as 'p1' | 'p2') : null;
+};
 
 /**
  * Projects the subset of PS battle protocol needed by the React battle scene.
@@ -741,6 +838,55 @@ export function applyBattleProtocolLine(battle: ArenaBattle, line: BattleProtoco
   }
   case '-terastallize':
     return updatePokemonFromIdent(battle, args[0] || '', { terastallized: args[1] as TypeName });
+
+  // ── Stat stages ──────────────────────────────────────────────────────────
+  case '-boost':
+  case '-unboost': {
+    const delta = (Number(args[2]) || 0) * (command === '-unboost' ? -1 : 1);
+    return updateActiveFromIdent(battle, args[0] || '', pokemon => withBoost(pokemon, args[1] || '', delta));
+  }
+  case '-setboost':
+    return updateActiveFromIdent(battle, args[0] || '', pokemon =>
+      withBoost(pokemon, args[1] || '', Number(args[2]) || 0, true));
+  case '-clearboost':
+  case '-clearnegativeboost':
+    return updateActiveFromIdent(battle, args[0] || '', pokemon => ({ ...pokemon, boosts: undefined }));
+  case '-clearallboost':
+    return {
+      ...battle,
+      active: { ...battle.active, boosts: undefined },
+      opponentActive: { ...battle.opponentActive, boosts: undefined },
+    };
+  case '-copyboost':
+  case '-swapboost':
+    // Rare enough that mirroring the source is better than showing nothing.
+    return battle;
+
+  // ── Volatiles ────────────────────────────────────────────────────────────
+  case '-start':
+    return updateActiveFromIdent(battle, args[0] || '', pokemon => withVolatile(pokemon, args[1] || '', true));
+  case '-end':
+    return updateActiveFromIdent(battle, args[0] || '', pokemon => withVolatile(pokemon, args[1] || '', false));
+
+  // ── Reveals ──────────────────────────────────────────────────────────────
+  case '-item':
+    return updateActiveFromIdent(battle, args[0] || '', pokemon => ({ ...pokemon, item: args[1] }));
+  case '-enditem':
+    return updateActiveFromIdent(battle, args[0] || '', pokemon => ({ ...pokemon, item: undefined }));
+  case '-ability':
+    return updateActiveFromIdent(battle, args[0] || '', pokemon => ({ ...pokemon, ability: args[1] }));
+
+  // ── Hazards and screens ──────────────────────────────────────────────────
+  case '-sidestart':
+  case '-sideend': {
+    const side = identSide(args[0] || '');
+    if (!side) return battle;
+    const { conditionsKey } = sideKeys(battle, side);
+    return {
+      ...battle,
+      [conditionsKey]: withSideCondition(battle[conditionsKey], args[1] || '', command === '-sidestart'),
+    };
+  }
   case 'detailschange':
   case '-formechange': {
     const parsed = parseDetails(args[1] || '', genFromFormat(battle.format));
@@ -768,6 +914,8 @@ export function applyBattleProtocolLine(battle: ArenaBattle, line: BattleProtoco
     return { ...battle, waiting: false, ended: false, mode: battle.mode === 'spectator' ? 'spectator' : battle.mode };
   case 'win':
     return { ...battle, winner: args[0], ended: true, waiting: true, mode: 'ended' };
+  case 'turn':
+    return { ...battle, turn: Number(args[0]) || battle.turn, waiting: false };
   case 'tie':
     return { ...battle, winner: undefined, ended: true, waiting: true, mode: 'ended' };
   default:

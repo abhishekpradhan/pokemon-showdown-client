@@ -1,6 +1,6 @@
 import { motion } from 'motion/react';
 import { clsx } from 'clsx';
-import type { ArenaBattle, PokemonSet } from '../compat/battle-adapter';
+import { BOOST_LABELS, type ArenaBattle, type BoostId, type PokemonSet, type SideCondition } from '../compat/battle-adapter';
 import { genFromFormat } from '../data/dex';
 import { pokemonSprite } from '../data/sprites';
 import { STATUS_LABELS, typeStyle } from '../data/types';
@@ -33,6 +33,40 @@ function HealthBar({ pokemon, hidden }: { pokemon: PokemonSet; hidden: boolean }
       <span className="hp-readout">
         {hidden ? '???' : exact || `${Math.round(percent)}%`}
       </span>
+    </div>
+  );
+}
+
+/** Stat stages, most-changed first, so the important ones read at a glance. */
+function BoostChips({ boosts }: { boosts: PokemonSet['boosts'] }) {
+  const entries = Object.entries(boosts || {}) as [BoostId, number][];
+  if (!entries.length) return null;
+  return (
+    <>
+      {entries
+        .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
+        .map(([stat, stage]) => (
+          <span className="boost-chip" key={stat} data-direction={stage > 0 ? 'up' : 'down'}>
+            {stage > 0 ? '+' : ''}{stage} {BOOST_LABELS[stat]}
+          </span>
+        ))}
+    </>
+  );
+}
+
+function SideConditions({ conditions, label, side }: {
+  conditions?: SideCondition[];
+  label: string;
+  side: 'near' | 'far';
+}) {
+  if (!conditions?.length) return null;
+  return (
+    <div className={`side-conditions is-${side}`} aria-label={label}>
+      {conditions.map(condition => (
+        <span key={condition.name}>
+          {condition.name}{condition.layers > 1 && <i>×{condition.layers}</i>}
+        </span>
+      ))}
     </div>
   );
 }
@@ -71,6 +105,10 @@ function Combatant({ battle, hideHealth = false, pokemon, side }: {
         </div>
         <HealthBar pokemon={pokemon} hidden={hideHealth} />
         <div className="nameplate-tags">
+          <BoostChips boosts={pokemon.boosts} />
+          {pokemon.volatiles?.map(volatile => (
+            <span className="volatile-chip" key={volatile}>{volatile}</span>
+          ))}
           {!hideHealth && status && (
             <span className="status-chip" style={{ '--status-color': status.color } as React.CSSProperties} title={status.label}>
               {pokemon.status}
@@ -129,8 +167,10 @@ export function BattleField({ battle, hardcore = false }: { battle: ArenaBattle;
         <strong className="field-turn">Turn {battle.turn || '—'}</strong>
       </header>
 
+      <SideConditions conditions={battle.opponentSideConditions} label="Opponent's side conditions" side="far" />
       <Combatant battle={battle} hideHealth={hardcore} pokemon={battle.opponentActive} side="far" />
       <Combatant battle={battle} pokemon={battle.active} side="near" />
+      <SideConditions conditions={battle.sideConditions} label="Your side conditions" side="near" />
 
       {effects.length > 0 && (
         <div className="field-effects" aria-label="Field conditions">
