@@ -17,8 +17,8 @@
 |teampreview
 |request|{"teamPreview":true,"maxChosenTeamSize":6,"rqid":2,"side":{"name":"ArenaTester","id":"p1","pokemon":[{"ident":"p1: Garchomp","details":"Garchomp, M","condition":"319/319","active":true,"moves":["swordsdance","earthquake","dragonclaw","firefang"],"item":"loadeddice","ability":"roughskin"},{"ident":"p1: Rotom-Wash","details":"Rotom-Wash","condition":"241/241","moves":["hydropump","voltswitch","willowisp","protect"],"item":"leftovers","ability":"levitate"},{"ident":"p1: Kingambit","details":"Kingambit, F","condition":"334/334","moves":["kowtowcleave","suckerpunch","ironhead","swordsdance"],"item":"blackglasses","ability":"supremeoverlord"}]}}
 |start
-|switch|p1a: Garchomp|Garchomp, M, L100|319/319
-|switch|p2a: Skarmory|Skarmory, F, L100|100/100
+|switch|p1a: Garchomp|Garchomp, M|319/319
+|switch|p2a: Skarmory|Skarmory, F|100/100
 |turn|1
 |request|{"rqid":3,"active":[{"moves":[{"move":"Swords Dance","id":"swordsdance","pp":32,"maxpp":32,"target":"self","disabled":false},{"move":"Earthquake","id":"earthquake","pp":16,"maxpp":16,"target":"normal","disabled":false},{"move":"Dragon Claw","id":"dragonclaw","pp":24,"maxpp":24,"target":"normal","disabled":false},{"move":"Fire Fang","id":"firefang","pp":24,"maxpp":24,"target":"normal","disabled":false}],"canTerastallize":"Ground"}],"side":{"name":"ArenaTester","id":"p1","pokemon":[{"ident":"p1: Garchomp","details":"Garchomp, M","condition":"319/319","active":true,"moves":["swordsdance","earthquake","dragonclaw","firefang"],"item":"loadeddice","ability":"roughskin"},{"ident":"p1: Rotom-Wash","details":"Rotom-Wash","condition":"241/241","moves":["hydropump","voltswitch","willowisp","protect"],"item":"leftovers","ability":"levitate"},{"ident":"p1: Kingambit","details":"Kingambit, F","condition":"334/334","moves":["kowtowcleave","suckerpunch","ironhead","swordsdance"],"item":"blackglasses","ability":"supremeoverlord"}]}}
 |move|p1a: Garchomp|Swords Dance|p1a: Garchomp
@@ -36,10 +36,10 @@
 |-damage|p1a: Garchomp|227/319 brn|[from] brn
 |turn|3
 |move|p2a: Skarmory|Whirlwind|p1a: Garchomp
-|drag|p1a: Rotom-Wash|Rotom-Wash, L100|241/241
+|drag|p1a: Rotom-Wash|Rotom-Wash|241/241
 |-damage|p1a: Rotom-Wash|211/241|[from] Spikes
 |turn|4
-|switch|p2a: Heatran|Heatran, M, L100|100/100
+|switch|p2a: Heatran|Heatran, M|100/100
 |-item|p2a: Heatran|Air Balloon
 |move|p1a: Rotom-Wash|Will-O-Wisp|p2a: Heatran
 |-immune|p2a: Heatran
@@ -58,7 +58,7 @@
 |-damage|p1a: Rotom-Wash|0 fnt
 |faint|p1a: Rotom-Wash
 |request|{"rqid":7,"forceSwitch":[true],"side":{"name":"ArenaTester","id":"p1","pokemon":[{"ident":"p1: Rotom-Wash","details":"Rotom-Wash","condition":"0 fnt","active":true,"moves":["hydropump","voltswitch","willowisp","protect"],"item":"leftovers","ability":"levitate"},{"ident":"p1: Garchomp","details":"Garchomp, M","condition":"227/319 brn","moves":["swordsdance","earthquake","dragonclaw","firefang"],"item":"loadeddice","ability":"roughskin"},{"ident":"p1: Kingambit","details":"Kingambit, F","condition":"334/334","moves":["kowtowcleave","suckerpunch","ironhead","swordsdance"],"item":"blackglasses","ability":"supremeoverlord"}]}}
-|switch|p1a: Kingambit|Kingambit, F, L100|334/334
+|switch|p1a: Kingambit|Kingambit, F|334/334
 |-damage|p1a: Kingambit|293/334|[from] Spikes
 |turn|7
 |move|p1a: Kingambit|Kowtow Cleave|p2a: Heatran
