@@ -62,11 +62,23 @@ export async function installMockPs(page: Page) {
         sent.push(message);
         localStorage.setItem('__mockPsSent', JSON.stringify(sent));
         if (message.includes('/trn ')) {
-          const name = message.split('/trn ')[1]?.split(',')[0]?.trim() || 'CodexTester';
-          if (name === 'TakenName') {
+          const payload = message.split('/trn ')[1] ?? '';
+          const [name, , assertion] = payload.split(',');
+          const trimmed = name?.trim() || '';
+
+          // A real server rejects `/trn <name>` with no assertion. The mock
+          // used to accept it, which is precisely how a client that never
+          // called the login server shipped with a green test suite.
+          if (!assertion) {
+            setTimeout(() => this.emit('|nametaken||Your authentication token was invalid.'), 200);
+            return;
+          }
+          if (trimmed === 'TakenName') {
             setTimeout(() => this.emit('|nametaken|TakenName|That name is already registered.'), 250);
           } else {
-            setTimeout(() => this.emit(`|updateuser|${name}|1|0`), 350);
+            // Named users arrive with a group symbol prefix; a regular user's
+            // is a space.
+            setTimeout(() => this.emit(`|updateuser| ${trimmed}|1|0`), 350);
           }
         }
         if (message.includes('/cmd roomlist')) {
@@ -117,6 +129,34 @@ export async function installMockPs(page: Page) {
         this.emit(`>battle-gen9ou-1\n|request|${battleRequest}`);
       }
     }
+
+    // Stand in for the login-server proxy. Guest names get an assertion;
+    // `RegisteredName` returns the bare `;` a real server sends when a name
+    // needs a password.
+    const realFetch = window.fetch.bind(window);
+    const actionCalls: string[] = [];
+    window.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      if (!url.includes('/api/action')) return realFetch(input as RequestInfo, init);
+
+      const body = new URLSearchParams(String(init?.body ?? ''));
+      actionCalls.push(body.toString());
+      localStorage.setItem('__mockActionCalls', JSON.stringify(actionCalls));
+
+      const act = body.get('act');
+      if (act === 'getassertion') {
+        const userid = body.get('userid') || '';
+        if (userid === 'registeredname') return Promise.resolve(new Response(';'));
+        return Promise.resolve(new Response(`4|mock-assertion-for-${userid}`));
+      }
+      if (act === 'login') {
+        const ok = body.get('pass') === 'correct-horse';
+        return Promise.resolve(new Response(ok ?
+          `]${JSON.stringify({ assertion: '4|mock-assertion-registered', curuser: { loggedin: true, username: body.get('name') } })}` :
+          `]${JSON.stringify({ actionsuccess: false, error: 'Wrong password.' })}`));
+      }
+      return Promise.resolve(new Response(''));
+    }) as typeof window.fetch;
 
     Object.assign(window, {
       WebSocket: MockPsWebSocket,

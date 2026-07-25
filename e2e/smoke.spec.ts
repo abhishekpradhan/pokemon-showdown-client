@@ -14,7 +14,7 @@ test('loads home with real readiness states and no demo language', async ({ page
 
   await page.getByRole('button', { name: /Unnamed guest/i }).click();
   await page.getByRole('textbox', { name: 'Username' }).fill('CodexTester');
-  await page.getByRole('button', { name: 'Choose guest name' }).click();
+  await page.getByRole('button', { name: /Choose name/i }).click();
   await expect(page.getByText('Waiting for server confirmation.')).toBeVisible();
   await expect(page.getByRole('button', { name: /CodexTester/i })).toBeVisible();
   await expect(page.getByRole('button', { name: /find battle/i })).toBeEnabled();
@@ -37,7 +37,7 @@ test('account dialog stays pending and shows nametaken errors', async ({ page })
   await page.goto('/');
   await page.getByRole('button', { name: /Unnamed guest/i }).click();
   await page.getByRole('textbox', { name: 'Username' }).fill('TakenName');
-  await page.getByRole('button', { name: 'Choose guest name' }).click();
+  await page.getByRole('button', { name: /Choose name/i }).click();
   await expect(page.getByText('Waiting for server confirmation.')).toBeVisible();
   const dialog = page.getByRole('dialog');
   await expect(dialog.getByText('That name is already registered.')).toBeVisible();
@@ -48,7 +48,7 @@ test('search creates a mock battle room and sends exact battle choices', async (
   await page.goto('/');
   await page.getByRole('button', { name: /Unnamed guest/i }).click();
   await page.getByRole('textbox', { name: 'Username' }).fill('CodexTester');
-  await page.getByRole('button', { name: 'Choose guest name' }).click();
+  await page.getByRole('button', { name: /Choose name/i }).click();
   await expect(page.getByRole('button', { name: /CodexTester/i })).toBeVisible();
   await page.getByRole('button', { name: /find battle/i }).click();
 
@@ -107,7 +107,7 @@ test('keeps mobile battle controls usable without horizontal overflow', async ({
   await page.goto('/');
   await page.getByRole('button', { name: /Unnamed guest/i }).click();
   await page.getByRole('textbox', { name: 'Username' }).fill('CodexTester');
-  await page.getByRole('button', { name: 'Choose guest name' }).click();
+  await page.getByRole('button', { name: /Choose name/i }).click();
   await expect(page.getByRole('button', { name: /CodexTester/i })).toBeVisible();
   await page.getByRole('button', { name: /find battle/i }).click();
   await expect(page).toHaveURL(/\/battle\/battle-gen9ou-1/);

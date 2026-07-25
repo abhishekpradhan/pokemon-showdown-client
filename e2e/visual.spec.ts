@@ -20,7 +20,7 @@ test('battle cockpit visual baseline', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Unnamed guest' }).click();
   await page.getByRole('textbox', { name: 'Username' }).fill('CodexTester');
-  await page.getByRole('button', { name: 'Choose guest name' }).click();
+  await page.getByRole('button', { name: /Choose name/i }).click();
   await expect(page.getByRole('button', { name: 'CodexTester' })).toBeVisible();
   await page.getByRole('button', { name: 'Find battle' }).click();
   await expect(page).toHaveURL(/\/battle\/battle-gen9ou-1/);
