@@ -25,18 +25,21 @@ export default defineConfig({
     proxy: { '/api/action': psLoginProxy },
   },
   build: {
+    // The dex chunk is legitimately ~1.8MB raw. It is lazy-loaded and cached
+    // for a year, so warning on it every build is just noise.
+    chunkSizeWarningLimit: 2_000,
     rollupOptions: {
       output: {
-        manualChunks: {
-          router: ['@tanstack/react-router'],
-          primitives: [
-            '@radix-ui/react-dialog',
-            '@radix-ui/react-dropdown-menu',
-            '@radix-ui/react-switch',
-            '@radix-ui/react-tabs',
-            '@radix-ui/react-tooltip',
-          ],
-          motion: ['motion'],
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return;
+          // @pkmn is deliberately left alone. data/dex.ts imports it
+          // dynamically, and learnsets is a further dynamic import inside it;
+          // naming a chunk here would flatten those into one 5MB download.
+          if (id.includes('@pkmn')) return;
+          if (id.includes('@tanstack')) return 'router';
+          if (id.includes('@radix-ui')) return 'primitives';
+          if (id.includes('/motion') || id.includes('framer-motion')) return 'motion';
+          if (id.includes('/react-dom/') || id.includes('/react/')) return 'react';
         },
       },
     },

@@ -19,29 +19,16 @@ import { type FormEvent, useEffect, useState } from 'react';
 import { BattleField } from '../components/battle-field';
 import { MoveControls } from '../components/move-controls';
 import { TeamBench } from '../components/team-bench';
+import { useShallow } from 'zustand/react/shallow';
 import { useArenaStore } from '../stores/arena-store';
 
 type InspectorTab = 'log' | 'chat' | 'info';
 
 export function BattleScreen() {
   const params = useParams({ from: '/battle/$battleId' });
-  const {
-    battle: focusedBattle,
-    battles,
-    connection,
-    focusRoom,
-    forfeitBattle,
-    getBattleDecision,
-    hardcoreMode,
-    joinRoom,
-    resetBattleChoiceSession,
-    sendBattleChat,
-    submitBattleChoice,
-    submitBattleTarget,
-    toggleBattleTimer,
-    toggleHardcore,
-    undoBattleChoice,
-  } = useArenaStore();
+  const { battle: focusedBattle, battles, connection, focusRoom, forfeitBattle, getBattleDecision, hardcoreMode, joinRoom, resetBattleChoiceSession, sendBattleChat, submitBattleChoice, submitBattleTarget, toggleBattleTimer, toggleHardcore, undoBattleChoice } = useArenaStore(
+    useShallow(state => ({ battle: state.battle, battles: state.battles, connection: state.connection, focusRoom: state.focusRoom, forfeitBattle: state.forfeitBattle, getBattleDecision: state.getBattleDecision, hardcoreMode: state.hardcoreMode, joinRoom: state.joinRoom, resetBattleChoiceSession: state.resetBattleChoiceSession, sendBattleChat: state.sendBattleChat, submitBattleChoice: state.submitBattleChoice, submitBattleTarget: state.submitBattleTarget, toggleBattleTimer: state.toggleBattleTimer, toggleHardcore: state.toggleHardcore, undoBattleChoice: state.undoBattleChoice }))
+  );
   const [chatMessage, setChatMessage] = useState('');
   const [forfeitOpen, setForfeitOpen] = useState(false);
   const [inspectorTab, setInspectorTab] = useState<InspectorTab>('log');

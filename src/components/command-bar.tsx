@@ -3,11 +3,14 @@ import { Search } from 'lucide-react';
 import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { navItems } from '../navigation';
 import { toId } from '../compat/protocol-parsers';
+import { useShallow } from 'zustand/react/shallow';
 import { useArenaStore } from '../stores/arena-store';
 
 export function CommandBar() {
   const navigate = useNavigate();
-  const { formats, setSelectedFormat } = useArenaStore();
+  const { formats, setSelectedFormat } = useArenaStore(
+    useShallow(state => ({ formats: state.formats, setSelectedFormat: state.setSelectedFormat }))
+  );
   const [query, setQuery] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 

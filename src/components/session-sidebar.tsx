@@ -1,22 +1,16 @@
 import { Link, useLocation, useNavigate } from '@tanstack/react-router';
 import { CircleDot, MessageCircle, Plus, Radio, Swords, X } from 'lucide-react';
 import { clsx } from 'clsx';
+import { useShallow } from 'zustand/react/shallow';
 import { useArenaStore } from '../stores/arena-store';
 import { ConnectionPill } from './status-pills';
 
 export function SessionSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const {
-    activeRoomId,
-    battles,
-    connection,
-    focusRoom,
-    leaveRoom,
-    rooms,
-    searchFormats,
-    searchState,
-  } = useArenaStore();
+  const { activeRoomId, battles, connection, focusRoom, leaveRoom, rooms, searchFormats, searchState } = useArenaStore(
+    useShallow(state => ({ activeRoomId: state.activeRoomId, battles: state.battles, connection: state.connection, focusRoom: state.focusRoom, leaveRoom: state.leaveRoom, rooms: state.rooms, searchFormats: state.searchFormats, searchState: state.searchState }))
+  );
   const battleSessions = Object.values(battles).filter(battle => battle.id !== 'pending');
   const roomSessions = Object.values(rooms)
     .filter(room => room.type !== 'battle' && room.connected)

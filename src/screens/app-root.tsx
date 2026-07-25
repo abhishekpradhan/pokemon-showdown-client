@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { type FormEvent, useEffect, useRef, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useArenaStore } from '../stores/arena-store';
 import { useWorkspaceStore } from '../stores/workspace-store';
 import { CommandBar } from '../components/command-bar';
@@ -20,24 +21,9 @@ import { navItems } from '../navigation';
 export function AppRoot() {
   const location = useLocation();
   const navigate = useNavigate();
-  const {
-    activeRoomId,
-    battles,
-    clearNotifications,
-    connect,
-    connection,
-    disconnect,
-    lastError,
-    login,
-    loginPending,
-    logout,
-    named,
-    needsPassword,
-    notifications,
-    reconnect,
-    rooms,
-    username,
-  } = useArenaStore();
+  const { activeRoomId, battles, clearNotifications, connect, connection, disconnect, lastError, login, loginPending, logout, named, needsPassword, notifications, reconnect, rooms, username } = useArenaStore(
+    useShallow(state => ({ activeRoomId: state.activeRoomId, battles: state.battles, clearNotifications: state.clearNotifications, connect: state.connect, connection: state.connection, disconnect: state.disconnect, lastError: state.lastError, login: state.login, loginPending: state.loginPending, logout: state.logout, named: state.named, needsPassword: state.needsPassword, notifications: state.notifications, reconnect: state.reconnect, rooms: state.rooms, username: state.username }))
+  );
   const { contrast, density, motion, notificationsEnabled } = useWorkspaceStore();
   const [nameInput, setNameInput] = useState(named ? username : '');
   const [passwordInput, setPasswordInput] = useState('');

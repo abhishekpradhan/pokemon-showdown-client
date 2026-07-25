@@ -5,6 +5,7 @@ import { SearchableSelect } from '../components/searchable-select';
 import { StatusCallout } from '../components/status-callout';
 import { TeamBench } from '../components/team-bench';
 import { exportTeam, importTeam, teamSummary, type StoredTeam } from '../compat/team-store';
+import { useShallow } from 'zustand/react/shallow';
 import { useArenaStore } from '../stores/arena-store';
 import { getAbility, getItem, getMove } from '../data/dex';
 
@@ -26,23 +27,9 @@ const statLabels = {
 } as const;
 
 export function TeamWorkspace() {
-  const {
-    activeTeam,
-    activeTeamId,
-    deleteTeam,
-    duplicateTeam,
-    exportActiveTeam,
-    formats,
-    importTeamText,
-    lastError,
-    renameTeam,
-    replaceTeamFromText,
-    selectTeam,
-    selectedFormat,
-    teamNotice,
-    teams,
-    updateTeamFormat,
-  } = useArenaStore();
+  const { activeTeam, activeTeamId, deleteTeam, duplicateTeam, exportActiveTeam, formats, importTeamText, lastError, renameTeam, replaceTeamFromText, selectTeam, selectedFormat, teamNotice, teams, updateTeamFormat } = useArenaStore(
+    useShallow(state => ({ activeTeam: state.activeTeam, activeTeamId: state.activeTeamId, deleteTeam: state.deleteTeam, duplicateTeam: state.duplicateTeam, exportActiveTeam: state.exportActiveTeam, formats: state.formats, importTeamText: state.importTeamText, lastError: state.lastError, renameTeam: state.renameTeam, replaceTeamFromText: state.replaceTeamFromText, selectTeam: state.selectTeam, selectedFormat: state.selectedFormat, teamNotice: state.teamNotice, teams: state.teams, updateTeamFormat: state.updateTeamFormat }))
+  );
   const [editingTeamId, setEditingTeamId] = useState<string | undefined>(activeTeamId);
   const [teamName, setTeamName] = useState(() => teams.find(team => team.id === activeTeamId)?.name || '');
   const [teamFormat, setTeamFormat] = useState(() => teams.find(team => team.id === activeTeamId)?.format || selectedFormat);

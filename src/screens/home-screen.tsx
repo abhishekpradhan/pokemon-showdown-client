@@ -14,26 +14,13 @@ import {
 import { FormatSelector } from '../components/format-selector';
 import { MiniRoomRail } from '../components/mini-room-rail';
 import { SearchableSelect } from '../components/searchable-select';
+import { useShallow } from 'zustand/react/shallow';
 import { useArenaStore } from '../stores/arena-store';
 
 export function HomeScreen() {
-  const {
-    activeTeamId,
-    cancelSearch,
-    connection,
-    formats,
-    lastError,
-    named,
-    searchFormats,
-    searchState,
-    selectTeam,
-    selectedFormat,
-    setSelectedFormat,
-    startSearch,
-    teams,
-    username,
-    validateTeamForFormat,
-  } = useArenaStore();
+  const { activeTeamId, cancelSearch, connection, formats, lastError, named, searchFormats, searchState, selectTeam, selectedFormat, setSelectedFormat, startSearch, teams, username, validateTeamForFormat } = useArenaStore(
+    useShallow(state => ({ activeTeamId: state.activeTeamId, cancelSearch: state.cancelSearch, connection: state.connection, formats: state.formats, lastError: state.lastError, named: state.named, searchFormats: state.searchFormats, searchState: state.searchState, selectTeam: state.selectTeam, selectedFormat: state.selectedFormat, setSelectedFormat: state.setSelectedFormat, startSearch: state.startSearch, teams: state.teams, username: state.username, validateTeamForFormat: state.validateTeamForFormat }))
+  );
   const selected = formats.find(format => format.id === selectedFormat);
   const activeTeam = teams.find(team => team.id === activeTeamId);
   const requiresTeam = selected?.team !== false;

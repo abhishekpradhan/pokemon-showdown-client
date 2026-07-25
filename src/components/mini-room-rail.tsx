@@ -1,10 +1,13 @@
 import { useNavigate } from '@tanstack/react-router';
 import { Activity, MessageCircle, Swords } from 'lucide-react';
+import { useShallow } from 'zustand/react/shallow';
 import { useArenaStore } from '../stores/arena-store';
 
 export function MiniRoomRail({ mode }: { mode: 'rooms' | 'battles' }) {
   const navigate = useNavigate();
-  const { rooms: liveRooms, battles: liveBattles, roomList, joinRoom, focusRoom, refreshRoomList, connection } = useArenaStore();
+  const { rooms: liveRooms, battles: liveBattles, roomList, joinRoom, focusRoom, refreshRoomList, connection } = useArenaStore(
+    useShallow(state => ({ rooms: state.rooms, battles: state.battles, roomList: state.roomList, joinRoom: state.joinRoom, focusRoom: state.focusRoom, refreshRoomList: state.refreshRoomList, connection: state.connection }))
+  );
   const roomItems = Object.values(liveRooms).length ?
     Object.values(liveRooms).slice(0, 6).map(room => ({
       id: room.id,

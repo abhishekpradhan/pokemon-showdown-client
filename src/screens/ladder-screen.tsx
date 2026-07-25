@@ -1,6 +1,7 @@
 import { RefreshCw, TrendingUp, Trophy } from 'lucide-react';
 import { useState } from 'react';
 import { SearchableSelect } from '../components/searchable-select';
+import { useShallow } from 'zustand/react/shallow';
 import { useArenaStore } from '../stores/arena-store';
 
 type LadderRow = {
@@ -12,7 +13,9 @@ type LadderRow = {
 };
 
 export function LadderScreen() {
-  const { formats, selectedFormat, setSelectedFormat } = useArenaStore();
+  const { formats, selectedFormat, setSelectedFormat } = useArenaStore(
+    useShallow(state => ({ formats: state.formats, selectedFormat: state.selectedFormat, setSelectedFormat: state.setSelectedFormat }))
+  );
   const [status, setStatus] = useState('Refresh to load the public standings for this format.');
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<LadderRow[]>([]);

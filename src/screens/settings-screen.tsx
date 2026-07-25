@@ -9,21 +9,14 @@ import {
   RadioTower,
   RefreshCw,
 } from 'lucide-react';
+import { useShallow } from 'zustand/react/shallow';
 import { useArenaStore } from '../stores/arena-store';
 import { useWorkspaceStore } from '../stores/workspace-store';
 
 export function SettingsScreen() {
-  const {
-    connect,
-    connection,
-    disconnect,
-    lastError,
-    protocolLogEnabled,
-    rawProtocolLog,
-    reconnect,
-    server,
-    toggleProtocolLog,
-  } = useArenaStore();
+  const { connect, connection, disconnect, lastError, protocolLogEnabled, rawProtocolLog, reconnect, server, toggleProtocolLog } = useArenaStore(
+    useShallow(state => ({ connect: state.connect, connection: state.connection, disconnect: state.disconnect, lastError: state.lastError, protocolLogEnabled: state.protocolLogEnabled, rawProtocolLog: state.rawProtocolLog, reconnect: state.reconnect, server: state.server, toggleProtocolLog: state.toggleProtocolLog }))
+  );
   const {
     contrast,
     density,

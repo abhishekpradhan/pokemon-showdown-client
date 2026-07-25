@@ -10,21 +10,14 @@ import {
   Users,
 } from 'lucide-react';
 import { type FormEvent, useEffect, useMemo, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useArenaStore } from '../stores/arena-store';
 
 export function RoomsScreen() {
   const navigate = useNavigate();
-  const {
-    activeRoomId,
-    connection,
-    focusRoom,
-    joinRoom,
-    leaveRoom,
-    refreshRoomList,
-    roomList,
-    rooms,
-    sendRoomMessage,
-  } = useArenaStore();
+  const { activeRoomId, connection, focusRoom, joinRoom, leaveRoom, refreshRoomList, roomList, rooms, sendRoomMessage } = useArenaStore(
+    useShallow(state => ({ activeRoomId: state.activeRoomId, connection: state.connection, focusRoom: state.focusRoom, joinRoom: state.joinRoom, leaveRoom: state.leaveRoom, refreshRoomList: state.refreshRoomList, roomList: state.roomList, rooms: state.rooms, sendRoomMessage: state.sendRoomMessage }))
+  );
   const [selectedRoomId, setSelectedRoomId] = useState(() =>
     activeRoomId && !activeRoomId.startsWith('battle-') ? activeRoomId : 'lobby'
   );
