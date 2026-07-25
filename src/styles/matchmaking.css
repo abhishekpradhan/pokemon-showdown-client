@@ -332,13 +332,18 @@
   color: var(--arena-green);
 }
 
-.readiness-row > span:first-child.is-blocked,
-.readiness-row > svg {
+.readiness-row > span:first-child.is-blocked {
   color: var(--arena-red);
 }
 
-.readiness-row > svg {
+/* Keyed off state, not element position: a bare `> svg` rule used to win over
+   the blocked colour, so a blocked row signalled with the success green. */
+.readiness-state.is-ready {
   color: var(--arena-green);
+}
+
+.readiness-state.is-blocked {
+  color: var(--arena-red);
 }
 
 .readiness-row > span:nth-child(2) {

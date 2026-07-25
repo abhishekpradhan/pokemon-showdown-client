@@ -166,7 +166,9 @@ export function HomeScreen() {
                   <small>{item.label}</small>
                   <strong>{item.value}</strong>
                 </span>
-                {item.ready ? <Check size={14} aria-label="Ready" /> : <CircleAlert size={14} aria-label="Blocked" />}
+                {item.ready ?
+                  <Check className="readiness-state is-ready" size={14} aria-label="Ready" /> :
+                  <CircleAlert className="readiness-state is-blocked" size={14} aria-label="Blocked" />}
               </div>
             );
           })}
