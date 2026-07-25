@@ -5,7 +5,9 @@ import {
   commandForChoice,
   createBattleChoiceSession,
   normalizeBattleRequest,
+  emptyBattle,
   parseHpPercent,
+  type ArenaBattle,
   type BattleRequest,
 } from './battle-adapter';
 
@@ -163,5 +165,63 @@ describe('battle request adapter', () => {
     expect(damaged.active).toMatchObject({ name: 'Dragapult', hp: 25, status: 'BRN' });
     expect(ended.weather).toBe('Sandstorm');
     expect(ended).toMatchObject({ ended: true, winner: 'Codex', mode: 'ended' });
+  });
+});
+
+describe('side assignment', () => {
+  const emptyRoster = { ...emptyBattle, id: 'battle-gen9randombattle-1', format: 'gen9randombattle' };
+
+  it('never reveals the opponent\'s exact HP', () => {
+    // Mirror match as p2. The server sends our exact HP and only a percentage
+    // for the opponent — the client must not invent the missing precision.
+    let battle: ArenaBattle = { ...emptyRoster, playerSide: 'p2' };
+    battle = applyBattleProtocolLine(battle, {
+      command: 'switch',
+      args: ['p1a: Lilligant', 'Lilligant, L86, F', '100/100'],
+    });
+    battle = applyBattleProtocolLine(battle, {
+      command: 'switch',
+      args: ['p2a: Lilligant', 'Lilligant, L86, F', '261/261'],
+    });
+
+    expect(battle.active.currentHp).toBe(261);
+    expect(battle.active.maxHp).toBe(261);
+    // The opponent's HP is a percentage, so no exact figure is carried through
+    // — rendering "100/100" would read as a real HP total we cannot know.
+    expect(battle.opponentActive.currentHp).toBeUndefined();
+    expect(battle.opponentActive.maxHp).toBeUndefined();
+    expect(battle.opponentActive.hp).toBe(100);
+  });
+
+  it('re-sides rosters when the request contradicts the assumed side', () => {
+    // Switches can arrive before the first |request|. Those default to p1, so
+    // a p2 player would otherwise end up with the opponent's nameplate showing
+    // their own Pokémon.
+    let battle: ArenaBattle = { ...emptyRoster, playerSide: 'p1' };
+    battle = applyBattleProtocolLine(battle, {
+      command: 'switch',
+      args: ['p1a: Great Tusk', 'Great Tusk, L80', '100/100'],
+    });
+    battle = applyBattleProtocolLine(battle, {
+      command: 'switch',
+      args: ['p2a: Dragapult', 'Dragapult, L80', '301/301'],
+    });
+    expect(battle.active.name).toBe('Great Tusk');
+
+    const corrected = battleFromRequest('battle-gen9randombattle-1', {
+      rqid: 1,
+      side: {
+        id: 'p2',
+        name: 'ArenaTester',
+        pokemon: [{ ident: 'p2: Dragapult', details: 'Dragapult, L80', condition: '301/301', active: true }],
+      },
+      active: [{ moves: [{ move: 'Dragon Darts', pp: 16, maxpp: 16 }] }],
+    }, battle);
+
+    expect(corrected.playerSide).toBe('p2');
+    expect(corrected.active.name).toBe('Dragapult');
+    expect(corrected.opponentActive.name).toBe('Great Tusk');
+    expect(corrected.opponentActive.currentHp).toBeUndefined();
+    expect(corrected.opponentActive.hp).toBe(100);
   });
 });

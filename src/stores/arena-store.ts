@@ -990,11 +990,23 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
       case 'player':
         set(state => {
           const battle = state.battles[roomId] || { ...emptyBattle, id: roomId };
-          const slot = line.args[0];
+          const slot = line.args[0] === 'p2' ? 'p2' : 'p1';
           const name = line.args[1] || (slot === 'p1' ? battle.p1.name : battle.p2.name);
-          const updated = slot === 'p1' ?
-            { ...battle, p1: { ...battle.p1, name } } :
-            { ...battle, p2: { ...battle.p2, name } };
+          const rating = Number(line.args[3]) || (slot === 'p1' ? battle.p1.rating : battle.p2.rating);
+
+          // `|player|` arrives before the switches that populate the field,
+          // whereas `|request|` may not. Without claiming our side here, every
+          // switch before the first request defaults to p1 — so when we are p2
+          // the opponent's nameplate gets filled in from our own Pokémon,
+          // showing exact HP the server never reveals.
+          const isSelf = !!line.args[1] && toId(line.args[1]) === toId(state.username);
+          const playerSide = isSelf ? slot : battle.playerSide;
+
+          const updated: ArenaBattle = {
+            ...battle,
+            playerSide,
+            [slot]: { name, rating },
+          };
           return { battle: updated, battles: { ...state.battles, [roomId]: updated } };
         });
         break;

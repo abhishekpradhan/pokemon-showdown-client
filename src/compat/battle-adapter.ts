@@ -445,9 +445,34 @@ export function normalizeBattleRequest(request: BattleRequest, previousBattle?: 
   };
 }
 
-export function battleFromRequest(roomId: string, request: BattleRequest, previous: ArenaBattle = emptyBattle): ArenaBattle {
-  const normalized = normalizeBattleRequest(request, previous);
-  const playerSide = request.side?.id === 'p2' ? 'p2' : request.side?.id === 'p1' ? 'p1' : previous.playerSide;
+/**
+ * Drops exact HP when a Pokémon turns out to belong to the opponent. Anything
+ * recorded while we assumed the wrong side was read as our own, and the exact
+ * figures were never ours to know.
+ */
+const asOpponent = (pokemon: PokemonSet): PokemonSet => ({
+  ...pokemon,
+  currentHp: undefined,
+  maxHp: undefined,
+});
+
+export function battleFromRequest(roomId: string, request: BattleRequest, previousBattle: ArenaBattle = emptyBattle): ArenaBattle {
+  const normalized = normalizeBattleRequest(request, previousBattle);
+  const playerSide = request.side?.id === 'p2' ? 'p2' : request.side?.id === 'p1' ? 'p1' : previousBattle.playerSide;
+
+  // Protocol lines processed before we knew our side were bucketed against a
+  // p1 default. If the request contradicts that, the rosters are the wrong way
+  // round — swap them rather than leaving the opponent's nameplate showing our
+  // own Pokémon.
+  const previous = previousBattle.playerSide && playerSide && previousBattle.playerSide !== playerSide ?
+    {
+      ...previousBattle,
+      active: previousBattle.opponentActive,
+      opponentActive: asOpponent(previousBattle.active),
+      team: previousBattle.opponentTeam,
+      opponentTeam: previousBattle.team.map(asOpponent),
+    } :
+    previousBattle;
   const generation = genFromFormat(previous.format);
   const team = request.side?.pokemon?.map((pokemon, index): PokemonSet => {
     const name = pokemon.ident.split(': ')[1] || speciesFromDetails(pokemon.details);
@@ -576,12 +601,18 @@ const updateRosterPokemon = (
   return roster.map((pokemon, pokemonIndex) => pokemonIndex === index ? { ...pokemon, ...patch } : pokemon);
 };
 
-const conditionPatch = (condition: string): Partial<PokemonSet> => {
+/**
+ * `isOwn` decides whether exact HP is meaningful. The server reports the
+ * opponent's HP as a fraction of 100, so carrying it through as currentHp/maxHp
+ * would render "100/100" — indistinguishable from real HP totals the client has
+ * no way of knowing.
+ */
+const conditionPatch = (condition: string, isOwn: boolean): Partial<PokemonSet> => {
   const parsed = parseCondition(condition);
   return {
     hp: parsed.hp,
-    currentHp: parsed.currentHp,
-    maxHp: parsed.maxHp,
+    currentHp: isOwn ? parsed.currentHp : undefined,
+    maxHp: isOwn ? parsed.maxHp : undefined,
     status: parsed.status,
     fainted: parsed.fainted,
   };
@@ -590,7 +621,7 @@ const conditionPatch = (condition: string): Partial<PokemonSet> => {
 const updatePokemonFromIdent = (
   battle: ArenaBattle,
   identText: string,
-  patch: Partial<PokemonSet>,
+  patch: Partial<PokemonSet> | ((context: { isOwn: boolean }) => Partial<PokemonSet>),
   species?: string
 ): ArenaBattle => {
   const ident = protocolIdent(identText);
@@ -600,11 +631,14 @@ const updatePokemonFromIdent = (
   const activeKey = isOwn ? 'active' : 'opponentActive';
   const rosterKey = isOwn ? 'team' : 'opponentTeam';
   const active = battle[activeKey];
-  const nextActive = samePokemon(active, ident.name, species) ? { ...active, ...patch } : active;
+  // Some patches depend on which side the ident belongs to, which is only
+  // resolved here.
+  const resolved = typeof patch === 'function' ? patch({ isOwn }) : patch;
+  const nextActive = samePokemon(active, ident.name, species) ? { ...active, ...resolved } : active;
   return {
     ...battle,
     [activeKey]: nextActive,
-    [rosterKey]: updateRosterPokemon(battle[rosterKey], ident.name, patch, species),
+    [rosterKey]: updateRosterPokemon(battle[rosterKey], ident.name, resolved, species),
   };
 };
 
@@ -623,7 +657,7 @@ const switchPokemon = (
   const parsed = parseDetails(details, genFromFormat(battle.format));
   const species = parsed.species;
   const patch: Partial<PokemonSet> = {
-    ...conditionPatch(condition),
+    ...conditionPatch(condition, isOwn),
     active: true,
     name: ident.name,
     species,
@@ -644,7 +678,7 @@ const switchPokemon = (
     slot: ident.activeIndex + 1,
     name: ident.name,
     species,
-    ...conditionPatch(condition),
+    ...conditionPatch(condition, isOwn),
     types: parsed.types,
     level: parsed.level,
     gender: parsed.gender,
@@ -673,7 +707,7 @@ export function applyBattleProtocolLine(battle: ArenaBattle, line: BattleProtoco
     return switchPokemon(battle, args[0] || '', args[1] || '', args[2] || '');
   case '-damage':
   case '-heal':
-    return updatePokemonFromIdent(battle, args[0] || '', conditionPatch(args[1] || ''));
+    return updatePokemonFromIdent(battle, args[0] || '', ident => conditionPatch(args[1] || '', ident.isOwn));
   case '-status':
     return updatePokemonFromIdent(battle, args[0] || '', { status: statusFromCondition(` ${args[1] || ''}`) });
   case '-curestatus':
