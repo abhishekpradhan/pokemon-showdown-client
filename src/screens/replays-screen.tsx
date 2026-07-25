@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { BattleField } from '../components/battle-field';
-import { applyBattleProtocolLine, emptyBattle, type ArenaBattle } from '../compat/battle-adapter';
+import { projectBattleLog } from '../compat/battle-adapter';
 
 type ReplayLine = {
   raw: string;
@@ -38,32 +38,6 @@ const parseReplayLine = (raw: string): ReplayLine => {
   return { raw, command, args, label };
 };
 
-const projectReplay = (lines: ReplayLine[], cursor: number): ArenaBattle => {
-  let battle: ArenaBattle = {
-    ...emptyBattle,
-    id: 'replay',
-    format: 'Replay',
-    playerSide: 'p1',
-    team: [],
-    opponentTeam: [],
-    log: [],
-    chat: [],
-    waiting: false,
-    mode: 'spectator',
-  };
-  for (const line of lines.slice(0, cursor + 1)) {
-    if (line.command === 'tier') battle = { ...battle, format: line.args[0] || battle.format };
-    if (line.command === 'player') {
-      const side = line.args[0];
-      const name = line.args[1] || 'Player';
-      battle = side === 'p2' ? { ...battle, p2: { ...battle.p2, name } } : { ...battle, p1: { ...battle.p1, name } };
-    }
-    if (line.command === 'turn') battle = { ...battle, turn: Number(line.args[0]) || battle.turn };
-    battle = applyBattleProtocolLine(battle, line);
-    if (line.label) battle = { ...battle, log: [line.label, ...battle.log].slice(0, 40) };
-  }
-  return battle;
-};
 
 export function ReplaysScreen() {
   const [input, setInput] = useState('');
@@ -72,7 +46,10 @@ export function ReplaysScreen() {
   const [playing, setPlaying] = useState(false);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState('Paste a replay URL or battle log.');
-  const battle = useMemo(() => projectReplay(lines, cursor), [cursor, lines]);
+  const battle = useMemo(
+    () => projectBattleLog(lines, { id: 'replay', upTo: cursor }),
+    [cursor, lines]
+  );
   const meaningfulEvents = useMemo(() => lines
     .map((line, index) => ({ ...line, index }))
     .filter(line => line.label), [lines]);

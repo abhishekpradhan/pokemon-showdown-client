@@ -1158,3 +1158,89 @@ export function createChoiceBuilder(request: BattleRequest): ChoiceBuilderAdapte
     build: choice => buildChooseCommand(choice, normalized.rqid),
   };
 }
+
+// ── Canonical log → state fold ────────────────────────────────────────────
+
+export type BattleLogLine = { command: string; args: string[] };
+
+export const parseBattleLogLine = (raw: string): BattleLogLine => {
+  if (!raw.startsWith('|')) return { command: '', args: [raw] };
+  const parts = raw.split('|');
+  return { command: parts[1] || '', args: parts.slice(2) };
+};
+
+/**
+ * Applies one battle-log line, including the meta lines (`player`, `tier`,
+ * `turn`) that sit outside `applyBattleProtocolLine`. This is the single
+ * per-line reducer shared by the replay viewer, the fixture tests, and the
+ * live protocol router — one code path, not three.
+ */
+export function reduceBattleLine(
+  battle: ArenaBattle,
+  line: BattleLogLine,
+  opts: { username?: string } = {}
+): ArenaBattle {
+  switch (line.command) {
+  case 'player': {
+    const slot = line.args[0] === 'p2' ? 'p2' : 'p1';
+    const name = line.args[1] || '';
+    const rating = Number(line.args[3]) || (slot === 'p1' ? battle.p1.rating : battle.p2.rating);
+    // Claiming our side here matters: |player| precedes the switches that
+    // populate the field, whereas the first |request| may not.
+    const isSelf = !!opts.username && !!name && speciesId(name) === speciesId(opts.username);
+    return {
+      ...battle,
+      playerSide: isSelf ? slot : battle.playerSide,
+      mode: isSelf ? 'player' : battle.mode,
+      [slot]: { name: name || battle[slot].name, rating },
+    };
+  }
+  case 'tier':
+    return { ...battle, format: line.args[0] || battle.format };
+  case 'request': {
+    const raw = line.args.join('|');
+    if (!raw) return battle;
+    try {
+      return battleFromRequest(battle.id, JSON.parse(raw) as BattleRequest, battle);
+    } catch {
+      return battle;
+    }
+  }
+  default:
+    return applyBattleProtocolLine(battle, line);
+  }
+}
+
+/**
+ * Folds a battle log into battle state. Perspective comes from the data: a
+ * log with our username in |player| or carrying |request| lines renders as
+ * the player; anything else (replays, spectated battles) renders as a
+ * spectator with percentage HP on both sides.
+ */
+export function projectBattleLog(
+  log: string | BattleLogLine[],
+  opts: { id?: string; username?: string; upTo?: number } = {}
+): ArenaBattle {
+  const lines = typeof log === 'string' ?
+    log.split(/\r?\n/).filter(Boolean).map(parseBattleLogLine) :
+    log;
+  const end = opts.upTo === undefined ? lines.length : Math.min(opts.upTo + 1, lines.length);
+
+  let battle: ArenaBattle = {
+    ...emptyBattle,
+    id: opts.id || 'battle',
+    format: 'Battle',
+    team: [],
+    opponentTeam: [],
+    log: [],
+    chat: [],
+    waiting: false,
+    mode: 'spectator',
+    playerSide: undefined,
+  };
+  for (let index = 0; index < end; index++) {
+    battle = reduceBattleLine(battle, lines[index], opts);
+  }
+  return battle;
+}
+

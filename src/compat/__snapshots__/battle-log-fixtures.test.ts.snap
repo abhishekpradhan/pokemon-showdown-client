@@ -1,0 +1,113 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`battle log fixtures > projects a player-perspective log with requests 1`] = `
+{
+  "active": {
+    "currentHp": 293,
+    "hp": 88,
+    "item": "blackglasses",
+    "maxHp": 334,
+    "name": "Kingambit",
+    "species": "Kingambit",
+  },
+  "ended": true,
+  "format": "[Gen 9] OU",
+  "mode": "ended",
+  "opponentActive": {
+    "fainted": true,
+    "hp": 0,
+    "name": "Heatran",
+    "species": "Heatran",
+    "terastallized": "Fire",
+  },
+  "ourHazards": [
+    {
+      "layers": 1,
+      "name": "Spikes",
+    },
+  ],
+  "p1": "ArenaTester",
+  "p2": "RivalGuy",
+  "playerSide": "p1",
+  "teamSizes": [
+    3,
+    3,
+  ],
+  "theirHazards": [],
+  "turn": 7,
+  "weather": null,
+  "winner": "ArenaTester",
+}
+`;
+
+exports[`battle log fixtures > projects a real gen9 random doubles replay 1`] = `
+{
+  "active": {
+    "hp": 100,
+    "name": "Shiftry",
+    "species": "Shiftry",
+  },
+  "ended": true,
+  "format": "[Gen 9] Random Doubles Battle",
+  "mode": "ended",
+  "opponentActive": {
+    "fainted": true,
+    "hp": 0,
+    "name": "Minior",
+    "species": "Minior-Meteor",
+  },
+  "ourHazards": [],
+  "p1": "Mrshoppingbag",
+  "p2": "DedenneAppreciator",
+  "playerSide": null,
+  "teamSizes": [
+    6,
+    6,
+  ],
+  "theirHazards": [],
+  "turn": 14,
+  "weather": null,
+  "winner": "Mrshoppingbag",
+}
+`;
+
+exports[`battle log fixtures > projects a real gen9ou singles replay 1`] = `
+{
+  "active": {
+    "fainted": true,
+    "hp": 0,
+    "name": "Heatran",
+    "species": "Heatran",
+  },
+  "ended": true,
+  "format": "[Gen 9] OU",
+  "mode": "ended",
+  "opponentActive": {
+    "hp": 88,
+    "name": "Dragapult",
+    "species": "Dragapult",
+  },
+  "ourHazards": [
+    {
+      "layers": 1,
+      "name": "Stealth Rock",
+    },
+  ],
+  "p1": "Jogarame",
+  "p2": "Imcool5335",
+  "playerSide": null,
+  "teamSizes": [
+    6,
+    6,
+  ],
+  "theirHazards": [
+    {
+      "layers": 1,
+      "name": "Stealth Rock",
+    },
+  ],
+  "turn": 26,
+  "weather": null,
+  "winner": "Imcool5335",
+}
+`;

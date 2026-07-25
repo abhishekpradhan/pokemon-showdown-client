@@ -1,0 +1,379 @@
+|j|☆Jogarame
+|j|☆Imcool5335
+|t:|1785016802
+|gametype|singles
+|player|p1|Jogarame|266|1146
+|player|p2|Imcool5335|pokemonbreederf-gen4|1124
+|gen|9
+|tier|[Gen 9] OU
+|rated|
+|rule|HP Percentage Mod: HP is shown in percentages
+|rule|Endless Battle Clause: Forcing endless battles is banned
+|rule|Species Clause: Limit one of each Pokémon
+|rule|OHKO Clause: OHKO moves are banned
+|rule|Evasion Items Clause: Evasion items are banned
+|rule|Evasion Moves Clause: Evasion moves are banned
+|rule|Evasion Abilities Clause: Evasion abilities are banned
+|rule|Sleep Moves Clause: Sleep-inducing moves are banned
+|clearpoke
+|poke|p1|Heatran, M|
+|poke|p1|Dragonite, F|
+|poke|p1|Great Tusk|
+|poke|p1|Ogerpon-Wellspring, F|
+|poke|p1|Enamorus, F|
+|poke|p1|Dragapult, F|
+|poke|p2|Pecharunt|
+|poke|p2|Kingambit, F|
+|poke|p2|Dragapult, F|
+|poke|p2|Zapdos|
+|poke|p2|Darkrai|
+|poke|p2|Great Tusk|
+|teampreview
+|inactive|Battle timer is ON: inactive players will automatically lose when time's up. (requested by Imcool5335)
+|
+|t:|1785016826
+|teamsize|p1|6
+|teamsize|p2|6
+|start
+|switch|p1a: Heatran|Heatran, M, shiny|100/100
+|switch|p2a: Great Tusk|Great Tusk|100/100
+|turn|1
+|
+|t:|1785016838
+|switch|p1a: Enamorus|Enamorus, F|100/100
+|move|p2a: Great Tusk|Stealth Rock|p1a: Enamorus
+|-sidestart|p1: Jogarame|move: Stealth Rock
+|
+|upkeep
+|turn|2
+|
+|t:|1785016855
+|-end|p2a: Great Tusk|Protosynthesis|[silent]
+|switch|p2a: Pecharunt|Pecharunt|100/100
+|move|p1a: Enamorus|Mystical Fire|p2a: Pecharunt
+|-damage|p2a: Pecharunt|73/100
+|-unboost|p2a: Pecharunt|spa|1
+|
+|upkeep
+|turn|3
+|
+|t:|1785016877
+|switch|p1a: Great Tusk|Great Tusk|100/100
+|-damage|p1a: Great Tusk|98/100|[from] Stealth Rock
+|-enditem|p1a: Great Tusk|Booster Energy
+|-activate|p1a: Great Tusk|ability: Protosynthesis|[fromitem]
+|-start|p1a: Great Tusk|protosynthesisatk
+|switch|p2a: Zapdos|Zapdos|100/100
+|
+|upkeep
+|turn|4
+|inactive|Jogarame has 120 seconds left.
+|
+|t:|1785016892
+|move|p1a: Great Tusk|Knock Off|p2a: Zapdos
+|-damage|p2a: Zapdos|57/100
+|-enditem|p2a: Zapdos|Heavy-Duty Boots|[from] move: Knock Off|[of] p1a: Great Tusk
+|move|p2a: Zapdos|Hurricane|p1a: Great Tusk|[miss]
+|-miss|p2a: Zapdos|p1a: Great Tusk
+|
+|upkeep
+|turn|5
+|inactive|Jogarame has 120 seconds left.
+|
+|t:|1785016913
+|-end|p1a: Great Tusk|Protosynthesis|[silent]
+|switch|p1a: Heatran|Heatran, M, shiny|100/100
+|-damage|p1a: Heatran|88/100|[from] Stealth Rock
+|move|p2a: Zapdos|Roost|p2a: Zapdos
+|-heal|p2a: Zapdos|100/100
+|-singleturn|p2a: Zapdos|move: Roost
+|
+|-heal|p1a: Heatran|94/100|[from] item: Leftovers
+|upkeep
+|turn|6
+|
+|t:|1785016924
+|move|p2a: Zapdos|Thunderbolt|p1a: Heatran
+|-damage|p1a: Heatran|62/100
+|move|p1a: Heatran|Stealth Rock|p2a: Zapdos
+|-sidestart|p2: Imcool5335|move: Stealth Rock
+|
+|-heal|p1a: Heatran|68/100|[from] item: Leftovers
+|upkeep
+|turn|7
+|
+|t:|1785016941
+|switch|p1a: Great Tusk|Great Tusk|98/100
+|-damage|p1a: Great Tusk|95/100|[from] Stealth Rock
+|move|p2a: Zapdos|Thunderbolt|p1a: Great Tusk
+|-immune|p1a: Great Tusk
+|
+|upkeep
+|turn|8
+|
+|t:|1785016952
+|move|p1a: Great Tusk|Rapid Spin|p2a: Zapdos
+|-damage|p2a: Zapdos|81/100
+|-boost|p1a: Great Tusk|spe|1
+|-status|p1a: Great Tusk|par|[from] ability: Static|[of] p2a: Zapdos
+|-sideend|p1: Jogarame|Stealth Rock|[from] move: Rapid Spin|[of] p1a: Great Tusk
+|move|p2a: Zapdos|Hurricane|p1a: Great Tusk
+|-supereffective|p1a: Great Tusk
+|-damage|p1a: Great Tusk|0 fnt
+|faint|p1a: Great Tusk
+|-end|p1a: Great Tusk|Protosynthesis|[silent]
+|
+|upkeep
+|inactive|Jogarame has 90 seconds left.
+|
+|t:|1785016977
+|switch|p1a: Enamorus|Enamorus, F|100/100
+|turn|9
+|
+|t:|1785016986
+|move|p1a: Enamorus|Moonblast|p2a: Zapdos
+|-damage|p2a: Zapdos|30/100
+|move|p2a: Zapdos|Hurricane|p1a: Enamorus
+|-damage|p1a: Enamorus|11/100
+|
+|upkeep
+|turn|10
+|
+|t:|1785017000
+|move|p1a: Enamorus|Moonblast|p2a: Zapdos
+|-crit|p2a: Zapdos
+|-damage|p2a: Zapdos|0 fnt
+|faint|p2a: Zapdos
+|
+|upkeep
+|
+|t:|1785017011
+|switch|p2a: Kingambit|Kingambit, F|100/100
+|-damage|p2a: Kingambit|94/100|[from] Stealth Rock
+|-activate|p2a: Kingambit|ability: Supreme Overlord
+|-start|p2a: Kingambit|fallen1|[silent]
+|turn|11
+|
+|t:|1785017025
+|switch|p1a: Heatran|Heatran, M, shiny|68/100
+|move|p2a: Kingambit|Sucker Punch||[still]
+|-fail|p2a: Kingambit
+|
+|-heal|p1a: Heatran|75/100|[from] item: Leftovers
+|-heal|p2a: Kingambit|100/100|[from] item: Leftovers
+|upkeep
+|turn|12
+|
+|t:|1785017048
+|-end|p2a: Kingambit|fallen1|[silent]
+|switch|p2a: Pecharunt|Pecharunt|73/100
+|-damage|p2a: Pecharunt|60/100|[from] Stealth Rock
+|move|p1a: Heatran|Earth Power|p2a: Pecharunt
+|-supereffective|p2a: Pecharunt
+|-damage|p2a: Pecharunt|7/100
+|
+|-heal|p1a: Heatran|81/100|[from] item: Leftovers
+|upkeep
+|turn|13
+|
+|t:|1785017061
+|move|p2a: Pecharunt|Shadow Ball|p1a: Heatran
+|-damage|p1a: Heatran|67/100
+|-unboost|p1a: Heatran|spd|1
+|move|p1a: Heatran|Earth Power|p2a: Pecharunt
+|-supereffective|p2a: Pecharunt
+|-damage|p2a: Pecharunt|0 fnt
+|faint|p2a: Pecharunt
+|
+|-heal|p1a: Heatran|73/100|[from] item: Leftovers
+|upkeep
+|
+|t:|1785017074
+|switch|p2a: Great Tusk|Great Tusk|100/100
+|-damage|p2a: Great Tusk|98/100|[from] Stealth Rock
+|turn|14
+|
+|t:|1785017086
+|switch|p1a: Enamorus|Enamorus, F|11/100
+|move|p2a: Great Tusk|Knock Off|p1a: Enamorus
+|-resisted|p1a: Enamorus
+|-damage|p1a: Enamorus|0 fnt
+|-enditem|p1a: Enamorus|Choice Scarf|[from] move: Knock Off|[of] p2a: Great Tusk
+|faint|p1a: Enamorus
+|
+|-heal|p2a: Great Tusk|100/100|[from] item: Leftovers
+|upkeep
+|
+|t:|1785017095
+|switch|p1a: Dragonite|Dragonite, F|100/100
+|turn|15
+|
+|t:|1785017103
+|move|p2a: Great Tusk|Rapid Spin|p1a: Dragonite
+|-damage|p1a: Dragonite|92/100
+|-boost|p2a: Great Tusk|spe|1
+|-sideend|p2: Imcool5335|Stealth Rock|[from] move: Rapid Spin|[of] p2a: Great Tusk
+|move|p1a: Dragonite|Dragon Dance|p1a: Dragonite
+|-boost|p1a: Dragonite|atk|1
+|-boost|p1a: Dragonite|spe|1
+|
+|upkeep
+|turn|16
+|
+|t:|1785017112
+|move|p2a: Great Tusk|Stealth Rock|p1a: Dragonite
+|-sidestart|p1: Jogarame|move: Stealth Rock
+|move|p1a: Dragonite|Dragon Dance|p1a: Dragonite
+|-boost|p1a: Dragonite|atk|1
+|-boost|p1a: Dragonite|spe|1
+|
+|upkeep
+|turn|17
+|
+|t:|1785017118
+|-end|p2a: Great Tusk|Protosynthesis|[silent]
+|switch|p2a: Kingambit|Kingambit, F|100/100
+|-activate|p2a: Kingambit|ability: Supreme Overlord
+|-start|p2a: Kingambit|fallen2|[silent]
+|move|p1a: Dragonite|Scale Shot|p2a: Kingambit
+|-resisted|p2a: Kingambit
+|-damage|p2a: Kingambit|89/100
+|-resisted|p2a: Kingambit
+|-damage|p2a: Kingambit|77/100
+|-resisted|p2a: Kingambit
+|-damage|p2a: Kingambit|65/100
+|-resisted|p2a: Kingambit
+|-damage|p2a: Kingambit|55/100
+|-hitcount|p2a: Kingambit|4
+|-unboost|p1a: Dragonite|def|1
+|-boost|p1a: Dragonite|spe|1
+|
+|-heal|p2a: Kingambit|61/100|[from] item: Leftovers
+|upkeep
+|turn|18
+|inactive|Jogarame has 120 seconds left.
+|
+|t:|1785017151
+|move|p1a: Dragonite|Dragon Dance|p1a: Dragonite
+|-boost|p1a: Dragonite|atk|1
+|-boost|p1a: Dragonite|spe|1
+|move|p2a: Kingambit|Throat Chop|p1a: Dragonite
+|-damage|p1a: Dragonite|0 fnt
+|faint|p1a: Dragonite
+|
+|-heal|p2a: Kingambit|67/100|[from] item: Leftovers
+|upkeep
+|
+|t:|1785017159
+|switch|p1a: Heatran|Heatran, M, shiny|73/100
+|-damage|p1a: Heatran|60/100|[from] Stealth Rock
+|turn|19
+|
+|t:|1785017172
+|move|p2a: Kingambit|Sucker Punch||[still]
+|-fail|p2a: Kingambit
+|move|p1a: Heatran|Stealth Rock|p2a: Kingambit
+|-sidestart|p2: Imcool5335|move: Stealth Rock
+|
+|-heal|p1a: Heatran|67/100|[from] item: Leftovers
+|-heal|p2a: Kingambit|73/100|[from] item: Leftovers
+|upkeep
+|turn|20
+|
+|t:|1785017182
+|move|p2a: Kingambit|Sucker Punch|p1a: Heatran
+|-damage|p1a: Heatran|28/100
+|move|p1a: Heatran|Earth Power|p2a: Kingambit
+|-supereffective|p2a: Kingambit
+|-damage|p2a: Kingambit|18/100
+|
+|-heal|p1a: Heatran|34/100|[from] item: Leftovers
+|-heal|p2a: Kingambit|24/100|[from] item: Leftovers
+|upkeep
+|turn|21
+|inactive|Jogarame has 90 seconds left.
+|
+|t:|1785017210
+|move|p1a: Heatran|Earth Power|p2a: Kingambit
+|-supereffective|p2a: Kingambit
+|-damage|p2a: Kingambit|0 fnt
+|faint|p2a: Kingambit
+|-end|p2a: Kingambit|fallen2|[silent]
+|
+|-heal|p1a: Heatran|40/100|[from] item: Leftovers
+|upkeep
+|
+|t:|1785017225
+|switch|p2a: Darkrai|Darkrai|100/100
+|-damage|p2a: Darkrai|88/100|[from] Stealth Rock
+|turn|22
+|
+|t:|1785017235
+|switch|p1a: Dragapult|Dragapult, F|100/100
+|move|p2a: Darkrai|Dark Pulse|p1a: Dragapult
+|-supereffective|p1a: Dragapult
+|-damage|p1a: Dragapult|0 fnt
+|faint|p1a: Dragapult
+|
+|upkeep
+|
+|t:|1785017244
+|switch|p1a: Ogerpon|Ogerpon-Wellspring, F|100/100
+|-damage|p1a: Ogerpon|88/100|[from] Stealth Rock
+|turn|23
+|
+|t:|1785017258
+|switch|p2a: Great Tusk|Great Tusk|100/100
+|-damage|p2a: Great Tusk|98/100|[from] Stealth Rock
+|-terastallize|p1a: Ogerpon|Water
+|detailschange|p1a: Ogerpon|Ogerpon-Wellspring-Tera, F, tera:Water
+|-ability|p1a: Ogerpon|Embody Aspect (Wellspring)|boost
+|-boost|p1a: Ogerpon|spd|1
+|move|p1a: Ogerpon|Swords Dance|p1a: Ogerpon
+|-boost|p1a: Ogerpon|atk|2
+|
+|-heal|p2a: Great Tusk|100/100|[from] item: Leftovers
+|upkeep
+|turn|24
+|
+|t:|1785017270
+|move|p1a: Ogerpon|Ivy Cudgel|p2a: Great Tusk|[anim] Ivy Cudgel Water
+|-supereffective|p2a: Great Tusk
+|-damage|p2a: Great Tusk|0 fnt
+|faint|p2a: Great Tusk
+|-end|p2a: Great Tusk|Protosynthesis|[silent]
+|
+|upkeep
+|
+|t:|1785017278
+|switch|p2a: Dragapult|Dragapult, F|100/100
+|-damage|p2a: Dragapult|88/100|[from] Stealth Rock
+|turn|25
+|
+|t:|1785017286
+|move|p2a: Dragapult|Dragon Darts|p1a: Ogerpon
+|-damage|p1a: Ogerpon|36/100
+|-anim|p2a: Dragapult|Dragon Darts|p1a: Ogerpon
+|-damage|p1a: Ogerpon|0 fnt
+|faint|p1a: Ogerpon
+|detailschange|p1: Ogerpon|Ogerpon-Wellspring, F|[silent]
+|
+|upkeep
+|
+|t:|1785017292
+|switch|p1a: Heatran|Heatran, M, shiny|40/100
+|-damage|p1a: Heatran|28/100|[from] Stealth Rock
+|turn|26
+|
+|t:|1785017298
+|move|p2a: Dragapult|Dragon Darts|p1a: Heatran
+|-resisted|p1a: Heatran
+|-damage|p1a: Heatran|10/100
+|-anim|p2a: Dragapult|Dragon Darts|p1a: Heatran
+|-resisted|p1a: Heatran
+|-damage|p1a: Heatran|0 fnt
+|faint|p1a: Heatran
+|
+|win|Imcool5335
+|raw|Jogarame's rating: 1146 &rarr; <strong>1119</strong><br />(-27 for losing)
+|raw|Imcool5335's rating: 1124 &rarr; <strong>1151</strong><br />(+27 for winning)

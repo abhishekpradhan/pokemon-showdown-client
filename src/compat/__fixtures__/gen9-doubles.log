@@ -1,0 +1,283 @@
+|j|☆Mrshoppingbag
+|j|☆DedenneAppreciator
+|t:|1785016599
+|gametype|doubles
+|player|p1|Mrshoppingbag|170|1104
+|player|p2|DedenneAppreciator|schoolkid|1193
+|gen|9
+|tier|[Gen 9] Random Doubles Battle
+|rated|
+|rule|Species Clause: Limit one of each Pokémon
+|rule|HP Percentage Mod: HP is shown in percentages
+|rule|Illusion Level Mod: Illusion disguises the Pokémon's true level
+|rule|Sleep Clause Mod: Limit one foe put to sleep
+|
+|t:|1785016599
+|teamsize|p1|6
+|teamsize|p2|6
+|start
+|switch|p1a: Tornadus|Tornadus, L77, M|248/248
+|switch|p1b: Shiftry|Shiftry, L83, F|285/285
+|switch|p2a: Giratina|Giratina, L76|353/353
+|switch|p2b: Gouging Fire|Gouging Fire, L75|281/281
+|-ability|p2a: Giratina|Pressure
+|turn|1
+|
+|t:|1785016621
+|move|p2a: Giratina|Protect|p2a: Giratina
+|-singleturn|p2a: Giratina|Protect
+|move|p1b: Shiftry|Fake Out|p2b: Gouging Fire
+|-damage|p2b: Gouging Fire|256/281
+|move|p1a: Tornadus|Tailwind|p1a: Tornadus
+|-sidestart|p1: Mrshoppingbag|move: Tailwind
+|-ability|p1b: Shiftry|Wind Rider|boost
+|-boost|p1b: Shiftry|atk|1
+|cant|p2b: Gouging Fire|flinch
+|
+|upkeep
+|turn|2
+|inactive|Battle timer is ON: inactive players will automatically lose when time's up. (requested by Mrshoppingbag)
+|
+|t:|1785016680
+|switch|p1b: Magmar|Magmar, L84, F|246/246
+|move|p1a: Tornadus|Bleakwind Storm|p2b: Gouging Fire|[spread] p2a,p2b
+|-damage|p2a: Giratina|287/353
+|-damage|p2b: Gouging Fire|165/281
+|-unboost|p2a: Giratina|spe|1
+|move|p2b: Gouging Fire|Heat Crash|p1b: Magmar
+|-resisted|p1b: Magmar
+|-damage|p1b: Magmar|195/246
+|move|p2a: Giratina|Shadow Ball|p1a: Tornadus
+|-damage|p1a: Tornadus|160/248
+|
+|-heal|p2a: Giratina|309/353|[from] item: Leftovers
+|upkeep
+|turn|3
+|
+|t:|1785016704
+|move|p1a: Tornadus|Bleakwind Storm|p2b: Gouging Fire|[spread] p2a,p2b
+|-damage|p2a: Giratina|239/353
+|-damage|p2b: Gouging Fire|77/281
+|-unboost|p2a: Giratina|spe|1
+|move|p1b: Magmar|Knock Off|p2a: Giratina
+|-supereffective|p2a: Giratina
+|-damage|p2a: Giratina|123/353
+|-enditem|p2a: Giratina|Leftovers|[from] move: Knock Off|[of] p1b: Magmar
+|move|p2b: Gouging Fire|Dragon Dance|p2b: Gouging Fire
+|-boost|p2b: Gouging Fire|atk|1
+|-boost|p2b: Gouging Fire|spe|1
+|move|p2a: Giratina|Calm Mind|p2a: Giratina
+|-boost|p2a: Giratina|spa|1
+|-boost|p2a: Giratina|spd|1
+|
+|upkeep
+|turn|4
+|inactive|DedenneAppreciator has 120 seconds left.
+|
+|t:|1785016747
+|move|p2b: Gouging Fire|Burning Bulwark|p2b: Gouging Fire
+|-singleturn|p2b: Gouging Fire|move: Protect
+|move|p2a: Giratina|Protect|p2a: Giratina
+|-singleturn|p2a: Giratina|Protect
+|move|p1a: Tornadus|Bleakwind Storm|p2a: Giratina|[spread] 
+|-activate|p2a: Giratina|move: Protect
+|-activate|p2b: Gouging Fire|move: Protect
+|move|p1b: Magmar|Knock Off|p2a: Giratina
+|-activate|p2a: Giratina|move: Protect
+|
+|-sideend|p1: Mrshoppingbag|move: Tailwind
+|upkeep
+|turn|5
+|inactive|DedenneAppreciator has 120 seconds left.
+|
+|t:|1785016770
+|move|p1a: Tornadus|Tailwind|p1a: Tornadus
+|-sidestart|p1: Mrshoppingbag|move: Tailwind
+|move|p1b: Magmar|Knock Off|p2a: Giratina
+|-supereffective|p2a: Giratina
+|-damage|p2a: Giratina|51/353
+|move|p2b: Gouging Fire|Heat Crash|p1a: Tornadus
+|-damage|p1a: Tornadus|0 fnt
+|faint|p1a: Tornadus
+|move|p2a: Giratina|Shadow Ball|p1b: Magmar
+|-damage|p1b: Magmar|114/246
+|
+|upkeep
+|
+|t:|1785016784
+|switch|p1a: Avalugg|Avalugg-Hisui, L88, F|310/310
+|turn|6
+|inactive|DedenneAppreciator has 120 seconds left.
+|
+|t:|1785016810
+|move|p2a: Giratina|Protect|p2a: Giratina
+|-singleturn|p2a: Giratina|Protect
+|move|p1b: Magmar|Knock Off|p2a: Giratina
+|-activate|p2a: Giratina|move: Protect
+|move|p2b: Gouging Fire|Dragon Claw|p1a: Avalugg
+|-damage|p1a: Avalugg|249/310
+|move|p1a: Avalugg|Rock Blast|p2b: Gouging Fire
+|-supereffective|p2b: Gouging Fire
+|-damage|p2b: Gouging Fire|17/281
+|-supereffective|p2b: Gouging Fire
+|-damage|p2b: Gouging Fire|0 fnt
+|faint|p2b: Gouging Fire
+|-end|p2b: Gouging Fire|Protosynthesis|[silent]
+|-hitcount|p2: Gouging Fire|2
+|
+|upkeep
+|inactive|DedenneAppreciator has 120 seconds left.
+|
+|t:|1785016835
+|switch|p2b: Gengar|Gengar, L84, M|238/238
+|turn|7
+|inactive|DedenneAppreciator has 120 seconds left.
+|
+|t:|1785016855
+|-terastallize|p2a: Giratina|Fighting
+|move|p1b: Magmar|Knock Off|p2a: Giratina
+|-resisted|p2a: Giratina
+|-damage|p2a: Giratina|32/353
+|move|p1a: Avalugg|Rock Blast|p2b: Gengar
+|-damage|p2b: Gengar|187/238
+|-start|p1a: Avalugg|Disable|Rock Blast|[from] ability: Cursed Body|[of] p2b: Gengar
+|-damage|p2b: Gengar|141/238
+|-damage|p2b: Gengar|90/238
+|-damage|p2b: Gengar|41/238
+|-crit|p2b: Gengar
+|-damage|p2b: Gengar|0 fnt
+|faint|p2b: Gengar
+|-hitcount|p2: Gengar|5
+|move|p2a: Giratina|Aura Sphere|p1a: Avalugg
+|-supereffective|p1a: Avalugg
+|-damage|p1a: Avalugg|0 fnt
+|faint|p1a: Avalugg
+|
+|upkeep
+|
+|t:|1785016875
+|switch|p2b: Azumarill|Azumarill, L83, M|302/302
+|switch|p1a: Virizion|Virizion, L86|297/297
+|turn|8
+|inactive|DedenneAppreciator has 120 seconds left.
+|
+|t:|1785016893
+|switch|p2b: Scovillain|Scovillain, L90, F|263/263
+|move|p2a: Giratina|Protect|p2a: Giratina
+|-singleturn|p2a: Giratina|Protect
+|move|p1a: Virizion|Leaf Storm|p2b: Scovillain
+|-resisted|p2b: Scovillain
+|-damage|p2b: Scovillain|226/263
+|-unboost|p1a: Virizion|spa|2
+|move|p1b: Magmar|Heat Wave|p2b: Scovillain|[spread] p2b
+|-activate|p2a: Giratina|move: Protect
+|-damage|p2b: Scovillain|135/263
+|
+|-sideend|p1: Mrshoppingbag|move: Tailwind
+|upkeep
+|turn|9
+|inactive|DedenneAppreciator has 120 seconds left.
+|
+|t:|1785016917
+|move|p1a: Virizion|Stone Edge|p2b: Scovillain
+|-supereffective|p2b: Scovillain
+|-damage|p2b: Scovillain|0 fnt
+|faint|p2b: Scovillain
+|move|p1b: Magmar|Heat Wave|p2a: Giratina
+|-damage|p2a: Giratina|0 fnt
+|faint|p2a: Giratina
+|
+|upkeep
+|
+|t:|1785016924
+|switch|p2b: Azumarill|Azumarill, L83, M|302/302
+|switch|p2a: Minior|Minior-Violet, L83|232/232
+|-formechange|p2a: Minior|Minior-Meteor||[from] ability: Shields Down
+|turn|10
+|inactive|DedenneAppreciator has 120 seconds left.
+|
+|t:|1785016964
+|move|p2b: Azumarill|Aqua Jet|p1b: Magmar
+|-supereffective|p1b: Magmar
+|-damage|p1b: Magmar|0 fnt
+|faint|p1b: Magmar
+|move|p1a: Virizion|Leaf Storm|p2b: Azumarill
+|-supereffective|p2b: Azumarill
+|-damage|p2b: Azumarill|162/302
+|-unboost|p1a: Virizion|spa|2
+|move|p2a: Minior|Shell Smash|p2a: Minior
+|-unboost|p2a: Minior|def|1
+|-unboost|p2a: Minior|spd|1
+|-boost|p2a: Minior|atk|2
+|-boost|p2a: Minior|spa|2
+|-boost|p2a: Minior|spe|2
+|-enditem|p2a: Minior|White Herb
+|-clearnegativeboost|p2a: Minior|[silent]
+|
+|upkeep
+|
+|t:|1785016981
+|switch|p1b: Tinkaton|Tinkaton, L82, F|274/274
+|-ability|p1b: Tinkaton|Mold Breaker
+|turn|11
+|
+|t:|1785016992
+|move|p2a: Minior|Protect|p2a: Minior
+|-singleturn|p2a: Minior|Protect
+|move|p2b: Azumarill|Aqua Jet|p1b: Tinkaton
+|-damage|p1b: Tinkaton|189/274
+|move|p1a: Virizion|Stone Edge|p2a: Minior
+|-activate|p2a: Minior|move: Protect
+|move|p1b: Tinkaton|Gigaton Hammer|p2a: Minior
+|-activate|p2a: Minior|move: Protect
+|
+|upkeep
+|turn|12
+|
+|t:|1785017010
+|move|p2b: Azumarill|Aqua Jet|p1b: Tinkaton
+|-damage|p1b: Tinkaton|98/274
+|move|p2a: Minior|Acrobatics|p1a: Virizion
+|-supereffective|p1a: Virizion
+|-damage|p1a: Virizion|0 fnt
+|faint|p1a: Virizion
+|move|p1b: Tinkaton|Play Rough|p2b: Azumarill
+|-damage|p2b: Azumarill|84/302
+|
+|upkeep
+|
+|t:|1785017014
+|switch|p1a: Shiftry|Shiftry, L83, F|285/285
+|turn|13
+|
+|t:|1785017027
+|move|p1a: Shiftry|Fake Out|p2a: Minior
+|-resisted|p2a: Minior
+|-damage|p2a: Minior|218/232
+|move|p2b: Azumarill|Aqua Jet|p1b: Tinkaton
+|-damage|p1b: Tinkaton|10/274
+|cant|p2a: Minior|flinch
+|move|p1b: Tinkaton|Gigaton Hammer|p2a: Minior
+|-supereffective|p2a: Minior
+|-damage|p2a: Minior|0 fnt
+|faint|p2a: Minior
+|
+|upkeep
+|turn|14
+|c|☆DedenneAppreciator|I forgot
+|c|☆DedenneAppreciator|I had protect too
+|
+|t:|1785017053
+|move|p2b: Azumarill|Aqua Jet|p1b: Tinkaton
+|-damage|p1b: Tinkaton|0 fnt
+|faint|p1b: Tinkaton
+|move|p1a: Shiftry|Leaf Blade|p2b: Azumarill
+|-supereffective|p2b: Azumarill
+|-damage|p2b: Azumarill|0 fnt
+|faint|p2b: Azumarill
+|
+|win|Mrshoppingbag
+|raw|Mrshoppingbag's rating: 1104 &rarr; <strong>1135</strong><br />(+31 for winning)
+|raw|DedenneAppreciator's rating: 1193 &rarr; <strong>1162</strong><br />(-31 for losing)
+|l|☆Mrshoppingbag
+|player|p1|
