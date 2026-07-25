@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { BattleField } from '../components/battle-field';
-import { projectBattleLog } from '../compat/battle-adapter';
+import { isEngineReady, loadEngine, projectEngineLog } from '../battle/engine';
 
 type ReplayLine = {
   raw: string;
@@ -46,9 +46,15 @@ export function ReplaysScreen() {
   const [playing, setPlaying] = useState(false);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState('Paste a replay URL or battle log.');
+  const [engineReady, setEngineReady] = useState(isEngineReady());
+  useEffect(() => {
+    let mounted = true;
+    void loadEngine().then(() => { if (mounted) setEngineReady(true); });
+    return () => { mounted = false; };
+  }, []);
   const battle = useMemo(
-    () => projectBattleLog(lines, { id: 'replay', upTo: cursor }),
-    [cursor, lines]
+    () => engineReady ? projectEngineLog(lines.map(line => line.raw), { roomId: 'replay', upTo: cursor }) : null,
+    [cursor, engineReady, lines]
   );
   const meaningfulEvents = useMemo(() => lines
     .map((line, index) => ({ ...line, index }))
@@ -122,7 +128,7 @@ export function ReplaysScreen() {
         </header>
 
         <div className="replay-canvas">
-          <BattleField battle={battle} />
+          {battle && <BattleField battle={battle} />}
           {!lines.length && (
             <div className="replay-empty">
               <Play size={24} aria-hidden />

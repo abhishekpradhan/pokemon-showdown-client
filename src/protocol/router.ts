@@ -1,9 +1,10 @@
 import {
-  battleFromRequest,
+  buildMoveDeck,
   createBattleChoiceSession,
-  reduceBattleLine,
+  requestFlags,
   type BattleRequest,
 } from '../compat/battle-adapter';
+import { createEngineBattle, feedLine, projectEngineBattle } from '../battle/engine';
 import { describeBattleLine } from '../compat/battle-text';
 import type { PsFrame, PsLine } from '../compat/protocol-client';
 import {
@@ -227,9 +228,13 @@ const handleLifecycle = (roomId: string, line: PsLine, store: ArenaStoreApi): bo
     const type = line.args[0] || (roomId.startsWith('battle-') ? 'battle' : 'chat');
     setState(state => {
       const existing = state.rooms[roomId];
-      const room: Room = existing ?
+      let room: Room = existing ?
         ({ ...existing, connected: true } as Room) :
         type === 'battle' ? newBattleRoom(roomId) : newChatRoom(roomId);
+      if (room.type === 'battle' && !room.engine) {
+        const engine = createEngineBattle(toId(state.username));
+        if (engine) room = { ...room, engine };
+      }
       return {
         rooms: upsert(state.rooms, room),
         activeRoomId: roomId,
@@ -303,31 +308,14 @@ const handleLifecycle = (roomId: string, line: PsLine, store: ArenaStoreApi): bo
 const handleBattleLine = (roomId: string, line: PsLine, store: ArenaStoreApi) => {
   const { setState, getState } = store;
   const username = getState().username;
-
-  if (line.command === 'request') {
-    const request = parseBattleRequest(line);
-    if (!request) return;
-    setState(state => ({
-      rooms: updateBattleRoom(state.rooms, roomId, room => ({
-        ...room,
-        battle: battleFromRequest(roomId, request, room.battle),
-        rawLog: [...room.rawLog, line.raw],
-        lastRequest: request,
-        choiceSession: createBattleChoiceSession(request),
-        choiceDraft: { choices: [] },
-        choiceError: undefined,
-      })),
-      searchState: 'idle',
-      activeRoomId: roomId,
-    }));
-    return;
-  }
+  const userId = toId(username);
 
   if (line.command === 'inactive' || line.command === 'inactiveoff') {
     const text = line.args.join('|');
     setState(state => ({
       rooms: updateBattleRoom(state.rooms, roomId, room => ({
         ...room,
+        rawLog: [...room.rawLog, line.raw],
         timer: line.command === 'inactiveoff' ?
           { ...room.timer, on: false } :
           { on: true, ...parseTimerLine(text), asOf: Date.now() },
@@ -339,20 +327,107 @@ const handleBattleLine = (roomId: string, line: PsLine, store: ArenaStoreApi) =>
 
   const chat = parseChatLine(line);
   const pretty = chat ? '' : describeBattleLine(line);
+  const request = line.command === 'request' ? parseBattleRequest(line) : null;
 
-  setState(state => ({
-    rooms: updateBattleRoom(state.rooms, roomId, room => {
-      let next = {
-        ...room,
-        rawLog: [...room.rawLog, line.raw],
-        battle: reduceBattleLine(room.battle, line, { username }),
-      };
+  setState(state => {
+    let searchState = state.searchState;
+    let activeRoomId = state.activeRoomId;
+
+    const rooms = updateBattleRoom(state.rooms, roomId, room => {
+      let next: typeof room = { ...room, rawLog: [...room.rawLog, line.raw] };
+
+      // Perspective and result are protocol facts the engine does not model.
+      if (line.command === 'player') {
+        const side = line.args[0] === 'p2' ? 'p2' : 'p1';
+        const name = toId(line.args[1] || '');
+        const displayName = line.args[1] || '';
+        const rating = Number(line.args[3]) || 0;
+        const mine = !!name && name === userId;
+        next = {
+          ...next,
+          perspective: mine ? side : next.perspective,
+          // Names also land on the placeholder view so the pre-engine window
+          // (the second or two before the chunk resolves) is not blank.
+          battle: {
+            ...next.battle,
+            [side]: { name: displayName || next.battle[side].name, rating },
+            playerSide: mine ? side : next.battle.playerSide,
+            mode: mine ? 'player' : next.battle.mode,
+          },
+        };
+      }
+      if (line.command === 'win') next = { ...next, result: { winner: line.args[0], ended: true } };
+      if (line.command === 'tie') next = { ...next, result: { ended: true } };
+
+      if (request) {
+        const perspective = request.side?.id === 'p1' || request.side?.id === 'p2' ?
+          request.side.id :
+          next.perspective;
+        const flags = requestFlags(request);
+        const defender = next.battle.opponentActive;
+        next = {
+          ...next,
+          perspective,
+          lastRequest: request,
+          choiceSession: createBattleChoiceSession(request),
+          choiceDraft: { choices: [] },
+          choiceError: undefined,
+          choicePending: false,
+          // Request-derived view state applies with or without the engine —
+          // the deck and decision flags must never wait on a chunk load.
+          battle: {
+            ...next.battle,
+            rqid: request.rqid,
+            requestType: flags.requestType,
+            noCancel: flags.noCancel,
+            trapped: flags.trapped,
+            maybeTrapped: flags.maybeTrapped,
+            targetable: flags.targetable,
+            teamPreviewSize: flags.teamPreviewSize,
+            waiting: !!request.wait,
+            mode: 'player',
+            playerSide: perspective ?? next.battle.playerSide,
+            moves: buildMoveDeck(
+              request,
+              defender?.terastallized ? [defender.terastallized] : defender?.types,
+              next.battle.format
+            ),
+          },
+        };
+        searchState = 'idle';
+        activeRoomId = roomId;
+      }
+
+      // The engine consumes every line, chat included — it ignores what it
+      // does not care about. Absent engine (chunk still loading), lines sit
+      // in rawLog and the engine-ready flush replays them.
+      if (next.engine) {
+        feedLine(next.engine, line.raw);
+        next = {
+          ...next,
+          battle: projectEngineBattle(next.engine, {
+            roomId,
+            perspective: next.perspective,
+            result: next.result,
+            lastRequest: next.lastRequest,
+            waiting: next.choicePending || !!next.lastRequest?.wait,
+            format: next.battle.format,
+          }),
+        };
+      }
+
       if (chat) next = appendChat(next, chat, state.activeRoomId === roomId) as typeof next;
       if (pretty) next = appendLog(next, pretty) as typeof next;
       return next;
-    }),
-    lastError: chat?.kind === 'error' ? chat.message : state.lastError,
-  }));
+    });
+
+    return {
+      rooms,
+      searchState,
+      activeRoomId,
+      lastError: chat?.kind === 'error' ? chat.message : state.lastError,
+    };
+  });
 };
 
 // ── Entry point ─────────────────────────────────────────────────────────────

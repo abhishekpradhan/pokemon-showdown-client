@@ -52,8 +52,10 @@ export const newBattleRoom = (id: string): BattleRoom => ({
     waiting: false,
     playerSide: undefined,
   },
+  perspective: null,
   rawLog: [],
   choiceDraft: { choices: [] },
+  choicePending: false,
   timer: { on: false },
 });
 

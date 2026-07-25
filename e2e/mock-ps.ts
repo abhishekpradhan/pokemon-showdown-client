@@ -94,6 +94,12 @@ export async function installMockPs(page: Page) {
         if (message.includes('/cancelsearch')) {
           this.emit('|updatesearch|{"searching":[],"games":{}}');
         }
+        if (message.includes('/join battle-gen9uu-spectate1')) {
+          // A battle between two other players: the joiner is a spectator.
+          // No |request| ever arrives for spectators.
+          this.emit('>battle-gen9uu-spectate1\n|init|battle\n|title|AlphaPlayer vs. BetaPlayer\n|player|p1|AlphaPlayer|60|1400\n|player|p2|BetaPlayer|61|1380\n|gametype|singles\n|gen|9\n|tier|[Gen 9] UU\n|clearpoke\n|poke|p1|Krookodile, M|\n|poke|p2|Reuniclus, F|\n|start\n|switch|p1a: Krookodile|Krookodile, M|100/100\n|switch|p2a: Reuniclus|Reuniclus, F|100/100\n|turn|1');
+          this.emit('>battle-gen9uu-spectate1\n|move|p1a: Krookodile|Knock Off|p2a: Reuniclus\n|-supereffective|p2a: Reuniclus\n|-damage|p2a: Reuniclus|38/100\n|turn|2');
+        }
         if (message.includes('/search gen9ou')) {
           this.emit('|updatesearch|{"searching":["gen9ou"],"games":{}}');
           localStorage.setItem('__mockBattleStarted', '1');
@@ -124,7 +130,9 @@ export async function installMockPs(page: Page) {
       }
 
       emitBattle() {
-        this.emit('>battle-gen9ou-1\n|init|battle\n|title|CodexTester vs. MockRival\n|player|p1|CodexTester|1000\n|player|p2|MockRival|1000');
+        // Real servers always send |gen| and |tier|; the engine needs them to
+        // resolve species in the right generation.
+        this.emit('>battle-gen9ou-1\n|init|battle\n|title|CodexTester vs. MockRival\n|player|p1|CodexTester|266|1000\n|player|p2|MockRival|1|1000\n|gametype|singles\n|gen|9\n|tier|[Gen 9] OU');
         this.emit('>battle-gen9ou-1\n|clearpoke\n|poke|p1|Iron Valiant, L80\n|poke|p1|Heatran, L80\n|poke|p1|Dragapult, L80\n|poke|p2|Great Tusk, L80\n|poke|p2|Gholdengo, L80\n|poke|p2|Dragonite, L80\n|start\n|switch|p1a: Iron Valiant|Iron Valiant, L80|156/200\n|switch|p2a: Great Tusk|Great Tusk, L80|88/200\n|turn|12');
         this.emit(`>battle-gen9ou-1\n|request|${battleRequest}`);
       }

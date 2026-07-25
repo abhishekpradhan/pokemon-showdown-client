@@ -1,18 +1,19 @@
 import singlesLog from './__fixtures__/gen9ou-singles.log?raw';
 import doublesLog from './__fixtures__/gen9-doubles.log?raw';
 import playerLog from './__fixtures__/player-gen9ou.log?raw';
-import { projectBattleLog, type ArenaBattle, type PokemonSet } from './battle-adapter';
+import { loadEngine, projectEngineLog } from '../battle/engine';
+import type { ArenaBattle, PokemonSet } from './battle-adapter';
 
 /**
- * Transcript safety net.
+ * Transcript safety net, now over the engine-backed projection.
  *
- * Real battle logs (plus one synthetic player-perspective log, since replays
- * never contain |request| lines) are folded through the canonical projection
- * and their final state is snapshotted. Refactors that change behavior show
- * up as snapshot diffs to be reviewed — the Phase 2 engine swap is *expected*
- * to change some of these (it fixes real gaps); those diffs get re-blessed
- * deliberately, with eyes on them.
+ * These digests were first blessed against the hand-rolled projection; the
+ * Phase 2 swap re-blessed them deliberately. Notable diffs reviewed at the
+ * time: the engine clears Terastallization on faint, drops stat stages on
+ * forced switch-out, and reconstructs rosters with official-client fidelity.
  */
+
+const lines = (log: string) => log.split(/\r?\n/).filter(Boolean);
 
 const digestPokemon = (pokemon: PokemonSet) => ({
   name: pokemon.name,
@@ -53,13 +54,17 @@ const invariants = (battle: ArenaBattle) => {
   expect(battle.opponentTeam.length).toBeLessThanOrEqual(6);
 };
 
-describe('battle log fixtures', () => {
+beforeAll(async () => {
+  await loadEngine();
+});
+
+describe('battle log fixtures (engine projection)', () => {
   it('projects a real gen9ou singles replay', () => {
-    const battle = projectBattleLog(singlesLog, { id: 'fixture-singles' });
+    const battle = projectEngineLog(lines(singlesLog), { roomId: 'fixture-singles' })!;
     invariants(battle);
     // A finished log ends 'ended'; mid-log it must read as a spectator.
     expect(battle.mode).toBe('ended');
-    expect(projectBattleLog(singlesLog, { id: 'fixture-singles', upTo: 60 }).mode).toBe('spectator');
+    expect(projectEngineLog(lines(singlesLog), { roomId: 'fixture-singles', upTo: 60 })!.mode).toBe('spectator');
     // Replays are a spectator's view: no exact HP may exist on either side.
     for (const pokemon of [battle.active, battle.opponentActive, ...battle.team, ...battle.opponentTeam]) {
       expect(pokemon.currentHp).toBeUndefined();
@@ -68,14 +73,14 @@ describe('battle log fixtures', () => {
   });
 
   it('projects a real gen9 random doubles replay', () => {
-    const battle = projectBattleLog(doublesLog, { id: 'fixture-doubles' });
+    const battle = projectEngineLog(lines(doublesLog), { roomId: 'fixture-doubles' })!;
     invariants(battle);
-    expect(projectBattleLog(doublesLog, { id: 'fixture-doubles', upTo: 80 }).mode).toBe('spectator');
+    expect(projectEngineLog(lines(doublesLog), { roomId: 'fixture-doubles', upTo: 80 })!.mode).toBe('spectator');
     expect(digest(battle)).toMatchSnapshot();
   });
 
   it('projects a player-perspective log with requests', () => {
-    const battle = projectBattleLog(playerLog, { id: 'fixture-player', username: 'ArenaTester' });
+    const battle = projectEngineLog(lines(playerLog), { roomId: 'fixture-player', username: 'ArenaTester' })!;
     invariants(battle);
 
     // The username matches |player|p1, so this renders as the player...
@@ -83,22 +88,28 @@ describe('battle log fixtures', () => {
     // ...which is the only case where exact HP is knowable.
     const kingambit = battle.team.find(pokemon => pokemon.species === 'Kingambit');
     expect(kingambit?.maxHp).toBe(334);
+    expect(kingambit?.currentHp).toBe(293);
 
-    // State tracked from protocol lines must survive later |request| rebuilds.
+    // Status tracked through the log survives request rebuilds — by
+    // construction now, rather than by a carefully-tested merge.
     const garchomp = battle.team.find(pokemon => pokemon.species === 'Garchomp');
     expect(garchomp?.status).toBe('BRN');
 
     expect(battle.sideConditions).toEqual([{ name: 'Spikes', layers: 1 }]);
     expect(battle.winner).toBe('ArenaTester');
+    // The final request is a force-switch, so the deck is rightly empty at
+    // the end; mid-battle it carries the four moves with real dex data.
+    const midBattle = projectEngineLog(lines(playerLog), { roomId: 'fixture-player', username: 'ArenaTester', upTo: 25 })!;
+    expect(midBattle.moves.map(move => move.name)).toEqual(['Swords Dance', 'Earthquake', 'Dragon Claw', 'Fire Fang']);
+    expect(midBattle.moves[1]).toMatchObject({ type: 'Ground', category: 'Physical' });
     expect(digest(battle)).toMatchSnapshot();
   });
 
-  it('projects the same log as a spectator when the username matches neither player', () => {
-    const battle = projectBattleLog(playerLog, { id: 'fixture-watcher', username: 'SomeoneElse' });
-    // Requests in the log flip it to player mode (requests only ever reach the
-    // player), but a pure observer of the line stream before requests must
-    // not claim a side from |player| lines alone.
-    expect(battle.p1.name).toBe('ArenaTester');
-    expect(battle.p2.name).toBe('RivalGuy');
+  it('renders true doubles state, not a folded singles view', () => {
+    const battle = projectEngineLog(lines(doublesLog), { roomId: 'fixture-doubles', upTo: 40 })!;
+    // Both rosters should reach 4+ revealed Pokémon in a random doubles lead
+    // pair — the folded singles view used to lose one of the two actives.
+    expect(battle.team.length).toBeGreaterThanOrEqual(2);
+    expect(battle.opponentTeam.length).toBeGreaterThanOrEqual(2);
   });
 });

@@ -1,3 +1,4 @@
+import type { Battle } from '@pkmn/client';
 import type {
   ArenaBattle,
   BattleChoiceDraft,
@@ -52,13 +53,22 @@ export type BattleTimer = {
 
 export type BattleRoom = RoomBase & {
   type: 'battle';
+  /** Projected view the components render. */
   battle: ArenaBattle;
+  /** The @pkmn/client battle; absent until the engine chunk loads, at which
+      point rawLog is replayed through a fresh instance. */
+  engine?: Battle;
+  /** Our seat when playing; null while spectating. */
+  perspective: 'p1' | 'p2' | null;
+  /** Tracked from |win|/|tie| — the engine does not model game end. */
+  result?: { winner?: string; ended: boolean };
   /** Raw protocol lines, in order — feeds the engine, replays and /savereplay. */
   rawLog: string[];
   choiceSession?: BattleChoiceSession;
   choiceDraft: BattleChoiceDraft;
   choiceError?: string;
-  /** Last |request| payload; replayed when the dex chunk finishes loading. */
+  /** True between submitting a choice and the next |request|. */
+  choicePending: boolean;
   lastRequest?: BattleRequest;
   timer: BattleTimer;
 };

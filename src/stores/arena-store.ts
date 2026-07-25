@@ -5,7 +5,6 @@ import {
   buildBattleCommand,
   createBattleChoiceSession,
   demoBattle,
-  projectBattleLog,
   type ArenaBattle,
   type BattleChoice,
   type BattleChoiceState,
@@ -46,7 +45,7 @@ import {
   type StoredTeam,
   type TeamValidationResult,
 } from '../compat/team-store';
-import { onDexLoaded } from '../data/dex';
+import { createEngineBattle, feedLine, onEngineReady, projectEngineBattle } from '../battle/engine';
 import { routeFrame } from '../protocol/router';
 import {
   appendChat,
@@ -721,6 +720,7 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
       rooms: updateBattleRoom(current.rooms, room.id, target => appendLog({
         ...target,
         battle: { ...target.battle, waiting: result.complete },
+        choicePending: result.complete,
         choiceSession: result.session,
         choiceDraft: result.draft,
         choiceError: undefined,
@@ -747,6 +747,7 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
       rooms: updateBattleRoom(current.rooms, room.id, item => appendLog({
         ...item,
         battle: { ...item.battle, waiting: result.complete },
+        choicePending: result.complete,
         choiceSession: result.session,
         choiceDraft: result.draft,
         choiceError: result.error,
@@ -888,21 +889,33 @@ protocol.subscribe(event => {
   }
 });
 
-// Battles that opened before the dex chunk resolved were projected with no
-// species/move data. Re-fold their raw logs once the dex is ready — the log
-// contains the |request| lines, so one pass restores everything.
-onDexLoaded(() => {
+// Battles that opened before the engine chunk resolved buffered their raw
+// lines. Replay them through fresh engine instances the moment it is ready.
+onEngineReady(() => {
   const state = useArenaStore.getState();
-  const battleIds = Object.values(state.rooms)
-    .filter((room): room is BattleRoom => room.type === 'battle' && room.rawLog.length > 0);
-  if (!battleIds.length) return;
+  const pending = Object.values(state.rooms)
+    .filter((room): room is BattleRoom => room.type === 'battle' && !room.engine && room.id !== demoBattle.id);
+  if (!pending.length) return;
   useArenaStore.setState(current => {
     let rooms = current.rooms;
-    for (const room of battleIds) {
-      rooms = updateBattleRoom(rooms, room.id, item => ({
-        ...item,
-        battle: projectBattleLog(item.rawLog.join('\n'), { id: item.id, username: current.username }),
-      }));
+    for (const room of pending) {
+      rooms = updateBattleRoom(rooms, room.id, item => {
+        const engine = createEngineBattle(toId(current.username));
+        if (!engine) return item;
+        for (const raw of item.rawLog) feedLine(engine, raw);
+        return {
+          ...item,
+          engine,
+          battle: projectEngineBattle(engine, {
+            roomId: item.id,
+            perspective: item.perspective,
+            result: item.result,
+            lastRequest: item.lastRequest,
+            waiting: item.choicePending || !!item.lastRequest?.wait,
+            format: item.battle.format,
+          }),
+        };
+      });
     }
     return { rooms };
   });

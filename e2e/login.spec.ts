@@ -83,3 +83,30 @@ test('strips the group symbol from the display name', async ({ page }) => {
   // group symbol, not part of the name.
   await expect(page.getByRole('button', { name: 'CodexTester', exact: true })).toBeVisible();
 });
+
+/**
+ * Phase 2 acceptance: joining someone else's battle renders a spectator view.
+ * This was structurally broken before the engine swap — nothing ever assigned
+ * spectator mode, so watchers were rendered as player 1 with fabricated
+ * exact HP and player-waiting copy.
+ */
+test('spectating renders a true spectator view', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: /Unnamed guest/i }).click();
+  await page.getByRole('textbox', { name: 'Username' }).fill('CodexTester');
+  await page.getByRole('button', { name: /Choose name/i }).click();
+  await expect(page.getByRole('button', { name: 'CodexTester' })).toBeVisible();
+
+  await page.goto('/battle/battle-gen9uu-spectate1');
+  await expect(page.locator('.battle-room-title')).toContainText('AlphaPlayer');
+  await expect(page.locator('.battle-room-title')).toContainText('BetaPlayer');
+
+  // Both sides show percentages — a spectator can never know exact HP.
+  await expect(page.locator('.hp-readout').first()).toContainText('%');
+  const readouts = await page.locator('.hp-readout').allTextContents();
+  for (const readout of readouts) expect(readout).not.toMatch(/\d+\/\d+/);
+
+  // No action deck for a watcher: no move buttons, no team bench switches.
+  await expect(page.locator('.move-choice')).toHaveCount(0);
+  await expect(page.getByText(/spectating/i).first()).toBeVisible();
+});

@@ -1,10 +1,8 @@
 import {
-  DEFAULT_GEN,
   effectiveness,
   formatEffectiveness,
   genFromFormat,
   getMove,
-  getSpecies,
   type TypeName,
 } from '../data/dex';
 
@@ -329,35 +327,8 @@ const idToName = (id: string) => id
   .replace(/[-_]/g, ' ')
   .replace(/\b\w/g, letter => letter.toUpperCase());
 
-const speciesFromDetails = (details: string) => details.split(',')[0]?.trim() || 'Pokemon';
-
 const speciesId = (name: string) => name.toLowerCase().replace(/[^a-z0-9]/g, '');
 
-/**
- * Parses the extra fields of a `details` string (`Pikachu, L80, F, shiny`).
- * Order is not guaranteed beyond the species coming first.
- */
-export function parseDetails(details: string, generation = DEFAULT_GEN) {
-  const [rawSpecies, ...rest] = details.split(',').map(part => part.trim());
-  const species = rawSpecies || 'Pokemon';
-  let level: number | undefined;
-  let gender: 'M' | 'F' | undefined;
-  let shiny = false;
-
-  for (const part of rest) {
-    if (/^L\d+$/i.test(part)) level = Number(part.slice(1));
-    else if (part === 'M' || part === 'F') gender = part;
-    else if (part === 'shiny') shiny = true;
-  }
-
-  return {
-    species,
-    level,
-    gender,
-    shiny,
-    types: (getSpecies(species, generation)?.types as TypeName[] | undefined),
-  };
-}
 
 export type ParsedCondition = {
   hp: number;
@@ -464,77 +435,24 @@ export function normalizeBattleRequest(request: BattleRequest, previousBattle?: 
   };
 }
 
+
 /**
- * Drops exact HP when a Pokémon turns out to belong to the opponent. Anything
- * recorded while we assumed the wrong side was read as our own, and the exact
- * figures were never ours to know.
+ * Builds the move deck the action panel renders, from a raw |request|.
+ * Defender types (the opposing active, tera-aware) drive the effectiveness
+ * hint on each card.
  */
-const asOpponent = (pokemon: PokemonSet): PokemonSet => ({
-  ...pokemon,
-  currentHp: undefined,
-  maxHp: undefined,
-});
-
-export function battleFromRequest(roomId: string, request: BattleRequest, previousBattle: ArenaBattle = emptyBattle): ArenaBattle {
-  const normalized = normalizeBattleRequest(request, previousBattle);
-  const playerSide = request.side?.id === 'p2' ? 'p2' : request.side?.id === 'p1' ? 'p1' : previousBattle.playerSide;
-
-  // Protocol lines processed before we knew our side were bucketed against a
-  // p1 default. If the request contradicts that, the rosters are the wrong way
-  // round — swap them rather than leaving the opponent's nameplate showing our
-  // own Pokémon.
-  const previous = previousBattle.playerSide && playerSide && previousBattle.playerSide !== playerSide ?
-    {
-      ...previousBattle,
-      active: previousBattle.opponentActive,
-      opponentActive: asOpponent(previousBattle.active),
-      team: previousBattle.opponentTeam,
-      opponentTeam: previousBattle.team.map(asOpponent),
-    } :
-    previousBattle;
-  const generation = genFromFormat(previous.format);
-  const team = request.side?.pokemon?.map((pokemon, index): PokemonSet => {
-    const name = pokemon.ident.split(': ')[1] || speciesFromDetails(pokemon.details);
-    const details = parseDetails(pokemon.details, generation);
-    const condition = parseCondition(pokemon.condition);
-    // A request describes the side, not the battle: it carries no stat stages,
-    // volatiles or Tera state. Those are only ever learned from protocol
-    // lines, so carry them across instead of letting each turn's request wipe
-    // them — otherwise your own boosts vanish while the opponent's persist.
-    const tracked = previous.team.find(entry => samePokemon(entry, name, details.species));
-    return {
-      slot: index + 1,
-      name,
-      species: details.species,
-      hp: condition.hp,
-      currentHp: condition.currentHp,
-      maxHp: condition.maxHp,
-      status: condition.status,
-      fainted: condition.fainted,
-      types: details.types,
-      level: details.level,
-      gender: details.gender,
-      shiny: details.shiny,
-      boosts: tracked?.boosts,
-      volatiles: tracked?.volatiles,
-      terastallized: tracked?.terastallized,
-      item: pokemon.item || tracked?.item,
-      ability: pokemon.ability || pokemon.baseAbility || tracked?.ability,
-      active: !!pokemon.active,
-    };
-  }) || previous.team;
-
-  const active = team.find(pokemon => pokemon.active) || team[0] || previous.active;
+export function buildMoveDeck(
+  request: BattleRequest,
+  defenderTypes: TypeName[] | undefined,
+  formatId?: string
+): BattleChoice[] {
+  const generation = genFromFormat(formatId);
+  const normalized = normalizeBattleRequest(request);
   const activeRequest = normalized.active?.[0];
   const requestMoves = activeRequest?.moves || [];
-  // The opposing active's typing drives the effectiveness hint on each move.
-  const defenderTypes = previous.opponentActive?.terastallized ?
-    [previous.opponentActive.terastallized] :
-    previous.opponentActive?.types;
 
-  const moves = requestMoves.length ? requestMoves.map((move, index): BattleChoice => {
+  return requestMoves.map((move, index): BattleChoice => {
     const name = move.move || idToName(move.id || `Move ${index + 1}`);
-    // The server omits move metadata from |request|; only the dex has it.
     const data = getMove(move.id || name, generation);
     const type = (move.type || data?.type || 'Normal') as TypeName;
     const isStatus = (data?.category || 'Status') === 'Status';
@@ -567,370 +485,21 @@ export function battleFromRequest(roomId: string, request: BattleRequest, previo
       canDynamax: !!activeRequest?.canDynamax,
       canTerastallize: !!activeRequest?.canTerastallize,
     };
-  }) : previous.moves;
+  });
+}
 
+/** The per-request flags the decision panel needs, without roster rebuild. */
+export function requestFlags(request: BattleRequest) {
+  const normalized = normalizeBattleRequest(request);
+  const activeRequest = normalized.active?.[0];
   return {
-    ...previous,
-    id: roomId || previous.id,
-    playerSide,
-    rqid: request.rqid,
     requestType: normalized.requestType,
-    waiting: !!request.wait || normalized.requestType === 'wait',
-    p1: playerSide === 'p2' ? previous.p1 : { ...previous.p1, name: request.side?.name || previous.p1.name },
-    p2: playerSide === 'p2' ? { ...previous.p2, name: request.side?.name || previous.p2.name } : previous.p2,
-    active,
-    team,
-    moves,
     noCancel: normalized.noCancel,
     trapped: !!activeRequest?.trapped,
     maybeTrapped: !!activeRequest?.maybeTrapped,
     targetable: normalized.targetable,
     teamPreviewSize: normalized.chosenTeamSize,
-    mode: normalized.requestType === 'wait' ? 'waiting' : 'player',
-    choiceError: undefined,
-    choiceDraft: { choices: [] },
   };
-}
-
-type BattleProtocolLine = {
-  command: string;
-  args: string[];
-};
-
-const protocolIdent = (ident: string) => {
-  const match = ident.match(/^(p[12])([a-z])?:\s*(.+)$/i);
-  if (!match) return null;
-  return {
-    side: match[1].toLowerCase() as 'p1' | 'p2',
-    activeIndex: match[2] ? Math.max(0, match[2].toLowerCase().charCodeAt(0) - 97) : 0,
-    name: match[3].trim(),
-  };
-};
-
-const samePokemon = (pokemon: PokemonSet, name: string, species?: string) =>
-  speciesId(pokemon.name) === speciesId(name) ||
-  (!!species && speciesId(pokemon.species) === speciesId(species));
-
-const updateRosterPokemon = (
-  roster: PokemonSet[],
-  name: string,
-  patch: Partial<PokemonSet>,
-  species?: string
-) => {
-  const index = roster.findIndex(pokemon => samePokemon(pokemon, name, species));
-  if (index < 0) {
-    return [...roster, {
-      slot: roster.length + 1,
-      name,
-      species: species || speciesId(name),
-      hp: 100,
-      ...patch,
-    }];
-  }
-  return roster.map((pokemon, pokemonIndex) => pokemonIndex === index ? { ...pokemon, ...patch } : pokemon);
-};
-
-/**
- * `knowsExactHp` decides whether exact HP is meaningful. It is true only for
- * your own side in a battle you are playing: the server reports everyone else
- * as a fraction of 100, and a spectator or replay viewer gets percentages for
- * both sides. Carrying those through as currentHp/maxHp renders "100/100",
- * indistinguishable from a real HP total the client cannot know.
- */
-const conditionPatch = (condition: string, exactHpKnown: boolean): Partial<PokemonSet> => {
-  const parsed = parseCondition(condition);
-  return {
-    hp: parsed.hp,
-    currentHp: exactHpKnown ? parsed.currentHp : undefined,
-    maxHp: exactHpKnown ? parsed.maxHp : undefined,
-    status: parsed.status,
-    fainted: parsed.fainted,
-  };
-};
-
-/** True only when we are a player in this battle and this is our own side. */
-const knowsExactHp = (battle: ArenaBattle, isOwn: boolean) =>
-  isOwn && battle.mode !== 'spectator' && battle.mode !== 'ended';
-
-const updatePokemonFromIdent = (
-  battle: ArenaBattle,
-  identText: string,
-  patch: Partial<PokemonSet> | ((context: { exactHpKnown: boolean }) => Partial<PokemonSet>),
-  species?: string
-): ArenaBattle => {
-  const ident = protocolIdent(identText);
-  if (!ident) return battle;
-  const ownSide = battle.playerSide || 'p1';
-  const isOwn = ident.side === ownSide;
-  const activeKey = isOwn ? 'active' : 'opponentActive';
-  const rosterKey = isOwn ? 'team' : 'opponentTeam';
-  const active = battle[activeKey];
-  // Some patches depend on which side the ident belongs to, which is only
-  // resolved here.
-  const resolved = typeof patch === 'function' ? patch({ exactHpKnown: knowsExactHp(battle, isOwn) }) : patch;
-  const nextActive = samePokemon(active, ident.name, species) ? { ...active, ...resolved } : active;
-  return {
-    ...battle,
-    [activeKey]: nextActive,
-    [rosterKey]: updateRosterPokemon(battle[rosterKey], ident.name, resolved, species),
-  };
-};
-
-const switchPokemon = (
-  battle: ArenaBattle,
-  identText: string,
-  details: string,
-  condition: string
-): ArenaBattle => {
-  const ident = protocolIdent(identText);
-  if (!ident) return battle;
-  const ownSide = battle.playerSide || 'p1';
-  const isOwn = ident.side === ownSide;
-  const activeKey = isOwn ? 'active' : 'opponentActive';
-  const rosterKey = isOwn ? 'team' : 'opponentTeam';
-  const parsed = parseDetails(details, genFromFormat(battle.format));
-  const species = parsed.species;
-  const patch: Partial<PokemonSet> = {
-    ...conditionPatch(condition, knowsExactHp(battle, isOwn)),
-    active: true,
-    name: ident.name,
-    species,
-    types: parsed.types,
-    level: parsed.level,
-    gender: parsed.gender,
-    shiny: parsed.shiny,
-    // Stat stages and volatiles do not survive a switch, and the incoming
-    // Pokémon carries its own Terastallization state.
-    terastallized: undefined,
-    boosts: undefined,
-    volatiles: undefined,
-  };
-  const roster = updateRosterPokemon(
-    battle[rosterKey].map(pokemon => ({ ...pokemon, active: false })),
-    ident.name,
-    patch,
-    species
-  );
-  const active = roster.find(pokemon => samePokemon(pokemon, ident.name, species)) || {
-    slot: ident.activeIndex + 1,
-    name: ident.name,
-    species,
-    ...conditionPatch(condition, knowsExactHp(battle, isOwn)),
-    types: parsed.types,
-    level: parsed.level,
-    gender: parsed.gender,
-    shiny: parsed.shiny,
-    active: true,
-  };
-  return { ...battle, [activeKey]: active, [rosterKey]: roster };
-};
-
-const conditionLabel = (raw: string) => raw
-  .replace(/^move:\s*/i, '')
-  .replace(/^ability:\s*/i, '')
-  .replace(/^item:\s*/i, '');
-
-
-const BOOST_IDS = new Set<string>(['atk', 'def', 'spa', 'spd', 'spe', 'accuracy', 'evasion']);
-
-const clampStage = (value: number) => Math.max(-6, Math.min(6, value));
-
-/** Applies a stat-stage delta, dropping keys that return to neutral. */
-const withBoost = (pokemon: PokemonSet, stat: string, delta: number, absolute = false): PokemonSet => {
-  if (!BOOST_IDS.has(stat)) return pokemon;
-  const id = stat as BoostId;
-  const next = { ...(pokemon.boosts || {}) };
-  const value = clampStage(absolute ? delta : (next[id] || 0) + delta);
-  if (value === 0) delete next[id];
-  else next[id] = value;
-  return { ...pokemon, boosts: Object.keys(next).length ? next : undefined };
-};
-
-const withVolatile = (pokemon: PokemonSet, name: string, add: boolean): PokemonSet => {
-  const label = conditionLabel(name);
-  if (!label) return pokemon;
-  const current = pokemon.volatiles || [];
-  if (add) {
-    if (current.includes(label)) return pokemon;
-    return { ...pokemon, volatiles: [...current, label] };
-  }
-  const next = current.filter(entry => entry !== label);
-  return { ...pokemon, volatiles: next.length ? next : undefined };
-};
-
-/** Side conditions stack (Spikes up to 3, Toxic Spikes up to 2). */
-const withSideCondition = (conditions: SideCondition[] | undefined, name: string, add: boolean): SideCondition[] => {
-  const label = conditionLabel(name);
-  const list = conditions || [];
-  if (!label) return list;
-  const index = list.findIndex(entry => entry.name === label);
-  if (!add) return list.filter(entry => entry.name !== label);
-  if (index < 0) return [...list, { name: label, layers: 1 }];
-  return list.map((entry, entryIndex) =>
-    entryIndex === index ? { ...entry, layers: entry.layers + 1 } : entry);
-};
-
-/** Resolves which side of the battle a `p1: Name` / `p1a: Name` ident is on. */
-const sideKeys = (battle: ArenaBattle, side: 'p1' | 'p2') => {
-  const isOwn = side === (battle.playerSide || 'p1');
-  return {
-    isOwn,
-    conditionsKey: (isOwn ? 'sideConditions' : 'opponentSideConditions') as
-      'sideConditions' | 'opponentSideConditions',
-  };
-};
-
-/** Applies a transform to whichever active Pokémon an ident refers to. */
-const updateActiveFromIdent = (
-  battle: ArenaBattle,
-  identText: string,
-  transform: (pokemon: PokemonSet) => PokemonSet
-): ArenaBattle => {
-  const ident = protocolIdent(identText);
-  if (!ident) return battle;
-  const isOwn = ident.side === (battle.playerSide || 'p1');
-  const activeKey = isOwn ? 'active' : 'opponentActive';
-  const rosterKey = isOwn ? 'team' : 'opponentTeam';
-  const updated = transform(battle[activeKey]);
-  return {
-    ...battle,
-    [activeKey]: updated,
-    [rosterKey]: battle[rosterKey].map(pokemon =>
-      samePokemon(pokemon, ident.name) ? transform(pokemon) : pokemon),
-  };
-};
-
-const identSide = (raw: string): 'p1' | 'p2' | null => {
-  const match = /^(p[12])/.exec(raw.trim());
-  return match ? (match[1] as 'p1' | 'p2') : null;
-};
-
-/**
- * Projects the subset of PS battle protocol needed by the React battle scene.
- * The legacy simulator remains authoritative; this adapter keeps the modern HUD
- * in sync without coupling components to raw protocol strings.
- */
-export function applyBattleProtocolLine(battle: ArenaBattle, line: BattleProtocolLine): ArenaBattle {
-  const { command, args } = line;
-  switch (command) {
-  case 'switch':
-  case 'drag':
-  case 'replace':
-    return switchPokemon(battle, args[0] || '', args[1] || '', args[2] || '');
-  case '-damage':
-  case '-heal':
-    return updatePokemonFromIdent(battle, args[0] || '', ctx => conditionPatch(args[1] || '', ctx.exactHpKnown));
-  case '-status':
-    return updatePokemonFromIdent(battle, args[0] || '', { status: statusFromCondition(` ${args[1] || ''}`) });
-  case '-curestatus':
-    return updatePokemonFromIdent(battle, args[0] || '', { status: undefined });
-  case 'faint':
-    return updatePokemonFromIdent(battle, args[0] || '', { hp: 0, fainted: true, active: true });
-  case 'poke': {
-    const side = args[0] === 'p2' ? 'p2' : 'p1';
-    const ownSide = battle.playerSide || 'p1';
-    const rosterKey = side === ownSide ? 'team' : 'opponentTeam';
-    const parsed = parseDetails(args[1] || 'Pokemon', genFromFormat(battle.format));
-    if (battle[rosterKey].some(pokemon => speciesId(pokemon.species) === speciesId(parsed.species))) return battle;
-    return {
-      ...battle,
-      [rosterKey]: [...battle[rosterKey], {
-        slot: battle[rosterKey].length + 1,
-        name: parsed.species,
-        species: parsed.species,
-        hp: 100,
-        types: parsed.types,
-        level: parsed.level,
-        gender: parsed.gender,
-        shiny: parsed.shiny,
-      }],
-    };
-  }
-  case '-terastallize':
-    return updatePokemonFromIdent(battle, args[0] || '', { terastallized: args[1] as TypeName });
-
-  // ── Stat stages ──────────────────────────────────────────────────────────
-  case '-boost':
-  case '-unboost': {
-    const delta = (Number(args[2]) || 0) * (command === '-unboost' ? -1 : 1);
-    return updateActiveFromIdent(battle, args[0] || '', pokemon => withBoost(pokemon, args[1] || '', delta));
-  }
-  case '-setboost':
-    return updateActiveFromIdent(battle, args[0] || '', pokemon =>
-      withBoost(pokemon, args[1] || '', Number(args[2]) || 0, true));
-  case '-clearboost':
-  case '-clearnegativeboost':
-    return updateActiveFromIdent(battle, args[0] || '', pokemon => ({ ...pokemon, boosts: undefined }));
-  case '-clearallboost':
-    return {
-      ...battle,
-      active: { ...battle.active, boosts: undefined },
-      opponentActive: { ...battle.opponentActive, boosts: undefined },
-    };
-  case '-copyboost':
-  case '-swapboost':
-    // Rare enough that mirroring the source is better than showing nothing.
-    return battle;
-
-  // ── Volatiles ────────────────────────────────────────────────────────────
-  case '-start':
-    return updateActiveFromIdent(battle, args[0] || '', pokemon => withVolatile(pokemon, args[1] || '', true));
-  case '-end':
-    return updateActiveFromIdent(battle, args[0] || '', pokemon => withVolatile(pokemon, args[1] || '', false));
-
-  // ── Reveals ──────────────────────────────────────────────────────────────
-  case '-item':
-    return updateActiveFromIdent(battle, args[0] || '', pokemon => ({ ...pokemon, item: args[1] }));
-  case '-enditem':
-    return updateActiveFromIdent(battle, args[0] || '', pokemon => ({ ...pokemon, item: undefined }));
-  case '-ability':
-    return updateActiveFromIdent(battle, args[0] || '', pokemon => ({ ...pokemon, ability: args[1] }));
-
-  // ── Hazards and screens ──────────────────────────────────────────────────
-  case '-sidestart':
-  case '-sideend': {
-    const side = identSide(args[0] || '');
-    if (!side) return battle;
-    const { conditionsKey } = sideKeys(battle, side);
-    return {
-      ...battle,
-      [conditionsKey]: withSideCondition(battle[conditionsKey], args[1] || '', command === '-sidestart'),
-    };
-  }
-  case 'detailschange':
-  case '-formechange': {
-    const parsed = parseDetails(args[1] || '', genFromFormat(battle.format));
-    return updatePokemonFromIdent(
-      battle,
-      args[0] || '',
-      { species: parsed.species, types: parsed.types },
-      parsed.species
-    );
-  }
-  case 'clearpoke':
-    return { ...battle, team: [], opponentTeam: [] };
-  case '-weather':
-    return { ...battle, weather: !args[0] || args[0] === 'none' ? undefined : conditionLabel(args[0]) };
-  case '-fieldstart': {
-    const condition = conditionLabel(args[0] || '');
-    const fieldConditions = [...new Set([...(battle.fieldConditions || []), condition])].filter(Boolean);
-    return { ...battle, fieldConditions };
-  }
-  case '-fieldend': {
-    const condition = conditionLabel(args[0] || '');
-    return { ...battle, fieldConditions: (battle.fieldConditions || []).filter(entry => entry !== condition) };
-  }
-  case 'start':
-    return { ...battle, waiting: false, ended: false, mode: battle.mode === 'spectator' ? 'spectator' : battle.mode };
-  case 'win':
-    return { ...battle, winner: args[0], ended: true, waiting: true, mode: 'ended' };
-  case 'turn':
-    return { ...battle, turn: Number(args[0]) || battle.turn, waiting: false };
-  case 'tie':
-    return { ...battle, winner: undefined, ended: true, waiting: true, mode: 'ended' };
-  default:
-    return battle;
-  }
 }
 
 export function buildBattleCommand(choice: BattleChoice | PokemonSet, rqid?: number) {
@@ -1158,89 +727,3 @@ export function createChoiceBuilder(request: BattleRequest): ChoiceBuilderAdapte
     build: choice => buildChooseCommand(choice, normalized.rqid),
   };
 }
-
-// ── Canonical log → state fold ────────────────────────────────────────────
-
-export type BattleLogLine = { command: string; args: string[] };
-
-export const parseBattleLogLine = (raw: string): BattleLogLine => {
-  if (!raw.startsWith('|')) return { command: '', args: [raw] };
-  const parts = raw.split('|');
-  return { command: parts[1] || '', args: parts.slice(2) };
-};
-
-/**
- * Applies one battle-log line, including the meta lines (`player`, `tier`,
- * `turn`) that sit outside `applyBattleProtocolLine`. This is the single
- * per-line reducer shared by the replay viewer, the fixture tests, and the
- * live protocol router — one code path, not three.
- */
-export function reduceBattleLine(
-  battle: ArenaBattle,
-  line: BattleLogLine,
-  opts: { username?: string } = {}
-): ArenaBattle {
-  switch (line.command) {
-  case 'player': {
-    const slot = line.args[0] === 'p2' ? 'p2' : 'p1';
-    const name = line.args[1] || '';
-    const rating = Number(line.args[3]) || (slot === 'p1' ? battle.p1.rating : battle.p2.rating);
-    // Claiming our side here matters: |player| precedes the switches that
-    // populate the field, whereas the first |request| may not.
-    const isSelf = !!opts.username && !!name && speciesId(name) === speciesId(opts.username);
-    return {
-      ...battle,
-      playerSide: isSelf ? slot : battle.playerSide,
-      mode: isSelf ? 'player' : battle.mode,
-      [slot]: { name: name || battle[slot].name, rating },
-    };
-  }
-  case 'tier':
-    return { ...battle, format: line.args[0] || battle.format };
-  case 'request': {
-    const raw = line.args.join('|');
-    if (!raw) return battle;
-    try {
-      return battleFromRequest(battle.id, JSON.parse(raw) as BattleRequest, battle);
-    } catch {
-      return battle;
-    }
-  }
-  default:
-    return applyBattleProtocolLine(battle, line);
-  }
-}
-
-/**
- * Folds a battle log into battle state. Perspective comes from the data: a
- * log with our username in |player| or carrying |request| lines renders as
- * the player; anything else (replays, spectated battles) renders as a
- * spectator with percentage HP on both sides.
- */
-export function projectBattleLog(
-  log: string | BattleLogLine[],
-  opts: { id?: string; username?: string; upTo?: number } = {}
-): ArenaBattle {
-  const lines = typeof log === 'string' ?
-    log.split(/\r?\n/).filter(Boolean).map(parseBattleLogLine) :
-    log;
-  const end = opts.upTo === undefined ? lines.length : Math.min(opts.upTo + 1, lines.length);
-
-  let battle: ArenaBattle = {
-    ...emptyBattle,
-    id: opts.id || 'battle',
-    format: 'Battle',
-    team: [],
-    opponentTeam: [],
-    log: [],
-    chat: [],
-    waiting: false,
-    mode: 'spectator',
-    playerSide: undefined,
-  };
-  for (let index = 0; index < end; index++) {
-    battle = reduceBattleLine(battle, lines[index], opts);
-  }
-  return battle;
-}
-

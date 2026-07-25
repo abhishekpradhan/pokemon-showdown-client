@@ -1,4 +1,4 @@
-import type { BattleLogLine } from './battle-adapter';
+export type BattleLogLine = { command: string; args: string[] };
 
 /**
  * Turns battle-protocol lines into the human-readable event feed.
