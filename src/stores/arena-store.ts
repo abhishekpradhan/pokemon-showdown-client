@@ -1,22 +1,23 @@
 import { create } from 'zustand';
 import {
   addBattleChoice,
-  applyBattleProtocolLine,
-  battleFromRequest,
   battleDecisionState,
   buildBattleCommand,
-  demoBattle,
-  emptyBattle,
   createBattleChoiceSession,
+  demoBattle,
+  projectBattleLog,
   type ArenaBattle,
   type BattleChoice,
-  type BattleChoiceSession,
   type BattleChoiceState,
   type BattleDecisionState,
-  type BattleRoomMode,
-  type BattleRequest,
   type PokemonSet,
 } from '../compat/battle-adapter';
+import {
+  getAssertion,
+  loginWithPassword,
+  logout,
+  type AssertionOutcome,
+} from '../compat/login-server';
 import {
   getDefaultServerConfig,
   loadStoredServer,
@@ -25,22 +26,9 @@ import {
   ProtocolClient,
   type ConnectionState,
   type PsFrame,
-  type PsLine,
   type ServerConfig,
 } from '../compat/protocol-client';
-import { onDexLoaded } from '../data/dex';
 import {
-  getAssertion,
-  loginWithPassword,
-  logout,
-  type AssertionOutcome,
-} from '../compat/login-server';
-import {
-  parseFormats,
-  parseQueryResponse,
-  parseChatRoomList,
-  parseRoomList,
-  parseSearchUpdate,
   toId,
   type ChatRoomList,
   type RoomList,
@@ -58,6 +46,20 @@ import {
   type StoredTeam,
   type TeamValidationResult,
 } from '../compat/team-store';
+import { onDexLoaded } from '../data/dex';
+import { routeFrame } from '../protocol/router';
+import {
+  appendChat,
+  appendLog,
+  newBattleRoom,
+  patchRoom,
+  updateBattleRoom,
+  upsert,
+} from '../rooms/registry';
+import type { BattleRoom, ChatMessage, Room } from '../rooms/types';
+
+export type { ChatMessage, Room, BattleRoom };
+export type { ChatRoom, PmRoom } from '../rooms/types';
 
 type SearchState = 'idle' | 'searching';
 
@@ -70,21 +72,10 @@ export type FormatOption = {
   challengeShow?: boolean;
 };
 
-export type ChatMessage = {
-  user: string;
-  message: string;
-  timestamp?: number;
-  kind?: 'chat' | 'pm' | 'system' | 'error';
-};
-
-export type RoomState = {
-  id: string;
-  title: string;
-  type: string;
-  connected: boolean;
-  users: string[];
-  chat: ChatMessage[];
-  log: string[];
+export type Challenges = {
+  /** username → format id, straight from `|updatechallenges|`. */
+  from: Record<string, string>;
+  to: { to: string; format: string } | null;
 };
 
 type LoginCredentials = {
@@ -92,15 +83,8 @@ type LoginCredentials = {
   password?: string;
 };
 
-export type TeamEditorState = {
-  editingTeamId?: string;
-  draftName: string;
-  draftFormat: string;
-  draftText: string;
-  dirty: boolean;
-};
-
-type ArenaState = {
+export type ArenaState = {
+  // ── Session ──
   username: string;
   /** Global group symbol from `|updateuser|` (e.g. `+`, `%`, `@`). */
   userGroup: string;
@@ -109,41 +93,44 @@ type ArenaState = {
   challstr: string;
   connection: ConnectionState;
   connectionReason?: string;
-  notifications: number;
-  selectedFormat: string;
+  loginPending: boolean;
+  /** Set when the login server reports the chosen name is registered. */
+  needsPassword: boolean;
+  lastError?: string;
+  server: ServerConfig;
+  protocol: ProtocolClient;
+
+  // ── Directory ──
   formats: FormatOption[];
+  selectedFormat: string;
   searchState: SearchState;
   searchFormats: string[];
-  battle: ArenaBattle;
-  battles: Record<string, ArenaBattle>;
-  activeRoomId?: string;
-  choiceSessionByRoom: Record<string, BattleChoiceSession>;
-  choiceDraftByRoom: Record<string, BattleDecisionState['draft']>;
-  choiceErrorByRoom: Record<string, string | undefined>;
-  battleModeByRoom: Record<string, BattleRoomMode>;
-  rooms: Record<string, RoomState>;
   roomList: RoomList;
-  /** Chat-room directory from `/cmd rooms` (distinct from battle roomlist). */
   chatRoomList: ChatRoomList;
-  /** Raw `|request|` payloads, replayed when the dex chunk finishes loading. */
-  lastRequestByRoom: Record<string, BattleRequest>;
+  challenges: Challenges;
+  notifications: number;
+
+  // ── Rooms (the registry: chat, PMs and battles in one map) ──
+  rooms: Record<string, Room>;
+  activeRoomId?: string;
+
+  // ── Teams ──
   activeTeam: PackedTeam;
   teams: StoredTeam[];
   activeTeamId?: string;
   teamNotice?: string;
-  loginPending: boolean;
-  /** Set when the login server reports the chosen name is registered. */
-  needsPassword: boolean;
+
+  // ── Preferences / diagnostics ──
   hardcoreMode: boolean;
   protocolLogEnabled: boolean;
   rawProtocolLog: string[];
-  lastError?: string;
-  server: ServerConfig;
-  protocol: ProtocolClient;
+  /** Last `/savereplay` payload from the server (Phase 4 uploads it). */
+  pendingReplay?: { id?: string; log?: string; password?: string };
+
+  // ── Actions ──
   connect: () => void;
   disconnect: () => void;
   reconnect: () => void;
-  /** Points the client at a different PS-compatible server. */
   setServer: (input: string) => boolean;
   resetServer: () => void;
   chooseName: (name: string) => Promise<void>;
@@ -169,6 +156,10 @@ type ArenaState = {
   exportActiveTeam: () => string;
   startSearch: () => void;
   cancelSearch: () => void;
+  sendChallenge: (user: string, format?: string) => void;
+  acceptChallenge: (user: string) => void;
+  rejectChallenge: (user: string) => void;
+  cancelChallenge: () => void;
   submitBattleChoice: (choice: BattleChoice | PokemonSet, roomId?: string) => void;
   submitBattleTarget: (target: number, roomId?: string) => void;
   getBattleDecision: (roomId?: string) => BattleDecisionState;
@@ -178,9 +169,15 @@ type ArenaState = {
   forfeitBattle: (roomId?: string) => void;
   recordBattleEvent: (event: string, roomId?: string) => void;
   sendBattleChat: (message: string, roomId?: string) => void;
+  saveReplay: (roomId?: string) => void;
   toggleHardcore: (checked: boolean) => void;
   toggleProtocolLog: (checked: boolean) => void;
   handleFrame: (frame: PsFrame) => void;
+
+  // ── Router callbacks (settle timeouts owned by the store) ──
+  onLoginSettled: () => void;
+  onSearchSettled: () => void;
+  onReplaySaved: (data: { id?: string; log?: string; password?: string }) => void;
 };
 
 const defaultFormats: FormatOption[] = [
@@ -207,6 +204,20 @@ const initialTeams = () => {
 };
 const bootstrappedTeams = initialTeams();
 
+const demoRooms = (): Record<string, Room> => {
+  if (import.meta.env.MODE !== 'test' && import.meta.env.VITE_ENABLE_DEMO_FIXTURES !== 'true') return {};
+  const room = newBattleRoom(demoBattle.id);
+  return {
+    [demoBattle.id]: {
+      ...room,
+      title: `${demoBattle.p1.name} vs ${demoBattle.p2.name}`,
+      battle: demoBattle,
+      log: [...demoBattle.log],
+      chat: demoBattle.chat.map(entry => ({ user: entry.user, message: entry.message })),
+    },
+  };
+};
+
 const protocol = new ProtocolClient(loadStoredServer());
 let loginTimeout: number | undefined;
 let cancelSearchTimeout: number | undefined;
@@ -220,7 +231,12 @@ const scheduleLoginTimeout = () => {
   clearLoginTimeout();
   loginTimeout = window.setTimeout(() => {
     const state = useArenaStore.getState();
-    if (state.loginPending) useArenaStore.setState({ loginPending: false, lastError: 'The server did not confirm that name. Try again or reconnect.' });
+    if (state.loginPending) {
+      useArenaStore.setState({
+        loginPending: false,
+        lastError: 'The server did not confirm that name. Try again or reconnect.',
+      });
+    }
   }, 8_000);
 };
 
@@ -258,148 +274,16 @@ const applyAssertion = (name: string, outcome: AssertionOutcome) => {
   useArenaStore.setState({ loginPending: false, needsPassword: false, lastError: outcome.message });
 };
 
-const upsertRoom = (rooms: Record<string, RoomState>, roomId: string, patch: Partial<RoomState>): Record<string, RoomState> => {
-  const existing = rooms[roomId] || {
-    id: roomId,
-    title: roomId || 'Lobby',
-    type: roomId.startsWith('battle-') ? 'battle' : 'chat',
-    connected: false,
-    users: [],
-    chat: [],
-    log: [],
-  };
-  return {
-    ...rooms,
-    [roomId]: { ...existing, ...patch },
-  };
-};
-
-const appendRoomLog = (room: RoomState | undefined, line: string): RoomState => ({
-  id: room?.id || 'lobby',
-  title: room?.title || 'Lobby',
-  type: room?.type || 'chat',
-  connected: room?.connected ?? true,
-  users: room?.users || [],
-  chat: room?.chat || [],
-  log: [line, ...(room?.log || [])].slice(0, 80),
-});
-
-const appendRoomChat = (room: RoomState | undefined, message: ChatMessage): RoomState => ({
-  id: room?.id || 'lobby',
-  title: room?.title || 'Lobby',
-  type: room?.type || 'chat',
-  connected: room?.connected ?? true,
-  users: room?.users || [],
-  chat: [...(room?.chat || []), message].slice(-120),
-  log: room?.log || [],
-});
-
-const parseChatLine = (line: PsLine): ChatMessage | null => {
-  switch (line.command) {
-  case 'c':
-  case 'chat':
-    return { user: line.args[0] || 'system', message: line.args.slice(1).join('|') };
-  case 'c:':
-    return {
-      timestamp: Number(line.args[0]) || undefined,
-      user: line.args[1] || 'system',
-      message: line.args.slice(2).join('|'),
-    };
-  case 'pm':
-    return { kind: 'pm', user: line.args[0] || 'pm', message: `${line.args[1] || ''}: ${line.args.slice(2).join('|')}` };
-  case 'error':
-    return { kind: 'error', user: 'error', message: line.args.join('|') };
-  case 'popup':
-    return { kind: 'system', user: 'system', message: line.args.join('|') };
-  default:
-    return null;
-  }
-};
-
-const battleLogLine = (line: PsLine) => {
-  const pokemonName = (value = '') => value.split(': ').at(-1) || value;
-  const speciesName = (value = '') => value.split(',')[0] || value;
-  switch (line.command) {
-  case 'turn':
-    return `Turn ${line.args[0]} started.`;
-  case 'switch':
-  case 'drag':
-    return `${pokemonName(line.args[0])} entered as ${speciesName(line.args[1])}.`;
-  case 'move':
-    return `${pokemonName(line.args[0])} used ${line.args[1]}.`;
-  case '-damage':
-    return `${pokemonName(line.args[0])} took damage (${line.args[1]}).`;
-  case '-heal':
-    return `${pokemonName(line.args[0])} recovered HP (${line.args[1]}).`;
-  case 'faint':
-    return `${pokemonName(line.args[0])} fainted.`;
-  case 'win':
-    return `${line.args[0]} won the battle.`;
-  case 'tie':
-    return 'The battle ended in a tie.';
-  case 'error':
-    return line.args.join('|');
-  default:
-    return line.raw.startsWith('|') ? '' : line.raw;
-  }
-};
-
 const sanitizeProtocolLog = (raw: string) => raw
   .replace(/(\|challstr\|)[^\r\n]*/g, '$1[redacted]')
   .replace(/(\/trn\s+[^,\r\n|]+,0,)[^\r\n|]+/g, '$1[redacted]');
 
-const parseBattleRequest = (line: PsLine): BattleRequest | null => {
-  const raw = line.args.join('|');
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as BattleRequest;
-  } catch {
-    return null;
-  }
+/** Resolves an optional room id to the battle room it names, if any. */
+const battleRoomFor = (state: ArenaState, roomId?: string): BattleRoom | undefined => {
+  const id = roomId || state.activeRoomId;
+  const room = id ? state.rooms[id] : undefined;
+  return room?.type === 'battle' ? room : undefined;
 };
-
-protocol.subscribe(event => {
-  if (event.type === 'state') {
-    useArenaStore.setState(state => ({
-      connection: event.state,
-      connectionReason: event.reason,
-      loginPending: event.state === 'offline' || event.state === 'error' ? false : state.loginPending,
-      lastError: state.loginPending && (event.state === 'offline' || event.state === 'error') ? 'Connection closed before the name was confirmed.' : state.lastError,
-    }));
-    if (event.state === 'connected') {
-      const state = useArenaStore.getState();
-      Object.values(state.rooms)
-        .filter(room => room.connected && room.id !== 'lobby')
-        .forEach(room => state.protocol.send(`/join ${room.id}`));
-    }
-  } else if (event.type === 'frame') {
-    useArenaStore.getState().handleFrame(event.frame);
-  } else if (event.type === 'send') {
-    useArenaStore.setState(state => ({
-      rawProtocolLog: state.protocolLogEnabled ? [`>> ${sanitizeProtocolLog(event.message)}`, ...state.rawProtocolLog].slice(0, 240) : state.rawProtocolLog,
-    }));
-  } else if (event.type === 'error') {
-    useArenaStore.setState({ lastError: event.error.message, connection: 'error' });
-  }
-});
-
-onDexLoaded(() => {
-  const state = useArenaStore.getState();
-  const rooms = Object.keys(state.lastRequestByRoom);
-  if (!rooms.length) return;
-  useArenaStore.setState(current => {
-    const battles = { ...current.battles };
-    for (const roomId of rooms) {
-      const request = current.lastRequestByRoom[roomId];
-      const battle = battles[roomId];
-      if (request && battle) battles[roomId] = battleFromRequest(roomId, request, battle);
-    }
-    return {
-      battles,
-      battle: battles[current.battle.id] || current.battle,
-    };
-  });
-});
 
 export const useArenaStore = create<ArenaState>((set, get) => ({
   username: 'Guest',
@@ -407,32 +291,31 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
   named: false,
   challstr: '',
   connection: 'offline',
-  notifications: 0,
-  selectedFormat: 'gen9ou',
+  loginPending: false,
+  needsPassword: false,
+  server: loadStoredServer(),
+  protocol,
+
   formats: defaultFormats,
+  selectedFormat: 'gen9ou',
   searchState: 'idle',
   searchFormats: [],
-  battle: emptyBattle,
-  battles: import.meta.env.MODE === 'test' || import.meta.env.VITE_ENABLE_DEMO_FIXTURES === 'true' ? { [demoBattle.id]: demoBattle } : {},
-  activeRoomId: undefined,
-  choiceSessionByRoom: {},
-  choiceDraftByRoom: {},
-  choiceErrorByRoom: {},
-  battleModeByRoom: {},
-  rooms: {},
   roomList: { rooms: [] },
   chatRoomList: { rooms: [], sectionTitles: [] },
-  lastRequestByRoom: {},
+  challenges: { from: {}, to: null },
+  notifications: 0,
+
+  rooms: demoRooms(),
+  activeRoomId: undefined,
+
   activeTeam: bootstrappedTeams[0]?.packed || sampleTeam,
   teams: bootstrappedTeams,
   activeTeamId: bootstrappedTeams[0]?.id,
-  loginPending: false,
-  needsPassword: false,
+
   hardcoreMode: false,
   protocolLogEnabled: import.meta.env.DEV,
   rawProtocolLog: [],
-  server: loadStoredServer(),
-  protocol,
+
   connect: () => get().protocol.connect(),
   disconnect: () => get().protocol.disconnect(),
   reconnect: () => get().protocol.reconnect(),
@@ -443,14 +326,14 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
       return false;
     }
     saveStoredServer(server);
-    // Rooms and battles belong to the old server; drop them rather than show
-    // stale sessions against a server that has never heard of them.
+    // Rooms belong to the old server; drop them rather than show stale
+    // sessions against a server that has never heard of them.
     set({
       server,
       rooms: {},
-      battles: {},
       roomList: { rooms: [] },
       chatRoomList: { rooms: [], sectionTitles: [] },
+      challenges: { from: {}, to: null },
       activeRoomId: undefined,
       named: false,
       challstr: '',
@@ -465,6 +348,7 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
     set({ server, named: false, challstr: '', lastError: undefined });
     get().protocol.setServer(server);
   },
+
   chooseName: async name => {
     const trimmed = name.trim();
     if (!trimmed) return;
@@ -527,21 +411,27 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
     set({ named: false, username: 'Guest', needsPassword: false, lastError: undefined });
     await logout(toId(username));
   },
+
   joinRoom: roomId => {
-    const id = toId(roomId);
+    const id = toId(roomId) ? roomId.trim().toLowerCase().replace(/[^a-z0-9-]/g, '') : '';
     if (!id) return;
     set({ activeRoomId: id });
     get().protocol.send(`/join ${id}`);
   },
   leaveRoom: roomId => {
-    const id = toId(roomId);
+    const id = roomId.trim().toLowerCase();
     get().protocol.send('/leave', id);
     set(state => ({
       activeRoomId: state.activeRoomId === id ? undefined : state.activeRoomId,
-      rooms: upsertRoom(state.rooms, id, { connected: false }),
+      rooms: patchRoom(state.rooms, id, { connected: false }),
     }));
   },
-  focusRoom: activeRoomId => set({ activeRoomId }),
+  focusRoom: activeRoomId => set(state => ({
+    activeRoomId,
+    rooms: activeRoomId && state.rooms[activeRoomId] ?
+      patchRoom(state.rooms, activeRoomId, { unread: 0 }) :
+      state.rooms,
+  })),
   clearNotifications: () => set({ notifications: 0 }),
   refreshRoomList: format => {
     const suffix = format ? ` ${toId(format)},,` : '';
@@ -554,8 +444,23 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
   sendRoomMessage: (roomId, message) => {
     const trimmed = message.trim();
     if (!trimmed) return;
-    get().protocol.send(trimmed.startsWith('/') ? trimmed : trimmed, toId(roomId));
+    const state = get();
+    const room = state.rooms[roomId];
+    if (room?.type === 'pm') {
+      state.protocol.send(`/pm ${room.partner}, ${trimmed}`);
+      set(current => ({
+        rooms: upsert(current.rooms, appendChat(room, {
+          kind: 'pm',
+          user: current.username,
+          message: trimmed,
+          timestamp: Date.now(),
+        }, true) as Room),
+      }));
+      return;
+    }
+    state.protocol.send(trimmed, roomId.trim().toLowerCase());
   },
+
   setSelectedFormat: selectedFormat => set({ selectedFormat }),
   setActiveTeam: activeTeam => set({ activeTeam: importPackedTeam(activeTeam), activeTeamId: undefined }),
   importTeamText: (text, name, format) => {
@@ -681,6 +586,7 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
     const team = get().teams.find(entry => entry.id === get().activeTeamId);
     return team ? exportTeam(team.packed) : exportTeam(get().activeTeam);
   },
+
   startSearch: () => {
     const { protocol: client, selectedFormat, activeTeam, activeTeamId, formats, connection, named, searchState } = get();
     const format = formats.find(entry => entry.id === selectedFormat);
@@ -706,12 +612,69 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
     get().protocol.send('/cancelsearch');
     cancelSearchTimeout = window.setTimeout(() => {
       const state = useArenaStore.getState();
-      if (state.searchState === 'searching') useArenaStore.setState({ searchState: 'idle', searchFormats: [], lastError: 'Search cancel was sent, but the server did not confirm it.' });
+      if (state.searchState === 'searching') {
+        useArenaStore.setState({
+          searchState: 'idle',
+          searchFormats: [],
+          lastError: 'Search cancel was sent, but the server did not confirm it.',
+        });
+      }
     }, 4_000);
   },
+
+  sendChallenge: (user, format) => {
+    const { protocol: client, selectedFormat, formats, activeTeam, named, connection } = get();
+    const formatId = format || selectedFormat;
+    const entry = formats.find(item => item.id === formatId);
+    if (connection !== 'connected' || !named) {
+      set({ lastError: 'Connect and choose a name before challenging.' });
+      return;
+    }
+    if (entry?.team !== false) {
+      const validation = get().validateTeamForFormat(get().activeTeamId, formatId);
+      if (!validation.ok) {
+        set({ lastError: validation.errors.join(' ') || 'Select a valid team for this format first.' });
+        return;
+      }
+      client.send(`/utm ${exportPackedTeam(activeTeam)}`);
+    }
+    client.send(`/challenge ${toId(user)}, ${formatId}`);
+    set({ lastError: undefined });
+  },
+  acceptChallenge: user => {
+    const { challenges, formats, activeTeam } = get();
+    const formatId = challenges.from[user] || challenges.from[toId(user)];
+    const entry = formats.find(item => item.id === toId(formatId || ''));
+    if (entry?.team !== false && formatId) {
+      const validation = get().validateTeamForFormat(get().activeTeamId, toId(formatId));
+      if (!validation.ok) {
+        set({ lastError: `That challenge needs a valid team: ${validation.errors.join(' ')}` });
+        return;
+      }
+      get().protocol.send(`/utm ${exportPackedTeam(activeTeam)}`);
+    }
+    get().protocol.send(`/accept ${toId(user)}`);
+  },
+  rejectChallenge: user => {
+    get().protocol.send(`/reject ${toId(user)}`);
+    set(state => {
+      const from = { ...state.challenges.from };
+      delete from[user];
+      delete from[toId(user)];
+      return { challenges: { ...state.challenges, from } };
+    });
+  },
+  cancelChallenge: () => {
+    get().protocol.send('/cancelchallenge');
+    set(state => ({ challenges: { ...state.challenges, to: null } }));
+  },
+
   submitBattleChoice: (choice, roomId) => {
-    const battle = get().battles[roomId || get().battle.id] || get().battle;
-    const session = get().choiceSessionByRoom[battle.id];
+    const state = get();
+    const room = battleRoomFor(state, roomId);
+    if (!room) return;
+    const { battle, choiceSession: session } = room;
+
     const choiceState: BattleChoiceState = 'cmd' in choice ? {
       kind: 'move',
       slot: choice.slot,
@@ -728,376 +691,229 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
       kind: 'switch',
       slot: choice.slot,
     };
-    const logLine = buildBattleCommand(choice, battle.rqid);
+
     if (!session) {
-      set(state => ({ choiceErrorByRoom: { ...state.choiceErrorByRoom, [battle.id]: 'No active battle request.' } }));
-      return;
-    }
-    const result = addBattleChoice(session, choiceState);
-    if (!result.ok) {
-      set(state => ({
-        choiceSessionByRoom: { ...state.choiceSessionByRoom, [battle.id]: result.session },
-        choiceDraftByRoom: { ...state.choiceDraftByRoom, [battle.id]: result.draft },
-        choiceErrorByRoom: { ...state.choiceErrorByRoom, [battle.id]: result.error },
+      set(current => ({
+        rooms: updateBattleRoom(current.rooms, room.id, target => ({
+          ...target,
+          choiceError: 'No active battle request.',
+        })),
       }));
       return;
     }
-    if (result.command) get().protocol.send(result.command, roomId || battle.id);
-    set(state => {
-      const updated = {
-        ...battle,
-        log: [result.message || logLine, ...battle.log].slice(0, 8),
-        waiting: result.complete,
-        choiceError: undefined,
-        choiceDraft: result.draft,
-      };
-      return {
-        battle: updated,
-        battles: { ...state.battles, [battle.id]: updated },
-        choiceSessionByRoom: { ...state.choiceSessionByRoom, [battle.id]: result.session },
-        choiceDraftByRoom: { ...state.choiceDraftByRoom, [battle.id]: result.draft },
-        choiceErrorByRoom: { ...state.choiceErrorByRoom, [battle.id]: undefined },
-      };
-    });
-  },
-  submitBattleTarget: (target, roomId) => {
-    const battle = get().battles[roomId || get().battle.id] || get().battle;
-    const session = get().choiceSessionByRoom[battle.id];
-    const pending = session?.draft.pendingMove;
-    if (!session || !pending) {
-      set(state => ({ choiceErrorByRoom: { ...state.choiceErrorByRoom, [battle.id]: 'No move is waiting for a target.' } }));
+
+    const result = addBattleChoice(session, choiceState);
+    if (!result.ok) {
+      set(current => ({
+        rooms: updateBattleRoom(current.rooms, room.id, target => ({
+          ...target,
+          choiceSession: result.session,
+          choiceDraft: result.draft,
+          choiceError: result.error,
+        })),
+      }));
       return;
     }
-    const result = addBattleChoice(session, { ...pending, target });
-    if (result.command) get().protocol.send(result.command, roomId || battle.id);
-    set(state => {
-      const updated = {
-        ...battle,
-        waiting: result.complete,
-        log: [result.complete ? 'Battle choice sent.' : result.message || 'Target selected.', ...battle.log].slice(0, 8),
+
+    if (result.command) state.protocol.send(result.command, room.id);
+    const logLine = result.message || buildBattleCommand(choice, battle.rqid);
+    set(current => ({
+      rooms: updateBattleRoom(current.rooms, room.id, target => appendLog({
+        ...target,
+        battle: { ...target.battle, waiting: result.complete },
+        choiceSession: result.session,
+        choiceDraft: result.draft,
+        choiceError: undefined,
+      }, logLine) as BattleRoom),
+    }));
+  },
+  submitBattleTarget: (target, roomId) => {
+    const state = get();
+    const room = battleRoomFor(state, roomId);
+    if (!room) return;
+    const pending = room.choiceSession?.draft.pendingMove;
+    if (!room.choiceSession || !pending) {
+      set(current => ({
+        rooms: updateBattleRoom(current.rooms, room.id, item => ({
+          ...item,
+          choiceError: 'No move is waiting for a target.',
+        })),
+      }));
+      return;
+    }
+    const result = addBattleChoice(room.choiceSession, { ...pending, target });
+    if (result.command) state.protocol.send(result.command, room.id);
+    set(current => ({
+      rooms: updateBattleRoom(current.rooms, room.id, item => appendLog({
+        ...item,
+        battle: { ...item.battle, waiting: result.complete },
+        choiceSession: result.session,
         choiceDraft: result.draft,
         choiceError: result.error,
-      };
-      return {
-        battle: updated,
-        battles: { ...state.battles, [battle.id]: updated },
-        choiceSessionByRoom: { ...state.choiceSessionByRoom, [battle.id]: result.session },
-        choiceDraftByRoom: { ...state.choiceDraftByRoom, [battle.id]: result.draft },
-        choiceErrorByRoom: { ...state.choiceErrorByRoom, [battle.id]: result.error },
-      };
-    });
+      }, result.complete ? 'Battle choice sent.' : result.message || 'Target selected.') as BattleRoom),
+    }));
   },
   getBattleDecision: roomId => {
-    const battle = get().battles[roomId || get().battle.id] || get().battle;
-    return battleDecisionState(
-      battle.id,
-      battle,
-      get().choiceSessionByRoom[battle.id],
-      get().choiceErrorByRoom[battle.id]
-    );
+    const state = get();
+    const room = battleRoomFor(state, roomId);
+    if (!room) {
+      return battleDecisionState(roomId || '', {
+        ...demoBattle,
+        id: roomId || 'pending',
+        mode: 'spectator',
+      });
+    }
+    return battleDecisionState(room.id, room.battle, room.choiceSession, room.choiceError);
   },
   resetBattleChoiceSession: roomId => {
-    const battle = get().battles[roomId || get().battle.id] || get().battle;
-    const session = get().choiceSessionByRoom[battle.id];
-    const nextSession = session ? createBattleChoiceSession(session.request) : undefined;
-    set(state => ({
-      choiceSessionByRoom: nextSession ? { ...state.choiceSessionByRoom, [battle.id]: nextSession } : state.choiceSessionByRoom,
-      choiceDraftByRoom: { ...state.choiceDraftByRoom, [battle.id]: { choices: [] } },
-      choiceErrorByRoom: { ...state.choiceErrorByRoom, [battle.id]: undefined },
-      battles: { ...state.battles, [battle.id]: { ...battle, choiceDraft: { choices: [] }, choiceError: undefined } },
+    const state = get();
+    const room = battleRoomFor(state, roomId);
+    if (!room) return;
+    set(current => ({
+      rooms: updateBattleRoom(current.rooms, room.id, item => ({
+        ...item,
+        choiceSession: item.choiceSession ? createBattleChoiceSession(item.choiceSession.request) : undefined,
+        choiceDraft: { choices: [] },
+        choiceError: undefined,
+      })),
     }));
   },
   undoBattleChoice: roomId => {
-    const battle = get().battles[roomId || get().battle.id] || get().battle;
-    if (battle.noCancel) {
-      get().recordBattleEvent('This request cannot be cancelled.', battle.id);
+    const state = get();
+    const room = battleRoomFor(state, roomId);
+    if (!room) return;
+    if (room.battle.noCancel) {
+      state.recordBattleEvent('This request cannot be cancelled.', room.id);
       return;
     }
-    get().protocol.send('/undo', roomId || battle.id);
-    get().recordBattleEvent('Choice cancellation sent.', battle.id);
+    state.protocol.send('/undo', room.id);
+    state.recordBattleEvent('Choice cancellation sent.', room.id);
   },
   toggleBattleTimer: roomId => {
-    const battle = get().battles[roomId || get().battle.id] || get().battle;
-    const timerOn = !battle.timerOn;
-    get().protocol.send(`/timer ${timerOn ? 'on' : 'off'}`, roomId || battle.id);
-    set(state => {
-      const updated = { ...battle, timerOn };
-      return {
-        battle: updated,
-        battles: { ...state.battles, [battle.id]: updated },
-      };
-    });
-    get().recordBattleEvent(`Battle timer ${timerOn ? 'enabled' : 'disabled'}.`, battle.id);
+    const state = get();
+    const room = battleRoomFor(state, roomId);
+    if (!room) return;
+    const timerOn = !room.battle.timerOn;
+    state.protocol.send(`/timer ${timerOn ? 'on' : 'off'}`, room.id);
+    set(current => ({
+      rooms: updateBattleRoom(current.rooms, room.id, item => ({
+        ...item,
+        timer: { ...item.timer, on: timerOn },
+        battle: { ...item.battle, timerOn },
+      })),
+    }));
   },
   forfeitBattle: roomId => {
-    const battle = get().battles[roomId || get().battle.id] || get().battle;
-    get().protocol.send('/forfeit', roomId || battle.id);
-    get().recordBattleEvent('Forfeit command sent.', battle.id);
+    const state = get();
+    const room = battleRoomFor(state, roomId);
+    if (!room) return;
+    state.protocol.send('/forfeit', room.id);
+    state.recordBattleEvent('Forfeit command sent.', room.id);
   },
   recordBattleEvent: (event, roomId) => {
-    const battle = get().battles[roomId || get().battle.id] || get().battle;
-    set(state => ({
-      battle: { ...battle, log: [event, ...battle.log].slice(0, 8) },
-      battles: { ...state.battles, [battle.id]: { ...battle, log: [event, ...battle.log].slice(0, 8) } },
+    const state = get();
+    const room = battleRoomFor(state, roomId);
+    if (!room) return;
+    set(current => ({
+      rooms: updateBattleRoom(current.rooms, room.id, item => appendLog(item, event) as BattleRoom),
     }));
   },
   sendBattleChat: (message, roomId) => {
     const trimmed = message.trim();
     if (!trimmed) return;
-    get().protocol.send(trimmed, roomId || get().battle.id);
-    set(state => {
-      const battle = state.battles[roomId || state.battle.id] || state.battle;
-      const updated = {
-        ...battle,
-        chat: [...battle.chat, { user: state.username, message: trimmed }].slice(-8),
-      };
-      return { battle: updated, battles: { ...state.battles, [updated.id]: updated } };
-    });
+    const state = get();
+    const room = battleRoomFor(state, roomId);
+    if (!room) return;
+    state.protocol.send(trimmed, room.id);
+    set(current => ({
+      rooms: updateBattleRoom(current.rooms, room.id, item => appendChat(item, {
+        user: current.username,
+        message: trimmed,
+        timestamp: Date.now(),
+      }, true) as BattleRoom),
+    }));
   },
+  saveReplay: roomId => {
+    const state = get();
+    const room = battleRoomFor(state, roomId);
+    if (!room) return;
+    state.protocol.send('/savereplay', room.id);
+  },
+
   toggleHardcore: hardcoreMode => set({ hardcoreMode }),
   toggleProtocolLog: protocolLogEnabled => set({ protocolLogEnabled }),
+
   handleFrame: frame => {
     set(state => ({
-      rawProtocolLog: state.protocolLogEnabled ? [`<< ${sanitizeProtocolLog(frame.raw)}`, ...state.rawProtocolLog].slice(0, 240) : state.rawProtocolLog,
+      rawProtocolLog: state.protocolLogEnabled ?
+        [`<< ${sanitizeProtocolLog(frame.raw)}`, ...state.rawProtocolLog].slice(0, 240) :
+        state.rawProtocolLog,
     }));
-
-    const roomId = frame.roomId || 'lobby';
-
-    for (const line of frame.lines) {
-      switch (line.command) {
-      case 'challstr':
-        set({ challstr: line.args.join('|') });
-        break;
-      case 'updateuser': {
-        clearLoginTimeout();
-        // The name arrives prefixed with the user's group symbol. A regular
-        // user's symbol is a space, so test for the prefix rather than for a
-        // truthy symbol — otherwise every name keeps a leading space.
-        const rawName = line.args[0] || '';
-        const hasGroupPrefix = /^[^A-Za-z0-9]/.test(rawName);
-        set({
-          username: (hasGroupPrefix ? rawName.slice(1) : rawName) || 'Guest',
-          userGroup: hasGroupPrefix ? rawName.charAt(0).trim() : '',
-          named: line.args[1] === '1',
-          avatar: line.args[2] || undefined,
-          connection: 'connected',
-          loginPending: false,
-          needsPassword: false,
-          lastError: undefined,
-        });
-        break;
-      }
-      case 'nametaken':
-        clearLoginTimeout();
-        set({
-          loginPending: false,
-          lastError: line.args.slice(1).join('|') || `${line.args[0] || 'That name'} is not available.`,
-        });
-        break;
-      case 'formats':
-        set(state => {
-          const parsed = parseFormats(line.args);
-          const formats = parsed.length ? parsed : state.formats;
-          const selectedFormat = formats.some(format => format.id === state.selectedFormat) ? state.selectedFormat : formats[0]?.id || state.selectedFormat;
-          return { formats, selectedFormat };
-        });
-        break;
-      case 'updatesearch': {
-        const update = parseSearchUpdate(line.args.join('|'));
-        if (!update) break;
-        clearCancelSearchTimeout();
-        set({
-          searchFormats: update.searching,
-          searchState: update.searching.length ? 'searching' : 'idle',
-          lastError: undefined,
-        });
-        break;
-      }
-      case 'popup':
-        set({ lastError: line.args.join('|') || 'Server popup received.' });
-        break;
-      case 'error':
-        set({ lastError: line.args.join('|') || 'Server error.' });
-        break;
-      case 'updatechallenges':
-        set({ notifications: Math.max(get().notifications, 1) });
-        break;
-      case 'queryresponse': {
-        const response = parseQueryResponse(line);
-        if (!response) break;
-        if (response.id === 'roomlist') {
-          const roomList = parseRoomList(response.data);
-          if (roomList) set({ roomList });
-        }
-        if (response.id === 'rooms') {
-          const chatRoomList = parseChatRoomList(response.data);
-          if (chatRoomList) set({ chatRoomList });
-        }
-        break;
-      }
-      case 'pm': {
-        const from = line.args[0] || 'pm';
-        const to = line.args[1] || '';
-        const message = line.args.slice(2).join('|');
-        const other = toId(from) === toId(get().username) ? to : from;
-        const pmRoom = `pm-${toId(other) || 'system'}`;
-        set(state => ({
-          rooms: {
-            ...state.rooms,
-            [pmRoom]: appendRoomChat(state.rooms[pmRoom] || {
-              id: pmRoom,
-              title: other || 'Private message',
-              type: 'pm',
-              connected: true,
-              users: [],
-              chat: [],
-              log: [],
-            }, {
-              kind: 'pm',
-              user: from,
-              message,
-              timestamp: Date.now(),
-            }),
-          },
-          notifications: state.notifications + 1,
-        }));
-        break;
-      }
-      case 'init': {
-        const type = line.args[0] || (roomId.startsWith('battle-') ? 'battle' : 'chat');
-        const initialBattle = {
-          ...emptyBattle,
-          id: roomId,
-          format: roomId.split('-')[1] || 'Battle',
-          team: [],
-          opponentTeam: [],
-          log: [],
-          chat: [],
-        };
-        set(state => ({
-          rooms: upsertRoom(state.rooms, roomId, {
-            id: roomId,
-            title: roomId,
-            type,
-            connected: true,
-          }),
-          battles: type === 'battle' ? { ...state.battles, [roomId]: state.battles[roomId] || initialBattle } : state.battles,
-          battle: type === 'battle' ? state.battles[roomId] || initialBattle : state.battle,
-          activeRoomId: roomId,
-          notifications: type === 'battle' ? state.notifications + 1 : state.notifications,
-          battleModeByRoom: type === 'battle' ? { ...state.battleModeByRoom, [roomId]: 'waiting' } : state.battleModeByRoom,
-        }));
-        break;
-      }
-      case 'deinit':
-        set(state => ({
-          rooms: upsertRoom(state.rooms, roomId, { connected: false }),
-          activeRoomId: state.activeRoomId === roomId ? undefined : state.activeRoomId,
-        }));
-        break;
-      case 'noinit':
-        set(state => ({
-          lastError: line.args.join(' '),
-          rooms: upsertRoom(state.rooms, roomId, { connected: false }),
-        }));
-        break;
-      case 'title':
-        set(state => ({ rooms: upsertRoom(state.rooms, roomId, { title: line.args.join('|') || roomId }) }));
-        break;
-      case 'users':
-        set(state => ({ rooms: upsertRoom(state.rooms, roomId, { users: line.args.join('|').split(',').filter(Boolean) }) }));
-        break;
-      case 'request': {
-        const request = parseBattleRequest(line);
-        if (!request) break;
-        set(state => {
-          const previous = state.battles[roomId] || { ...emptyBattle, id: roomId };
-          const updated = battleFromRequest(roomId, request, previous);
-          const session = createBattleChoiceSession(request);
-          return {
-            battle: updated,
-            battles: { ...state.battles, [roomId]: updated },
-            // Kept so the battle can be re-derived once the dex chunk lands.
-            lastRequestByRoom: { ...state.lastRequestByRoom, [roomId]: request },
-            searchState: 'idle',
-            activeRoomId: roomId,
-            choiceSessionByRoom: { ...state.choiceSessionByRoom, [roomId]: session },
-            choiceDraftByRoom: { ...state.choiceDraftByRoom, [roomId]: session.draft },
-            choiceErrorByRoom: { ...state.choiceErrorByRoom, [roomId]: undefined },
-            battleModeByRoom: { ...state.battleModeByRoom, [roomId]: updated.mode || 'player' },
-          };
-        });
-        break;
-      }
-      case 'tier':
-        set(state => {
-          const battle = state.battles[roomId] || { ...emptyBattle, id: roomId };
-          const updated = { ...battle, format: line.args[0] || battle.format };
-          return { battle: updated, battles: { ...state.battles, [roomId]: updated } };
-        });
-        break;
-      case 'player':
-        set(state => {
-          const battle = state.battles[roomId] || { ...emptyBattle, id: roomId };
-          const slot = line.args[0] === 'p2' ? 'p2' : 'p1';
-          const name = line.args[1] || (slot === 'p1' ? battle.p1.name : battle.p2.name);
-          const rating = Number(line.args[3]) || (slot === 'p1' ? battle.p1.rating : battle.p2.rating);
-
-          // `|player|` arrives before the switches that populate the field,
-          // whereas `|request|` may not. Without claiming our side here, every
-          // switch before the first request defaults to p1 — so when we are p2
-          // the opponent's nameplate gets filled in from our own Pokémon,
-          // showing exact HP the server never reveals.
-          const isSelf = !!line.args[1] && toId(line.args[1]) === toId(state.username);
-          const playerSide = isSelf ? slot : battle.playerSide;
-
-          const updated: ArenaBattle = {
-            ...battle,
-            playerSide,
-            [slot]: { name, rating },
-          };
-          return { battle: updated, battles: { ...state.battles, [roomId]: updated } };
-        });
-        break;
-      case 'turn':
-        set(state => {
-          const battle = state.battles[roomId] || state.battle;
-          const updated = { ...battle, turn: Number(line.args[0]) || battle.turn, waiting: false };
-          return { battle: updated, battles: { ...state.battles, [updated.id]: updated } };
-        });
-        break;
-      default: {
-        const chat = parseChatLine(line);
-        if (chat) {
-          set(state => {
-            const battle = state.battles[roomId];
-            const updatedBattle = battle ? {
-              ...battle,
-              chat: [...battle.chat, { user: chat.user, message: chat.message }].slice(-120),
-            } : undefined;
-            return {
-              rooms: { ...state.rooms, [roomId]: appendRoomChat(state.rooms[roomId], chat) },
-              battle: updatedBattle || state.battle,
-              battles: updatedBattle ? { ...state.battles, [roomId]: updatedBattle } : state.battles,
-              lastError: chat.kind === 'error' ? chat.message : state.lastError,
-            };
-          });
-        }
-        const logLine = roomId.startsWith('battle-') ? battleLogLine(line) : '';
-        if (roomId.startsWith('battle-')) {
-          set(state => {
-            const battle = state.battles[roomId] || { ...emptyBattle, id: roomId };
-            const projected = applyBattleProtocolLine(battle, line);
-            const updated = logLine ? { ...projected, log: [logLine, ...projected.log].slice(0, 40) } : projected;
-            return {
-              battle: updated,
-              battles: { ...state.battles, [roomId]: updated },
-              rooms: logLine ? { ...state.rooms, [roomId]: appendRoomLog(state.rooms[roomId], logLine) } : state.rooms,
-            };
-          });
-        }
-      }
-      }
-    }
+    routeFrame(frame, useArenaStore);
   },
+
+  onLoginSettled: () => clearLoginTimeout(),
+  onSearchSettled: () => clearCancelSearchTimeout(),
+  onReplaySaved: data => set({ pendingReplay: data }),
 }));
+
+// ── Protocol wiring ─────────────────────────────────────────────────────────
+
+protocol.subscribe(event => {
+  if (event.type === 'state') {
+    useArenaStore.setState(state => ({
+      connection: event.state,
+      connectionReason: event.reason,
+      loginPending: event.state === 'offline' || event.state === 'error' ? false : state.loginPending,
+      lastError: state.loginPending && (event.state === 'offline' || event.state === 'error') ?
+        'Connection closed before the name was confirmed.' :
+        state.lastError,
+    }));
+    if (event.state === 'connected') {
+      const state = useArenaStore.getState();
+      Object.values(state.rooms)
+        .filter(room => room.connected && room.type !== 'pm' && room.id !== 'lobby' && room.id !== demoBattle.id)
+        .forEach(room => state.protocol.send(`/join ${room.id}`));
+    }
+  } else if (event.type === 'frame') {
+    useArenaStore.getState().handleFrame(event.frame);
+  } else if (event.type === 'send') {
+    useArenaStore.setState(state => ({
+      rawProtocolLog: state.protocolLogEnabled ?
+        [`>> ${sanitizeProtocolLog(event.message)}`, ...state.rawProtocolLog].slice(0, 240) :
+        state.rawProtocolLog,
+    }));
+  } else if (event.type === 'error') {
+    useArenaStore.setState({ lastError: event.error.message, connection: 'error' });
+  }
+});
+
+// Battles that opened before the dex chunk resolved were projected with no
+// species/move data. Re-fold their raw logs once the dex is ready — the log
+// contains the |request| lines, so one pass restores everything.
+onDexLoaded(() => {
+  const state = useArenaStore.getState();
+  const battleIds = Object.values(state.rooms)
+    .filter((room): room is BattleRoom => room.type === 'battle' && room.rawLog.length > 0);
+  if (!battleIds.length) return;
+  useArenaStore.setState(current => {
+    let rooms = current.rooms;
+    for (const room of battleIds) {
+      rooms = updateBattleRoom(rooms, room.id, item => ({
+        ...item,
+        battle: projectBattleLog(item.rawLog.join('\n'), { id: item.id, username: current.username }),
+      }));
+    }
+    return { rooms };
+  });
+});
+
+// ── Selectors shared by components ──────────────────────────────────────────
+
+export const selectBattleRooms = (state: ArenaState): BattleRoom[] =>
+  Object.values(state.rooms).filter((room): room is BattleRoom => room.type === 'battle');
+
+export const selectBattle = (state: ArenaState, roomId: string): ArenaBattle | undefined => {
+  const room = state.rooms[roomId];
+  return room?.type === 'battle' ? room.battle : undefined;
+};

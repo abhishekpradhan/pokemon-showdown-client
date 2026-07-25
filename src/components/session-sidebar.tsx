@@ -8,13 +8,14 @@ import { ConnectionPill } from './status-pills';
 export function SessionSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { activeRoomId, battles, connection, focusRoom, leaveRoom, rooms, searchFormats, searchState } = useArenaStore(
-    useShallow(state => ({ activeRoomId: state.activeRoomId, battles: state.battles, connection: state.connection, focusRoom: state.focusRoom, leaveRoom: state.leaveRoom, rooms: state.rooms, searchFormats: state.searchFormats, searchState: state.searchState }))
+  const { activeRoomId, connection, focusRoom, leaveRoom, rooms, searchFormats, searchState } = useArenaStore(
+    useShallow(state => ({ activeRoomId: state.activeRoomId, connection: state.connection, focusRoom: state.focusRoom, leaveRoom: state.leaveRoom, rooms: state.rooms, searchFormats: state.searchFormats, searchState: state.searchState }))
   );
-  const battleSessions = Object.values(battles).filter(battle => battle.id !== 'pending');
+  const battleSessions = Object.values(rooms)
+    .filter(room => room.type === 'battle')
+    .map(room => (room as import('../rooms/types').BattleRoom).battle);
   const roomSessions = Object.values(rooms)
-    .filter(room => room.type !== 'battle' && room.connected)
-    .filter(room => !battleSessions.some(battle => battle.id === room.id));
+    .filter(room => room.type !== 'battle' && room.connected);
   const hasSessions = battleSessions.length > 0 || roomSessions.length > 0;
 
   return (

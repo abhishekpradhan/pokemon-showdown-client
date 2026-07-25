@@ -26,16 +26,17 @@ type InspectorTab = 'log' | 'chat' | 'info';
 
 export function BattleScreen() {
   const params = useParams({ from: '/battle/$battleId' });
-  const { battle: focusedBattle, battles, connection, focusRoom, forfeitBattle, getBattleDecision, hardcoreMode, joinRoom, resetBattleChoiceSession, sendBattleChat, submitBattleChoice, submitBattleTarget, toggleBattleTimer, toggleHardcore, undoBattleChoice } = useArenaStore(
-    useShallow(state => ({ battle: state.battle, battles: state.battles, connection: state.connection, focusRoom: state.focusRoom, forfeitBattle: state.forfeitBattle, getBattleDecision: state.getBattleDecision, hardcoreMode: state.hardcoreMode, joinRoom: state.joinRoom, resetBattleChoiceSession: state.resetBattleChoiceSession, sendBattleChat: state.sendBattleChat, submitBattleChoice: state.submitBattleChoice, submitBattleTarget: state.submitBattleTarget, toggleBattleTimer: state.toggleBattleTimer, toggleHardcore: state.toggleHardcore, undoBattleChoice: state.undoBattleChoice }))
+  const { rooms, connection, focusRoom, forfeitBattle, getBattleDecision, hardcoreMode, joinRoom, resetBattleChoiceSession, sendBattleChat, submitBattleChoice, submitBattleTarget, toggleBattleTimer, toggleHardcore, undoBattleChoice } = useArenaStore(
+    useShallow(state => ({ rooms: state.rooms, connection: state.connection, focusRoom: state.focusRoom, forfeitBattle: state.forfeitBattle, getBattleDecision: state.getBattleDecision, hardcoreMode: state.hardcoreMode, joinRoom: state.joinRoom, resetBattleChoiceSession: state.resetBattleChoiceSession, sendBattleChat: state.sendBattleChat, submitBattleChoice: state.submitBattleChoice, submitBattleTarget: state.submitBattleTarget, toggleBattleTimer: state.toggleBattleTimer, toggleHardcore: state.toggleHardcore, undoBattleChoice: state.undoBattleChoice }))
   );
   const [chatMessage, setChatMessage] = useState('');
   const [forfeitOpen, setForfeitOpen] = useState(false);
   const [inspectorTab, setInspectorTab] = useState<InspectorTab>('log');
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const demoFixturesEnabled = import.meta.env.MODE === 'test' || import.meta.env.VITE_ENABLE_DEMO_FIXTURES === 'true';
-  const routeBattle = battles[params.battleId];
-  const battle = routeBattle || (focusedBattle.id === params.battleId ? focusedBattle : null);
+  const room = rooms[params.battleId];
+  const battleRoom = room?.type === 'battle' ? room : null;
+  const battle = battleRoom?.battle ?? null;
 
   useEffect(() => {
     if (battle) {
@@ -179,7 +180,7 @@ export function BattleScreen() {
                 <strong>Live</strong>
               </div>
               <ol className="battle-log-list" aria-live="polite">
-                {battle.log.map((line, index) => <li key={`${line}-${index}`}>{line}</li>)}
+                {(battleRoom?.log ?? []).map((line, index) => <li key={`${line}-${index}`}>{line}</li>)}
               </ol>
             </section>
           )}
@@ -187,7 +188,7 @@ export function BattleScreen() {
           {inspectorTab === 'chat' && (
             <section className="battle-chat-panel" aria-label="Battle chat">
               <div className="chat-feed">
-                {battle.chat.length ? battle.chat.map((line, index) => (
+                {battleRoom?.chat.length ? battleRoom.chat.map((line, index) => (
                   <p key={`${line.user}-${line.message}-${index}`}><strong>{line.user}</strong><span>{line.message}</span></p>
                 )) : <p className="chat-empty">No messages in this room.</p>}
               </div>

@@ -5,8 +5,13 @@ import { useArenaStore } from '../stores/arena-store';
 
 export function MiniRoomRail({ mode }: { mode: 'rooms' | 'battles' }) {
   const navigate = useNavigate();
-  const { rooms: liveRooms, battles: liveBattles, roomList, joinRoom, focusRoom, refreshRoomList, connection } = useArenaStore(
-    useShallow(state => ({ rooms: state.rooms, battles: state.battles, roomList: state.roomList, joinRoom: state.joinRoom, focusRoom: state.focusRoom, refreshRoomList: state.refreshRoomList, connection: state.connection }))
+  const { rooms: liveRooms, roomList, joinRoom, focusRoom, refreshRoomList, connection } = useArenaStore(
+    useShallow(state => ({ rooms: state.rooms, roomList: state.roomList, joinRoom: state.joinRoom, focusRoom: state.focusRoom, refreshRoomList: state.refreshRoomList, connection: state.connection }))
+  );
+  const liveBattles = Object.fromEntries(
+    Object.values(liveRooms)
+      .filter(room => room.type === 'battle')
+      .map(room => [room.id, (room as import('../rooms/types').BattleRoom).battle])
   );
   const roomItems = Object.values(liveRooms).length ?
     Object.values(liveRooms).slice(0, 6).map(room => ({

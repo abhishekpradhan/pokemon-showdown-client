@@ -21,8 +21,8 @@ import { navItems } from '../navigation';
 export function AppRoot() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { activeRoomId, battles, clearNotifications, connect, connection, disconnect, lastError, login, loginPending, logout, named, needsPassword, notifications, reconnect, rooms, username } = useArenaStore(
-    useShallow(state => ({ activeRoomId: state.activeRoomId, battles: state.battles, clearNotifications: state.clearNotifications, connect: state.connect, connection: state.connection, disconnect: state.disconnect, lastError: state.lastError, login: state.login, loginPending: state.loginPending, logout: state.logout, named: state.named, needsPassword: state.needsPassword, notifications: state.notifications, reconnect: state.reconnect, rooms: state.rooms, username: state.username }))
+  const { activeRoomId, clearNotifications, connect, connection, disconnect, lastError, login, loginPending, logout, named, needsPassword, notifications, reconnect, rooms, username } = useArenaStore(
+    useShallow(state => ({ activeRoomId: state.activeRoomId, clearNotifications: state.clearNotifications, connect: state.connect, connection: state.connection, disconnect: state.disconnect, lastError: state.lastError, login: state.login, loginPending: state.loginPending, logout: state.logout, named: state.named, needsPassword: state.needsPassword, notifications: state.notifications, reconnect: state.reconnect, rooms: state.rooms, username: state.username }))
   );
   const { contrast, density, motion, notificationsEnabled } = useWorkspaceStore();
   const [nameInput, setNameInput] = useState(named ? username : '');
@@ -32,8 +32,12 @@ export function AppRoot() {
   const submittedAccountRef = useRef(false);
   const accountLabel = named ? username : 'Unnamed guest';
   const focusWorkspace = () => document.getElementById('workspace')?.focus();
+  const activeRoom = activeRoomId ? rooms[activeRoomId] : undefined;
   const context = location.pathname.startsWith('/battle/') ?
-    { label: battles[activeRoomId || '']?.format || 'Live battle', meta: activeRoomId || 'Battle room' } :
+    {
+      label: (activeRoom?.type === 'battle' ? activeRoom.battle.format : undefined) || 'Live battle',
+      meta: activeRoomId || 'Battle room',
+    } :
     location.pathname === '/teambuilder' ? { label: 'Team workspace', meta: 'Local teams' } :
     location.pathname === '/rooms' ? { label: 'Room console', meta: 'Community' } :
     location.pathname === '/ladder' ? { label: 'Rankings', meta: 'Public ladder' } :
@@ -41,11 +45,14 @@ export function AppRoot() {
     location.pathname === '/settings' ? { label: 'Client settings', meta: 'Preferences' } :
     { label: 'Matchmaking', meta: 'Battle queue' };
   const recentSessions = [
-    ...Object.values(battles).filter(battle => battle.id !== 'pending').map(battle => ({
-      id: battle.id,
-      title: battle.ended ? 'Battle finished' : 'Battle session ready',
-      detail: `${battle.p1.name} vs ${battle.p2.name}`,
-    })),
+    ...Object.values(rooms).filter(room => room.type === 'battle').map(room => {
+      const battle = (room as import('../rooms/types').BattleRoom).battle;
+      return {
+        id: room.id,
+        title: battle.ended ? 'Battle finished' : 'Battle session ready',
+        detail: `${battle.p1.name} vs ${battle.p2.name}`,
+      };
+    }),
     ...Object.values(rooms).filter(room => room.type === 'pm').map(room => ({
       id: room.id,
       title: room.title,
@@ -77,10 +84,10 @@ export function AppRoot() {
   }, [contrast, density, motion]);
 
   useEffect(() => {
-    if (!activeRoomId?.startsWith('battle-') || !battles[activeRoomId]) return;
+    if (!activeRoomId?.startsWith('battle-') || rooms[activeRoomId]?.type !== 'battle') return;
     if (location.pathname === `/battle/${activeRoomId}`) return;
     void navigate({ to: '/battle/$battleId', params: { battleId: activeRoomId } });
-  }, [activeRoomId, battles, location.pathname, navigate]);
+  }, [activeRoomId, rooms, location.pathname, navigate]);
 
   return (
     <Tooltip.Provider delayDuration={150}>
