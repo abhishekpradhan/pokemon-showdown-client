@@ -537,10 +537,10 @@ textarea:focus-visible,
 }
 
 .primary-action {
-  color: #fff;
-  background: var(--arena-red);
-  border-color: rgba(255, 255, 255, 0.18);
-  font-weight: 800;
+  color: #08121f;
+  font-weight: 700;
+  background: var(--arena-accent);
+  border-color: var(--arena-accent);
 }
 
 .primary-action:disabled,
@@ -1569,36 +1569,41 @@ textarea:focus-visible,
 
 .status-callout {
   display: flex;
-  align-items: flex-start;
   gap: 8px;
+  align-items: flex-start;
   margin: 0;
   padding: 10px 12px;
-  color: var(--arena-dark-text);
-  background: rgba(255, 255, 255, 0.5);
-  border: 1px solid rgba(80, 72, 60, 0.12);
+  color: var(--arena-soft);
+  font-size: 12px;
+  line-height: 1.45;
+  background: rgb(255 255 255 / 4%);
+  border: 1px solid var(--arena-line);
   border-radius: var(--arena-radius);
-  line-height: 1.4;
 }
 
+.status-callout svg { flex: none; margin-block-start: 1px; }
+
 .status-callout.is-error {
-  color: #7e2525;
-  background: rgba(188, 49, 43, 0.1);
-  border-color: rgba(188, 49, 43, 0.26);
+  color: #ffc9c9;
+  background: rgb(240 90 90 / 12%);
+  border-color: rgb(240 90 90 / 34%);
+}
+
+.status-callout.is-warning {
+  color: #f6dda6;
+  background: rgb(231 185 92 / 12%);
+  border-color: rgb(231 185 92 / 34%);
 }
 
 .status-callout.is-success {
-  color: #276047;
-  background: rgba(42, 135, 94, 0.12);
-  border-color: rgba(42, 135, 94, 0.24);
+  color: #b9f0d5;
+  background: rgb(72 199 142 / 12%);
+  border-color: rgb(72 199 142 / 30%);
 }
 
 .blocker-list {
   display: grid;
   gap: 8px;
-}
-
-.light-switch-row span {
-  color: var(--arena-dark-text);
 }
 
 .protocol-log {
@@ -1611,55 +1616,6 @@ textarea:focus-visible,
   border-radius: var(--arena-radius);
   font-size: 11px;
   white-space: pre-wrap;
-}
-
-.dialog-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 70;
-  background: rgba(3, 4, 5, 0.54);
-  backdrop-filter: blur(4px);
-}
-
-.account-dialog {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  z-index: 80;
-  width: min(460px, calc(100vw - 28px));
-  max-height: calc(100svh - 28px);
-  padding: 18px;
-  overflow: auto;
-  color: var(--arena-dark-text);
-  background: #fffdf7;
-  border: 1px solid rgba(31, 30, 27, 0.14);
-  border-radius: 10px;
-  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.3);
-  transform: translate(-50%, -50%);
-}
-
-.dialog-heading {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.dialog-heading h2,
-.dialog-heading p {
-  margin: 0;
-}
-
-.dialog-heading p {
-  margin-top: 6px;
-  color: #615b52;
-  line-height: 1.45;
-}
-
-.dialog-heading .icon-button {
-  flex: 0 0 auto;
-  color: #1d1d1b;
-  background: #eee5d8;
 }
 
 .account-form {

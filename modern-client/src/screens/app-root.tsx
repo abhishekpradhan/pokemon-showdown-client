@@ -30,7 +30,9 @@ export function AppRoot() {
     lastError,
     login,
     loginPending,
+    logout,
     named,
+    needsPassword,
     notifications,
     reconnect,
     rooms,
@@ -214,7 +216,7 @@ export function AppRoot() {
                       <div>
                         <Dialog.Title>{named ? 'Account connected' : 'Choose name'}</Dialog.Title>
                         <Dialog.Description>
-                          Use a guest name or enter a registered account password. Passwords are only sent to the PS login endpoint for an assertion.
+                          {named ? `Signed in as ${username}.` : 'Pick a name to start battling.'}
                         </Dialog.Description>
                       </div>
                       <Dialog.Close className="icon-button" aria-label="Close account dialog">
@@ -226,28 +228,39 @@ export function AppRoot() {
                         <span>Username</span>
                         <input
                           aria-label="Username"
-                          placeholder="Guest name"
+                          placeholder="Pick any unused name"
+                          autoComplete="username"
                           value={nameInput}
                           onChange={event => setNameInput(event.currentTarget.value)}
                         />
                       </label>
-                      <label>
+                      <label className={clsx(needsPassword && 'needs-attention')}>
                         <span>Password</span>
                         <input
                           aria-label="Password"
-                          placeholder="Optional for registered login"
+                          placeholder={needsPassword ? 'Required — this name is registered' : 'Only for registered accounts'}
                           type="password"
+                          autoComplete="current-password"
                           value={passwordInput}
                           onChange={event => setPasswordInput(event.currentTarget.value)}
                         />
                       </label>
+                      <p className="account-hint">
+                        Unregistered names work immediately. Passwords are sent only to the
+                        Showdown login server to obtain a one-time assertion.
+                      </p>
                       {connection !== 'connected' && <StatusCallout tone="error">Connect before choosing a name.</StatusCallout>}
                       {loginPending && <StatusCallout>Waiting for server confirmation.</StatusCallout>}
-                      {lastError && <StatusCallout tone="error">{lastError}</StatusCallout>}
+                      {lastError && <StatusCallout tone={needsPassword ? 'warning' : 'error'}>{lastError}</StatusCallout>}
                       <div className="button-row">
                         <button className="primary-action" type="submit" disabled={loginPending || !nameInput.trim()}>
-                          {loginPending ? 'Submitting...' : passwordInput ? 'Log in' : 'Choose guest name'}
+                          {loginPending ? 'Submitting…' : passwordInput ? 'Log in' : 'Choose name'}
                         </button>
+                        {named && (
+                          <button className="secondary-action" type="button" onClick={() => void logout()}>
+                            Log out
+                          </button>
+                        )}
                         <button className="secondary-action" type="button" onClick={() => connection === 'connected' ? disconnect() : reconnect()}>
                           {connection === 'connected' ? 'Disconnect' : 'Reconnect'}
                         </button>

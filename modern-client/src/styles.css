@@ -17,6 +17,7 @@
 @import "./styles/ladder.css";
 @import "./styles/replays.css";
 @import "./styles/settings.css";
+@import "./styles/dialogs.css";
 
 /* Shell chrome loads last: it refines surfaces the app frame wraps. */
 @import "./styles/shell.css";

@@ -1,0 +1,125 @@
+/**
+ * Modal dialogs and popovers.
+ *
+ * These were the clearest casualty of the two stacked design systems: the
+ * account dialog kept a hardcoded cream background and dark ink from the
+ * abandoned light theme, so it rendered light-on-white inside a dark app.
+ * Everything here is token-driven so it cannot drift again.
+ */
+
+.dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  background: rgb(3 5 9 / 62%);
+  backdrop-filter: blur(5px);
+  animation: dialog-overlay-in var(--arena-base) var(--arena-ease);
+}
+
+.account-dialog {
+  position: fixed;
+  inset-block-start: 50%;
+  inset-inline-start: 50%;
+  z-index: 80;
+  overflow: auto;
+  inline-size: min(460px, calc(100vw - 28px));
+  max-block-size: calc(100svh - 28px);
+  padding: 20px;
+  color: var(--arena-text);
+  background: var(--arena-panel);
+  border: 1px solid var(--arena-line-strong);
+  border-radius: var(--arena-radius-lg);
+  box-shadow: var(--arena-shadow);
+  translate: -50% -50%;
+  animation: dialog-in var(--arena-base) var(--arena-ease);
+}
+
+@keyframes dialog-overlay-in {
+  from { opacity: 0; }
+}
+
+@keyframes dialog-in {
+  from { opacity: 0; scale: 0.97; }
+}
+
+.dialog-heading {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.dialog-heading h2,
+.dialog-heading p {
+  margin: 0;
+}
+
+.dialog-heading h2 {
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.dialog-heading p {
+  margin-block-start: 6px;
+  color: var(--arena-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.dialog-heading .icon-button {
+  flex: 0 0 auto;
+  color: var(--arena-soft);
+  background: var(--arena-panel-raised);
+  border: 1px solid var(--arena-line);
+}
+
+.dialog-heading .icon-button:hover {
+  color: var(--arena-text);
+  background: var(--arena-line);
+}
+
+/* ── Account form ─────────────────────────────────────────────────────── */
+
+.account-form label {
+  display: grid;
+  gap: 6px;
+}
+
+.account-form label > span {
+  color: var(--arena-muted);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.account-form input {
+  min-block-size: var(--row-height);
+  padding: 0 11px;
+  color: var(--arena-text);
+  background: var(--arena-ink-2);
+  border: 1px solid var(--arena-line);
+  border-radius: var(--arena-radius-sm);
+}
+
+.account-form input::placeholder { color: var(--arena-faint); }
+
+.account-form input:focus-visible {
+  border-color: var(--arena-accent);
+  outline: none;
+  box-shadow: 0 0 0 3px rgb(91 156 255 / 22%);
+}
+
+/* Highlights the password field when the login server reports the chosen
+   name is registered, so the next step is obvious rather than an error. */
+.account-form label.needs-attention input {
+  border-color: var(--arena-gold);
+  box-shadow: 0 0 0 3px rgb(231 185 92 / 18%);
+}
+
+.account-hint {
+  margin: 0;
+  color: var(--arena-muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
