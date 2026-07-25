@@ -845,7 +845,17 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
     const room = battleRoomFor(state, roomId);
     if (!room) return;
     set({ replayStatus: { roomId: room.id, state: 'saving' } });
-    state.protocol.send('/savereplay silent', room.id);
+    state.protocol.send('/savereplay', room.id);
+    // Neither response path arriving within a sane window is a failure the
+    // user can retry, not a spinner forever.
+    window.setTimeout(() => {
+      const current = useArenaStore.getState().replayStatus;
+      if (current?.roomId === room.id && current.state === 'saving') {
+        useArenaStore.setState({
+          replayStatus: { ...current, state: 'failed', error: 'The server did not confirm the save.' },
+        });
+      }
+    }, 10_000);
   },
 
   toggleHardcore: hardcoreMode => set({ hardcoreMode }),

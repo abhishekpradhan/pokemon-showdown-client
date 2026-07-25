@@ -166,9 +166,29 @@ const handleGlobal = (line: PsLine, store: ArenaStoreApi): boolean => {
     return true;
   }
 
-  case 'popup':
-    setState({ lastError: line.args.join('|') || 'Server popup received.' });
+  case 'popup': {
+    const text = line.args.join('|');
+    // The main server uploads replays itself and answers /savereplay with a
+    // popup; third-party servers hand the client a payload via queryresponse.
+    const saving = getState().replayStatus;
+    if (saving?.state === 'saving' && /replay/i.test(text)) {
+      if (/upload|saved|available/i.test(text)) {
+        const id = (saving.roomId || '').replace(/^battle-/, '');
+        setState({
+          replayStatus: {
+            ...saving,
+            state: 'uploaded',
+            url: `https://replay.pokemonshowdown.com/${id}`,
+          },
+        });
+      } else {
+        setState({ replayStatus: { ...saving, state: 'failed', error: text.replace(/\|\|/g, ' ').trim() } });
+      }
+      return true;
+    }
+    setState({ lastError: text || 'Server popup received.' });
     return true;
+  }
 
   case 'pm': {
     const from = line.args[0] || 'pm';
