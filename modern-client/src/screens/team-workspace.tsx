@@ -6,6 +6,15 @@ import { StatusCallout } from '../components/status-callout';
 import { TeamBench } from '../components/team-bench';
 import { exportTeam, importTeam, teamSummary, type StoredTeam } from '../compat/team-store';
 import { useArenaStore } from '../stores/arena-store';
+import { getAbility, getItem, getMove } from '../data/dex';
+
+/**
+ * Packed teams store ids (`closecombat`), not display names. Resolve through
+ * the dex so the builder reads the way players write sets.
+ */
+const displayMove = (id: string) => getMove(id)?.name || id;
+const displayItem = (id?: string) => (id ? getItem(id)?.name || id : 'No item');
+const displayAbility = (id?: string) => (id ? getAbility(id)?.name || id : 'No ability');
 
 const statLabels = {
   hp: 'HP',
@@ -204,10 +213,10 @@ export function TeamWorkspace() {
               <img src={`https://play.pokemonshowdown.com/sprites/gen5/${set.species.toLowerCase().replace(/[^a-z0-9]/g, '')}.png`} alt="" />
               <span>
                 <strong>{set.name || set.species}</strong>
-                <small>{set.item || 'No item'} · {set.ability || 'No ability'}</small>
+                <small>{displayItem(set.item)} · {displayAbility(set.ability)}</small>
               </span>
               <span className="set-moves">
-                {set.moves.slice(0, 4).map(move => <i key={move}>{move}</i>)}
+                {set.moves.slice(0, 4).map(move => <i key={move}>{displayMove(move)}</i>)}
               </span>
               <Pencil size={14} aria-hidden />
             </button>
@@ -259,13 +268,13 @@ export function TeamWorkspace() {
               </span>
             </div>
             <dl className="set-facts">
-              <div><dt>Item</dt><dd>{selectedSet.item || 'None'}</dd></div>
-              <div><dt>Ability</dt><dd>{selectedSet.ability || 'Unspecified'}</dd></div>
+              <div><dt>Item</dt><dd>{selectedSet.item ? displayItem(selectedSet.item) : 'None'}</dd></div>
+              <div><dt>Ability</dt><dd>{selectedSet.ability ? displayAbility(selectedSet.ability) : 'Unspecified'}</dd></div>
               <div><dt>Level</dt><dd>{selectedSet.level || 100}</dd></div>
             </dl>
             <div className="inspector-section-heading"><span>Moves</span></div>
             <ol className="set-move-list">
-              {selectedSet.moves.map(move => <li key={move}>{move}</li>)}
+              {selectedSet.moves.map(move => <li key={move}>{displayMove(move)}</li>)}
             </ol>
             <div className="inspector-section-heading"><span>EV spread</span></div>
             <div className="stat-grid">

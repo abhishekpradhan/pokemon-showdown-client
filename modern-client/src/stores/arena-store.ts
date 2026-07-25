@@ -25,6 +25,7 @@ import {
   type PsLine,
   type ServerConfig,
 } from '../compat/protocol-client';
+import { onDexLoaded } from '../data/dex';
 import {
   getAssertion,
   loginWithPassword,
@@ -117,6 +118,8 @@ type ArenaState = {
   battleModeByRoom: Record<string, BattleRoomMode>;
   rooms: Record<string, RoomState>;
   roomList: RoomList;
+  /** Raw `|request|` payloads, replayed when the dex chunk finishes loading. */
+  lastRequestByRoom: Record<string, BattleRequest>;
   activeTeam: PackedTeam;
   teams: StoredTeam[];
   activeTeamId?: string;
@@ -369,6 +372,24 @@ protocol.subscribe(event => {
   }
 });
 
+onDexLoaded(() => {
+  const state = useArenaStore.getState();
+  const rooms = Object.keys(state.lastRequestByRoom);
+  if (!rooms.length) return;
+  useArenaStore.setState(current => {
+    const battles = { ...current.battles };
+    for (const roomId of rooms) {
+      const request = current.lastRequestByRoom[roomId];
+      const battle = battles[roomId];
+      if (request && battle) battles[roomId] = battleFromRequest(roomId, request, battle);
+    }
+    return {
+      battles,
+      battle: battles[current.battle.id] || current.battle,
+    };
+  });
+});
+
 export const useArenaStore = create<ArenaState>((set, get) => ({
   username: 'Guest',
   userGroup: '',
@@ -389,6 +410,7 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
   battleModeByRoom: {},
   rooms: {},
   roomList: { rooms: [] },
+  lastRequestByRoom: {},
   activeTeam: bootstrappedTeams[0]?.packed || sampleTeam,
   teams: bootstrappedTeams,
   activeTeamId: bootstrappedTeams[0]?.id,
@@ -803,12 +825,14 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
         break;
       case 'updateuser': {
         clearLoginTimeout();
-        // The name arrives prefixed with the user's group symbol (e.g. " Zarel").
+        // The name arrives prefixed with the user's group symbol. A regular
+        // user's symbol is a space, so test for the prefix rather than for a
+        // truthy symbol — otherwise every name keeps a leading space.
         const rawName = line.args[0] || '';
-        const group = /^[^A-Za-z0-9]/.test(rawName) ? rawName.charAt(0).trim() : '';
+        const hasGroupPrefix = /^[^A-Za-z0-9]/.test(rawName);
         set({
-          username: (group ? rawName.slice(1) : rawName) || 'Guest',
-          userGroup: group,
+          username: (hasGroupPrefix ? rawName.slice(1) : rawName) || 'Guest',
+          userGroup: hasGroupPrefix ? rawName.charAt(0).trim() : '',
           named: line.args[1] === '1',
           avatar: line.args[2] || undefined,
           connection: 'connected',
@@ -944,6 +968,8 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
           return {
             battle: updated,
             battles: { ...state.battles, [roomId]: updated },
+            // Kept so the battle can be re-derived once the dex chunk lands.
+            lastRequestByRoom: { ...state.lastRequestByRoom, [roomId]: request },
             searchState: 'idle',
             activeRoomId: roomId,
             choiceSessionByRoom: { ...state.choiceSessionByRoom, [roomId]: session },
@@ -954,6 +980,13 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
         });
         break;
       }
+      case 'tier':
+        set(state => {
+          const battle = state.battles[roomId] || { ...emptyBattle, id: roomId };
+          const updated = { ...battle, format: line.args[0] || battle.format };
+          return { battle: updated, battles: { ...state.battles, [roomId]: updated } };
+        });
+        break;
       case 'player':
         set(state => {
           const battle = state.battles[roomId] || { ...emptyBattle, id: roomId };

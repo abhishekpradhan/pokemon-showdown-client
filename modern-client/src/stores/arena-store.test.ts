@@ -135,21 +135,84 @@ describe('arena store protocol integration', () => {
     expect(send).toHaveBeenCalledWith('/search gen9ou');
   });
 
-  it('keeps account pending until updateuser and surfaces nametaken', () => {
+  it('requires a challstr before requesting an assertion', async () => {
     const send = vi.fn();
     useArenaStore.setState({
       protocol: { send } as unknown as ReturnType<typeof useArenaStore.getState>['protocol'],
       connection: 'connected',
+      challstr: '',
     });
-    const store = useArenaStore.getState();
 
-    void store.chooseName('CodexTester');
+    // Without the handshake there is nothing to sign, so `/trn` must not go out
+    // — sending it unsigned is what the server rejects as an invalid token.
+    await useArenaStore.getState().chooseName('CodexTester');
+    expect(send).not.toHaveBeenCalled();
+    expect(useArenaStore.getState().lastError).toContain('handshaking');
+  });
+
+  it('signs the name with an assertion and keeps pending until updateuser', async () => {
+    const send = vi.fn();
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response('4|assertion-payload', { status: 200 })
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    useArenaStore.setState({
+      protocol: { send } as unknown as ReturnType<typeof useArenaStore.getState>['protocol'],
+      connection: 'connected',
+      challstr: '4|challstr-value',
+    });
+
+    await useArenaStore.getState().chooseName('CodexTester');
+
+    const body = (fetchMock.mock.calls[0][1] as RequestInit).body as URLSearchParams;
+    expect(body.get('act')).toBe('getassertion');
+    expect(body.get('userid')).toBe('codextester');
+    expect(body.get('challstr')).toBe('4|challstr-value');
+    expect(send).toHaveBeenCalledWith('/trn CodexTester,0,4|assertion-payload');
     expect(useArenaStore.getState().loginPending).toBe(true);
-    store.handleFrame(parsePsFrame('|nametaken|CodexTester|That name is taken.'));
-    expect(useArenaStore.getState()).toMatchObject({ loginPending: false, lastError: 'That name is taken.' });
 
-    void store.chooseName('CodexTester');
-    store.handleFrame(parsePsFrame('|updateuser|CodexTester|1|0'));
-    expect(useArenaStore.getState()).toMatchObject({ loginPending: false, named: true, username: 'CodexTester' });
+    useArenaStore.getState().handleFrame(parsePsFrame('|updateuser| CodexTester|1|0'));
+    expect(useArenaStore.getState()).toMatchObject({
+      loginPending: false,
+      named: true,
+      username: 'CodexTester',
+    });
+    vi.unstubAllGlobals();
+  });
+
+  it('prompts for a password when the name is registered', async () => {
+    const send = vi.fn();
+    // A bare `;` means "registered account, needs a password", not a token.
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(';', { status: 200 })));
+    useArenaStore.setState({
+      protocol: { send } as unknown as ReturnType<typeof useArenaStore.getState>['protocol'],
+      connection: 'connected',
+      challstr: '4|challstr-value',
+      needsPassword: false,
+    });
+
+    await useArenaStore.getState().chooseName('Zarel');
+
+    expect(send).not.toHaveBeenCalled();
+    expect(useArenaStore.getState()).toMatchObject({ needsPassword: true, loginPending: false });
+    vi.unstubAllGlobals();
+  });
+
+  it('surfaces nametaken from the server', async () => {
+    const send = vi.fn();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('4|assertion', { status: 200 })));
+    useArenaStore.setState({
+      protocol: { send } as unknown as ReturnType<typeof useArenaStore.getState>['protocol'],
+      connection: 'connected',
+      challstr: '4|challstr-value',
+    });
+
+    await useArenaStore.getState().chooseName('CodexTester');
+    useArenaStore.getState().handleFrame(parsePsFrame('|nametaken|CodexTester|That name is taken.'));
+    expect(useArenaStore.getState()).toMatchObject({
+      loginPending: false,
+      lastError: 'That name is taken.',
+    });
+    vi.unstubAllGlobals();
   });
 });

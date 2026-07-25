@@ -1,9 +1,29 @@
+import {
+  DEFAULT_GEN,
+  effectiveness,
+  formatEffectiveness,
+  genFromFormat,
+  getMove,
+  getSpecies,
+  type TypeName,
+} from '../data/dex';
+
 export type PokemonSet = {
   slot: number;
   name: string;
+  /** Display species, e.g. `Pikachu-Original`. Sprite lookup uses this. */
   species: string;
+  /** Percentage, always known. The opponent's exact HP never is. */
   hp: number;
-  status?: 'BRN' | 'PAR' | 'PSN' | 'SLP' | 'FRZ';
+  /** Exact HP, known only for your own side (the server sends `48/187`). */
+  currentHp?: number;
+  maxHp?: number;
+  status?: 'BRN' | 'PAR' | 'PSN' | 'TOX' | 'SLP' | 'FRZ';
+  types?: TypeName[];
+  level?: number;
+  gender?: 'M' | 'F';
+  shiny?: boolean;
+  terastallized?: TypeName;
   active?: boolean;
   fainted?: boolean;
 };
@@ -14,10 +34,18 @@ export type BattleChoice = {
   slot: number;
   activeIndex?: number;
   name: string;
-  type: 'Fire' | 'Water' | 'Grass' | 'Electric' | 'Ground' | 'Dark' | 'Fairy' | 'Fighting' | 'Normal' | 'Psychic' | 'Steel' | 'Poison' | 'Ice' | 'Bug' | 'Flying' | 'Rock' | 'Ghost' | 'Dragon';
+  type: TypeName;
+  /** `11/16`. */
   pp: string;
+  ppLeft?: number;
+  ppMax?: number;
   cmd: string;
-  effectiveness: string;
+  /** Damage multiplier against the current opposing active, when known. */
+  effectiveness?: string;
+  category?: 'Physical' | 'Special' | 'Status';
+  basePower?: number;
+  accuracy?: number | true;
+  description?: string;
   disabled?: boolean;
   target?: string;
   requiresTarget?: boolean;
@@ -194,41 +222,54 @@ export type ChoiceBuilderAdapter = {
   build: (choice: BattleChoiceState) => string;
 };
 
+/**
+ * Development fixture. Species names are real dex names so sprites, types and
+ * effectiveness resolve exactly as they do in a live battle.
+ */
 export const demoBattle: ArenaBattle = {
   id: 'demo-gen9ou',
-  format: 'Gen 9 OU',
+  format: 'gen9ou',
   turn: 12,
+  playerSide: 'p1',
   p1: { name: 'You', rating: 1516 },
   p2: { name: 'Rival', rating: 1498 },
-  active: { slot: 1, name: 'Iron Valiant', species: 'ironvaliant', hp: 72, active: true },
-  opponentActive: { slot: 1, name: 'Great Tusk', species: 'greattusk', hp: 44, active: true },
+  active: {
+    slot: 1, name: 'Iron Valiant', species: 'Iron Valiant', hp: 72,
+    currentHp: 227, maxHp: 315, types: ['Fairy', 'Fighting'], level: 100, active: true,
+  },
+  opponentActive: {
+    slot: 1, name: 'Great Tusk', species: 'Great Tusk', hp: 44,
+    types: ['Ground', 'Fighting'], level: 100, active: true,
+  },
   team: [
-    { slot: 1, name: 'Iron Valiant', species: 'ironvaliant', hp: 72, active: true },
-    { slot: 2, name: 'Dragapult', species: 'dragapult', hp: 100 },
-    { slot: 3, name: 'Kingambit', species: 'kingambit', hp: 64, status: 'BRN' },
-    { slot: 4, name: 'Rotom-Wash', species: 'rotomwash', hp: 38 },
-    { slot: 5, name: 'Amoonguss', species: 'amoonguss', hp: 0, fainted: true },
-    { slot: 6, name: 'Heatran', species: 'heatran', hp: 88 },
+    { slot: 1, name: 'Iron Valiant', species: 'Iron Valiant', hp: 72, currentHp: 227, maxHp: 315, types: ['Fairy', 'Fighting'], active: true },
+    { slot: 2, name: 'Dragapult', species: 'Dragapult', hp: 100, currentHp: 301, maxHp: 301, types: ['Dragon', 'Ghost'] },
+    { slot: 3, name: 'Kingambit', species: 'Kingambit', hp: 64, currentHp: 214, maxHp: 334, types: ['Dark', 'Steel'], status: 'BRN' },
+    { slot: 4, name: 'Rotom-Wash', species: 'Rotom-Wash', hp: 38, currentHp: 107, maxHp: 281, types: ['Electric', 'Water'] },
+    { slot: 5, name: 'Amoonguss', species: 'Amoonguss', hp: 0, currentHp: 0, maxHp: 404, types: ['Grass', 'Poison'], fainted: true },
+    { slot: 6, name: 'Heatran', species: 'Heatran', hp: 88, currentHp: 316, maxHp: 359, types: ['Fire', 'Steel'] },
   ],
   opponentTeam: [
-    { slot: 1, name: 'Great Tusk', species: 'greattusk', hp: 44, active: true },
-    { slot: 2, name: 'Gholdengo', species: 'gholdengo', hp: 91 },
-    { slot: 3, name: 'Samurott-Hisui', species: 'samurotthisui', hp: 0, fainted: true },
-    { slot: 4, name: 'Dragonite', species: 'dragonite', hp: 100 },
-    { slot: 5, name: 'Slowking-Galar', species: 'slowkinggalar', hp: 57, status: 'PAR' },
-    { slot: 6, name: 'Enamorus', species: 'enamorus', hp: 84 },
+    { slot: 1, name: 'Great Tusk', species: 'Great Tusk', hp: 44, types: ['Ground', 'Fighting'], active: true },
+    { slot: 2, name: 'Gholdengo', species: 'Gholdengo', hp: 91, types: ['Steel', 'Ghost'] },
+    { slot: 3, name: 'Samurott-Hisui', species: 'Samurott-Hisui', hp: 0, types: ['Water', 'Dark'], fainted: true },
+    { slot: 4, name: 'Dragonite', species: 'Dragonite', hp: 100, types: ['Dragon', 'Flying'] },
+    { slot: 5, name: 'Slowking-Galar', species: 'Slowking-Galar', hp: 57, types: ['Poison', 'Psychic'], status: 'PAR' },
+    { slot: 6, name: 'Enamorus', species: 'Enamorus', hp: 84, types: ['Fairy', 'Flying'] },
   ],
+  weather: 'Sandstorm',
   moves: [
-    { slot: 1, name: 'Moonblast', type: 'Fairy', pp: '11/16', cmd: '/move 1', effectiveness: '2x' },
-    { slot: 2, name: 'Close Combat', type: 'Fighting', pp: '7/8', cmd: '/move 2', effectiveness: '1x' },
-    { slot: 3, name: 'Thunderbolt', type: 'Electric', pp: '15/24', cmd: '/move 3', effectiveness: '1x' },
-    { slot: 4, name: 'Encore', type: 'Dark', pp: '5/8', cmd: '/move 4', effectiveness: 'status' },
+    { slot: 1, name: 'Moonblast', type: 'Fairy', pp: '11/16', ppLeft: 11, ppMax: 16, cmd: '/choose move 1', effectiveness: '2x', category: 'Special', basePower: 95, accuracy: 100 },
+    { slot: 2, name: 'Close Combat', type: 'Fighting', pp: '7/8', ppLeft: 7, ppMax: 8, cmd: '/choose move 2', effectiveness: '1x', category: 'Physical', basePower: 120, accuracy: 100 },
+    { slot: 3, name: 'Knock Off', type: 'Dark', pp: '15/24', ppLeft: 15, ppMax: 24, cmd: '/choose move 3', effectiveness: '½x', category: 'Physical', basePower: 65, accuracy: 100 },
+    { slot: 4, name: 'Encore', type: 'Normal', pp: '2/8', ppLeft: 2, ppMax: 8, cmd: '/choose move 4', category: 'Status', accuracy: 100 },
   ],
+  requestType: 'move',
+  mode: 'player',
   log: [
     'Turn 12 started.',
     'Pointed stones dug into Great Tusk.',
     'Iron Valiant awaits your command.',
-    'The opposing team still has four Pokemon remaining.',
   ],
   chat: [
     { user: 'system', message: 'Rated battle started.' },
@@ -254,26 +295,14 @@ export const emptyBattle: ArenaBattle = {
   mode: 'waiting',
 };
 
-const typeFromMoveName = (name: string): BattleChoice['type'] => {
-  const lower = name.toLowerCase().replace(/[^a-z0-9]/g, '');
-  if (lower.includes('moonblast')) return 'Fairy';
-  if (lower.includes('closecombat')) return 'Fighting';
-  if (lower.includes('thunder')) return 'Electric';
-  if (lower.includes('shadow')) return 'Ghost';
-  if (lower.includes('ice')) return 'Ice';
-  if (lower.includes('poison')) return 'Poison';
-  if (lower.includes('iron') || lower.includes('steel')) return 'Steel';
-  if (lower.includes('dragon')) return 'Dragon';
-  if (lower.includes('bug')) return 'Bug';
-  if (lower.includes('rock')) return 'Rock';
-  if (lower.includes('fly') || lower.includes('hurricane')) return 'Flying';
-  if (lower.includes('water') || lower.includes('hydro') || lower.includes('surf')) return 'Water';
-  if (lower.includes('fire') || lower.includes('flame') || lower.includes('burn')) return 'Fire';
-  if (lower.includes('grass') || lower.includes('leaf') || lower.includes('giga')) return 'Grass';
-  if (lower.includes('earth') || lower.includes('ground')) return 'Ground';
-  if (lower.includes('psychic')) return 'Psychic';
-  if (lower.includes('dark') || lower.includes('sucker')) return 'Dark';
-  return 'Normal';
+const statusFromCondition = (condition: string): PokemonSet['status'] => {
+  if (condition.includes(' brn')) return 'BRN';
+  if (condition.includes(' par')) return 'PAR';
+  if (condition.includes(' tox')) return 'TOX';
+  if (condition.includes(' psn')) return 'PSN';
+  if (condition.includes(' slp')) return 'SLP';
+  if (condition.includes(' frz')) return 'FRZ';
+  return undefined;
 };
 
 const idToName = (id: string) => id
@@ -285,15 +314,75 @@ const speciesFromDetails = (details: string) => details.split(',')[0]?.trim() ||
 
 const speciesId = (name: string) => name.toLowerCase().replace(/[^a-z0-9]/g, '');
 
-export function parseHpPercent(condition: string) {
-  if (!condition || condition === '0 fnt') return 0;
-  const [hpPart] = condition.split(' ');
-  if (hpPart.includes('/')) {
-    const [hp, maxhp] = hpPart.split('/').map(Number);
-    if (maxhp > 0) return Math.max(0, Math.min(100, Math.round((hp / maxhp) * 100)));
+/**
+ * Parses the extra fields of a `details` string (`Pikachu, L80, F, shiny`).
+ * Order is not guaranteed beyond the species coming first.
+ */
+export function parseDetails(details: string, generation = DEFAULT_GEN) {
+  const [rawSpecies, ...rest] = details.split(',').map(part => part.trim());
+  const species = rawSpecies || 'Pokemon';
+  let level: number | undefined;
+  let gender: 'M' | 'F' | undefined;
+  let shiny = false;
+
+  for (const part of rest) {
+    if (/^L\d+$/i.test(part)) level = Number(part.slice(1));
+    else if (part === 'M' || part === 'F') gender = part;
+    else if (part === 'shiny') shiny = true;
   }
+
+  return {
+    species,
+    level,
+    gender,
+    shiny,
+    types: (getSpecies(species, generation)?.types as TypeName[] | undefined),
+  };
+}
+
+export type ParsedCondition = {
+  hp: number;
+  currentHp?: number;
+  maxHp?: number;
+  status?: PokemonSet['status'];
+  fainted: boolean;
+};
+
+/**
+ * Parses a `condition` string. Your own side reports exact HP (`155/281`);
+ * the opponent's is a percentage (`64/100`), so only the ratio is meaningful
+ * there.
+ */
+export function parseCondition(condition: string): ParsedCondition {
+  const raw = (condition || '').trim();
+  if (!raw || raw === '0 fnt' || raw.startsWith('0 ')) {
+    return { hp: 0, currentHp: 0, fainted: true, status: statusFromCondition(raw) };
+  }
+
+  const [hpPart = '', ...statusParts] = raw.split(' ');
+  const status = statusFromCondition(` ${statusParts.join(' ')}`);
+
+  if (hpPart.includes('/')) {
+    const [current, max] = hpPart.split('/').map(Number);
+    if (Number.isFinite(current) && Number.isFinite(max) && max > 0) {
+      return {
+        hp: Math.max(0, Math.min(100, (current / max) * 100)),
+        currentHp: current,
+        maxHp: max,
+        status,
+        fainted: current <= 0,
+      };
+    }
+  }
+
   const numeric = Number(hpPart);
-  return Number.isFinite(numeric) ? Math.max(0, Math.min(100, numeric)) : 100;
+  const hp = Number.isFinite(numeric) ? Math.max(0, Math.min(100, numeric)) : 100;
+  return { hp, status, fainted: hp <= 0 };
+}
+
+/** Percentage form, kept for call sites that only render a bar. */
+export function parseHpPercent(condition: string) {
+  return Math.round(parseCondition(condition).hp);
 }
 
 export function requestType(request?: BattleRequest | null): ArenaBattle['requestType'] {
@@ -359,44 +448,72 @@ export function normalizeBattleRequest(request: BattleRequest, previousBattle?: 
 export function battleFromRequest(roomId: string, request: BattleRequest, previous: ArenaBattle = emptyBattle): ArenaBattle {
   const normalized = normalizeBattleRequest(request, previous);
   const playerSide = request.side?.id === 'p2' ? 'p2' : request.side?.id === 'p1' ? 'p1' : previous.playerSide;
+  const generation = genFromFormat(previous.format);
   const team = request.side?.pokemon?.map((pokemon, index): PokemonSet => {
     const name = pokemon.ident.split(': ')[1] || speciesFromDetails(pokemon.details);
+    const details = parseDetails(pokemon.details, generation);
+    const condition = parseCondition(pokemon.condition);
     return {
       slot: index + 1,
       name,
-      species: speciesId(speciesFromDetails(pokemon.details)),
-      hp: parseHpPercent(pokemon.condition),
+      species: details.species,
+      hp: condition.hp,
+      currentHp: condition.currentHp,
+      maxHp: condition.maxHp,
+      status: condition.status,
+      fainted: condition.fainted,
+      types: details.types,
+      level: details.level,
+      gender: details.gender,
+      shiny: details.shiny,
       active: !!pokemon.active,
-      fainted: pokemon.condition.includes('fnt') || parseHpPercent(pokemon.condition) <= 0,
-      status: pokemon.condition.includes(' brn') ? 'BRN' :
-        pokemon.condition.includes(' par') ? 'PAR' :
-        pokemon.condition.includes(' psn') ? 'PSN' :
-        pokemon.condition.includes(' slp') ? 'SLP' :
-        pokemon.condition.includes(' frz') ? 'FRZ' : undefined,
     };
   }) || previous.team;
 
   const active = team.find(pokemon => pokemon.active) || team[0] || previous.active;
   const activeRequest = normalized.active?.[0];
   const requestMoves = activeRequest?.moves || [];
-  const moves = requestMoves.length ? requestMoves.map((move, index): BattleChoice => ({
-    slot: index + 1,
-    activeIndex: 0,
-    name: move.move || idToName(move.id || `Move ${index + 1}`),
-    type: move.type || typeFromMoveName(move.move || move.id || ''),
-    pp: `${move.pp ?? '-'} / ${move.maxpp ?? '-'}`.replaceAll(' ', ''),
-    cmd: `/choose move ${index + 1}${request.rqid ? `|${request.rqid}` : ''}`,
-    effectiveness: move.disabled ? 'disabled' : 'ready',
-    disabled: move.disabled,
-    target: move.target,
-    requiresTarget: normalized.targetable && canChooseTarget(move.target),
-    targetOptions: normalized.targetable && canChooseTarget(move.target) ? defaultTargetOptions(move.target) : undefined,
-    canMegaEvo: !!activeRequest?.canMegaEvo,
-    canUltraBurst: !!activeRequest?.canUltraBurst,
-    canZMove: Array.isArray(activeRequest?.zMoves) ? !!activeRequest.zMoves[index] : !!activeRequest?.canZMove,
-    canDynamax: !!activeRequest?.canDynamax,
-    canTerastallize: !!activeRequest?.canTerastallize,
-  })) : previous.moves;
+  // The opposing active's typing drives the effectiveness hint on each move.
+  const defenderTypes = previous.opponentActive?.terastallized ?
+    [previous.opponentActive.terastallized] :
+    previous.opponentActive?.types;
+
+  const moves = requestMoves.length ? requestMoves.map((move, index): BattleChoice => {
+    const name = move.move || idToName(move.id || `Move ${index + 1}`);
+    // The server omits move metadata from |request|; only the dex has it.
+    const data = getMove(move.id || name, generation);
+    const type = (move.type || data?.type || 'Normal') as TypeName;
+    const isStatus = (data?.category || 'Status') === 'Status';
+    const multiplier = isStatus || !defenderTypes?.length ?
+      null :
+      effectiveness(type, defenderTypes, generation);
+
+    return {
+      slot: index + 1,
+      activeIndex: 0,
+      name,
+      type,
+      pp: `${move.pp ?? data?.pp ?? '-'}/${move.maxpp ?? data?.pp ?? '-'}`,
+      ppLeft: move.pp,
+      ppMax: move.maxpp ?? data?.pp,
+      cmd: `/choose move ${index + 1}${request.rqid ? `|${request.rqid}` : ''}`,
+      effectiveness: formatEffectiveness(multiplier) ?? undefined,
+      category: data?.category,
+      basePower: data?.basePower || undefined,
+      accuracy: data?.accuracy,
+      description: data?.shortDesc || data?.desc,
+      disabled: move.disabled,
+      target: move.target || data?.target,
+      requiresTarget: normalized.targetable && canChooseTarget(move.target || data?.target),
+      targetOptions: normalized.targetable && canChooseTarget(move.target || data?.target) ?
+        defaultTargetOptions(move.target || data?.target) : undefined,
+      canMegaEvo: !!activeRequest?.canMegaEvo,
+      canUltraBurst: !!activeRequest?.canUltraBurst,
+      canZMove: Array.isArray(activeRequest?.zMoves) ? !!activeRequest.zMoves[index] : !!activeRequest?.canZMove,
+      canDynamax: !!activeRequest?.canDynamax,
+      canTerastallize: !!activeRequest?.canTerastallize,
+    };
+  }) : previous.moves;
 
   return {
     ...previous,
@@ -436,15 +553,6 @@ const protocolIdent = (ident: string) => {
   };
 };
 
-const statusFromCondition = (condition: string): PokemonSet['status'] => {
-  if (condition.includes(' brn')) return 'BRN';
-  if (condition.includes(' par')) return 'PAR';
-  if (condition.includes(' psn') || condition.includes(' tox')) return 'PSN';
-  if (condition.includes(' slp')) return 'SLP';
-  if (condition.includes(' frz')) return 'FRZ';
-  return undefined;
-};
-
 const samePokemon = (pokemon: PokemonSet, name: string, species?: string) =>
   speciesId(pokemon.name) === speciesId(name) ||
   (!!species && speciesId(pokemon.species) === speciesId(species));
@@ -469,11 +577,13 @@ const updateRosterPokemon = (
 };
 
 const conditionPatch = (condition: string): Partial<PokemonSet> => {
-  const hp = parseHpPercent(condition);
+  const parsed = parseCondition(condition);
   return {
-    hp,
-    status: statusFromCondition(condition),
-    fainted: condition.includes('fnt') || hp <= 0,
+    hp: parsed.hp,
+    currentHp: parsed.currentHp,
+    maxHp: parsed.maxHp,
+    status: parsed.status,
+    fainted: parsed.fainted,
   };
 };
 
@@ -510,12 +620,19 @@ const switchPokemon = (
   const isOwn = ident.side === ownSide;
   const activeKey = isOwn ? 'active' : 'opponentActive';
   const rosterKey = isOwn ? 'team' : 'opponentTeam';
-  const species = speciesId(speciesFromDetails(details));
+  const parsed = parseDetails(details, genFromFormat(battle.format));
+  const species = parsed.species;
   const patch: Partial<PokemonSet> = {
     ...conditionPatch(condition),
     active: true,
     name: ident.name,
     species,
+    types: parsed.types,
+    level: parsed.level,
+    gender: parsed.gender,
+    shiny: parsed.shiny,
+    // A switch-out clears Terastallization tracking for the incoming Pokémon.
+    terastallized: undefined,
   };
   const roster = updateRosterPokemon(
     battle[rosterKey].map(pokemon => ({ ...pokemon, active: false })),
@@ -527,7 +644,11 @@ const switchPokemon = (
     slot: ident.activeIndex + 1,
     name: ident.name,
     species,
-    hp: parseHpPercent(condition),
+    ...conditionPatch(condition),
+    types: parsed.types,
+    level: parsed.level,
+    gender: parsed.gender,
+    shiny: parsed.shiny,
     active: true,
   };
   return { ...battle, [activeKey]: active, [rosterKey]: roster };
@@ -563,17 +684,33 @@ export function applyBattleProtocolLine(battle: ArenaBattle, line: BattleProtoco
     const side = args[0] === 'p2' ? 'p2' : 'p1';
     const ownSide = battle.playerSide || 'p1';
     const rosterKey = side === ownSide ? 'team' : 'opponentTeam';
-    const name = speciesFromDetails(args[1] || 'Pokemon');
-    if (battle[rosterKey].some(pokemon => speciesId(pokemon.species) === speciesId(name))) return battle;
+    const parsed = parseDetails(args[1] || 'Pokemon', genFromFormat(battle.format));
+    if (battle[rosterKey].some(pokemon => speciesId(pokemon.species) === speciesId(parsed.species))) return battle;
     return {
       ...battle,
       [rosterKey]: [...battle[rosterKey], {
         slot: battle[rosterKey].length + 1,
-        name,
-        species: speciesId(name),
+        name: parsed.species,
+        species: parsed.species,
         hp: 100,
+        types: parsed.types,
+        level: parsed.level,
+        gender: parsed.gender,
+        shiny: parsed.shiny,
       }],
     };
+  }
+  case '-terastallize':
+    return updatePokemonFromIdent(battle, args[0] || '', { terastallized: args[1] as TypeName });
+  case 'detailschange':
+  case '-formechange': {
+    const parsed = parseDetails(args[1] || '', genFromFormat(battle.format));
+    return updatePokemonFromIdent(
+      battle,
+      args[0] || '',
+      { species: parsed.species, types: parsed.types },
+      parsed.species
+    );
   }
   case 'clearpoke':
     return { ...battle, team: [], opponentTeam: [] };
