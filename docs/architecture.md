@@ -90,8 +90,25 @@ the dex is ready. Learnsets stay a separate lazy chunk — do not name them in
 
 The server tells you your own exact HP (`155/281`) and only a percentage for
 the opponent. `PokemonSet` models this directly: `hp` is always a percentage,
-`currentHp`/`maxHp` are present only for your side. Showing a fabricated exact
-number for the opponent would be a lie.
+`currentHp`/`maxHp` are present only for your own side in a battle you are
+playing — spectating and replays get percentages for both, because that is all
+those logs contain. Showing a fabricated exact number would be a lie, and
+"100/100" reads exactly like one.
+
+### Requests describe a side, not a battle
+
+`|request|` carries your species, HP, moves and PP. It carries no stat stages,
+volatiles or Terastallization — those are only ever learned from protocol
+lines. So `battleFromRequest` merges rather than replaces: rebuilding the team
+wholesale from each turn's request erased your own boosts while the opponent's,
+never rebuilt from a request, persisted.
+
+### Which side is ours
+
+`playerSide` comes from `|player|` matched against the logged-in username,
+because that arrives before the switches that populate the field, whereas the
+first `|request|` may not. A stale assumption here does not fail loudly — it
+quietly renders the opponent's nameplate from our own Pokémon.
 
 ### Styling
 
@@ -109,13 +126,19 @@ layout silently broke the battle inspector at laptop widths.
 
 ## Testing
 
-Three tiers, and the distinction matters:
+Four tiers, and the distinction matters:
 
 | Tier | Runs against | Catches |
 | --- | --- | --- |
 | Vitest | pure functions | parsing and state-projection logic |
 | Playwright | `e2e/mock-ps.ts` | UI flows and regressions |
+| `layout` + `a11y` specs | rendered pages | collapsed layout, overflow, contrast, landmarks, tap sizes |
 | `test:live` | a **real** server | handshake drift |
+
+`layout.spec.ts` and `a11y.spec.ts` exist because CSS breaks silently: the
+page still renders, nothing throws, and only a person looking at the right
+screen notices. Both were written after changes of exactly that kind shipped,
+and both caught real bugs the moment they were added.
 
 The mock must reject what a real server rejects. When it did not — it accepted
 `/trn` with no assertion — a client that could not log in at all shipped with a
@@ -131,6 +154,11 @@ mistakes. When fixing a protocol bug, teach the mock to fail on it.
 - Doubles/VGC target selection works but is not visually mapped to positions.
 - The teambuilder edits sets as text and does not validate against format
   rules — the server rejects invalid teams at match time.
-- `applyBattleProtocolLine` covers the messages the UI needs, not all ~150.
-  Adopting `@pkmn/client` for full battle state is the natural next step.
+- `applyBattleProtocolLine` covers switches, damage, status, stat stages,
+  volatiles, hazards, weather, terrain, reveals and end conditions — the
+  messages that change what the field shows — but not all ~150. Adopting
+  `@pkmn/client` for complete battle state is the natural next step.
 - Chat renders as plain text; no HTML messages, no `/raw` support.
+- No challenge/accept flow: matchmaking is ladder search only.
+- Tournaments are not implemented.
+- The teambuilder has no set editor beyond text import/export.

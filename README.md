@@ -34,7 +34,7 @@ To point at your own server, copy `.env.example` to `.env.local` and edit it.
 | `npm run preview` | Serve the production build on :4173 |
 | `npm run check` | Typecheck + lint + unit tests |
 | `npm run test` | Unit tests (Vitest) |
-| `npm run test:e2e` | Browser tests (Playwright, mocked server) |
+| `npm run test:e2e` | Browser tests: flows, layout, accessibility |
 | `npm run test:live` | Handshake smoke test against a **real** server |
 
 `test:live` is opt-in via `LIVE_PS_TESTS=1` because it touches a live service.
@@ -75,7 +75,8 @@ src/
   stores/     Client state (zustand)
   screens/    Routed surfaces
   components/ Shared UI
-  styles/     Layered CSS — tokens.css first, one file per surface
+  styles/     Layered CSS — tokens first, one file per surface,
+              touch.css last (it must outrank per-surface sizing)
 e2e/          Playwright specs and the mock server
 scripts/      Live smoke test
 ```
