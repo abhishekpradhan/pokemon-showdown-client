@@ -42,7 +42,9 @@
 .ladder-table-head,
 .ladder-table-row {
   display: grid;
-  grid-template-columns: 58px minmax(150px, 1fr) 80px 80px 80px;
+  /* Records reach five digits per side ("4796-3721"), so the last column needs
+     real room rather than a fixed 80px that clipped them. */
+  grid-template-columns: 52px minmax(120px, 1fr) 72px 64px minmax(96px, auto);
   align-items: center;
   gap: 8px;
 }
@@ -98,4 +100,22 @@
 
 .ladder-inspector .select-trigger {
   min-height: 39px;
+}
+
+/* Numeric columns line up when digits are tabular. */
+.ladder-table-head span:not(:nth-child(2)),
+.ladder-table-row span:not(:nth-child(2)) {
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+
+.ladder-table-row > span:first-child {
+  color: var(--arena-faint);
+  text-align: start;
+}
+
+.ladder-table-row strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

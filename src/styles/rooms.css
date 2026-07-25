@@ -247,3 +247,5 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+.directory-row[title] { cursor: pointer; }

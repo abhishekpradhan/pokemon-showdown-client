@@ -327,3 +327,36 @@ html[data-motion="reduced"] *::after {
     transition-duration: 0.001ms !important;
   }
 }
+
+/* Custom server entry. */
+.server-form span input {
+  margin-block-start: 8px;
+  inline-size: 100%;
+  min-block-size: var(--row-height);
+  padding: 0 10px;
+  color: var(--arena-text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  background: var(--arena-ink-2);
+  border: 1px solid var(--arena-line);
+  border-radius: var(--arena-radius-sm);
+}
+
+.server-form span input:focus-visible {
+  border-color: var(--arena-accent);
+  outline: none;
+  box-shadow: 0 0 0 3px rgb(91 156 255 / 22%);
+}
+
+.server-form small code {
+  padding: 1px 4px;
+  font-size: 11px;
+  background: rgb(255 255 255 / 7%);
+  border-radius: 3px;
+}
+
+.server-form-actions {
+  display: flex;
+  gap: 6px;
+  align-items: start;
+}

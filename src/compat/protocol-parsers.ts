@@ -114,6 +114,67 @@ export function parseRoomList(data: unknown): RoomList | null {
   };
 }
 
+export type ChatRoomEntry = {
+  id: string;
+  title: string;
+  desc?: string;
+  userCount: number;
+  section?: string;
+  /** Official rooms are the ones PS itself runs, and sort first. */
+  official?: boolean;
+};
+
+export type ChatRoomList = {
+  rooms: ChatRoomEntry[];
+  /** Section names in the server's own display order. */
+  sectionTitles: string[];
+  userCount?: number;
+  battleCount?: number;
+};
+
+type RawChatRoom = { title?: string; desc?: string; userCount?: number; section?: string; subRooms?: string[] };
+
+/**
+ * Response to `/cmd rooms` — the chat-room directory.
+ *
+ * A different command from `/cmd roomlist`, which returns *battle* rooms. Using
+ * roomlist for the community screen meant it only ever listed battles and never
+ * a single chat room.
+ *
+ * The server returns a flat `chat` array where each room carries a `section`,
+ * plus `sectionTitles` giving the intended display order. ("Official" is a
+ * section value, not a separate array.)
+ */
+export function parseChatRoomList(data: unknown): ChatRoomList | null {
+  if (!data || typeof data !== 'object') return null;
+  const record = data as {
+    chat?: RawChatRoom[];
+    sectionTitles?: string[];
+    userCount?: number;
+    battleCount?: number;
+  };
+  if (!Array.isArray(record.chat)) return null;
+
+  const rooms: ChatRoomEntry[] = record.chat
+    .map(room => ({
+      id: toId(room.title || ''),
+      title: room.title || '',
+      desc: room.desc,
+      userCount: room.userCount ?? 0,
+      section: room.section,
+      official: room.section === 'Official',
+    }))
+    .filter(room => room.id);
+  if (!rooms.length) return null;
+
+  return {
+    rooms,
+    sectionTitles: Array.isArray(record.sectionTitles) ? record.sectionTitles : [],
+    userCount: record.userCount,
+    battleCount: record.battleCount,
+  };
+}
+
 export function parseSearchUpdate(raw: string): SearchUpdate | null {
   if (!raw) return null;
   try {

@@ -602,26 +602,31 @@ const updateRosterPokemon = (
 };
 
 /**
- * `isOwn` decides whether exact HP is meaningful. The server reports the
- * opponent's HP as a fraction of 100, so carrying it through as currentHp/maxHp
- * would render "100/100" — indistinguishable from real HP totals the client has
- * no way of knowing.
+ * `knowsExactHp` decides whether exact HP is meaningful. It is true only for
+ * your own side in a battle you are playing: the server reports everyone else
+ * as a fraction of 100, and a spectator or replay viewer gets percentages for
+ * both sides. Carrying those through as currentHp/maxHp renders "100/100",
+ * indistinguishable from a real HP total the client cannot know.
  */
-const conditionPatch = (condition: string, isOwn: boolean): Partial<PokemonSet> => {
+const conditionPatch = (condition: string, exactHpKnown: boolean): Partial<PokemonSet> => {
   const parsed = parseCondition(condition);
   return {
     hp: parsed.hp,
-    currentHp: isOwn ? parsed.currentHp : undefined,
-    maxHp: isOwn ? parsed.maxHp : undefined,
+    currentHp: exactHpKnown ? parsed.currentHp : undefined,
+    maxHp: exactHpKnown ? parsed.maxHp : undefined,
     status: parsed.status,
     fainted: parsed.fainted,
   };
 };
 
+/** True only when we are a player in this battle and this is our own side. */
+const knowsExactHp = (battle: ArenaBattle, isOwn: boolean) =>
+  isOwn && battle.mode !== 'spectator' && battle.mode !== 'ended';
+
 const updatePokemonFromIdent = (
   battle: ArenaBattle,
   identText: string,
-  patch: Partial<PokemonSet> | ((context: { isOwn: boolean }) => Partial<PokemonSet>),
+  patch: Partial<PokemonSet> | ((context: { exactHpKnown: boolean }) => Partial<PokemonSet>),
   species?: string
 ): ArenaBattle => {
   const ident = protocolIdent(identText);
@@ -633,7 +638,7 @@ const updatePokemonFromIdent = (
   const active = battle[activeKey];
   // Some patches depend on which side the ident belongs to, which is only
   // resolved here.
-  const resolved = typeof patch === 'function' ? patch({ isOwn }) : patch;
+  const resolved = typeof patch === 'function' ? patch({ exactHpKnown: knowsExactHp(battle, isOwn) }) : patch;
   const nextActive = samePokemon(active, ident.name, species) ? { ...active, ...resolved } : active;
   return {
     ...battle,
@@ -657,7 +662,7 @@ const switchPokemon = (
   const parsed = parseDetails(details, genFromFormat(battle.format));
   const species = parsed.species;
   const patch: Partial<PokemonSet> = {
-    ...conditionPatch(condition, isOwn),
+    ...conditionPatch(condition, knowsExactHp(battle, isOwn)),
     active: true,
     name: ident.name,
     species,
@@ -678,7 +683,7 @@ const switchPokemon = (
     slot: ident.activeIndex + 1,
     name: ident.name,
     species,
-    ...conditionPatch(condition, isOwn),
+    ...conditionPatch(condition, knowsExactHp(battle, isOwn)),
     types: parsed.types,
     level: parsed.level,
     gender: parsed.gender,
@@ -707,7 +712,7 @@ export function applyBattleProtocolLine(battle: ArenaBattle, line: BattleProtoco
     return switchPokemon(battle, args[0] || '', args[1] || '', args[2] || '');
   case '-damage':
   case '-heal':
-    return updatePokemonFromIdent(battle, args[0] || '', ident => conditionPatch(args[1] || '', ident.isOwn));
+    return updatePokemonFromIdent(battle, args[0] || '', ctx => conditionPatch(args[1] || '', ctx.exactHpKnown));
   case '-status':
     return updatePokemonFromIdent(battle, args[0] || '', { status: statusFromCondition(` ${args[1] || ''}`) });
   case '-curestatus':

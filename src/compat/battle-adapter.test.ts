@@ -193,6 +193,19 @@ describe('side assignment', () => {
     expect(battle.opponentActive.hp).toBe(100);
   });
 
+  it('shows percentages for both sides when spectating', () => {
+    // A replay or spectated battle reports both sides as a fraction of 100, so
+    // neither side has knowable exact HP.
+    let battle: ArenaBattle = { ...emptyRoster, playerSide: 'p1', mode: 'spectator' };
+    battle = applyBattleProtocolLine(battle, {
+      command: 'switch',
+      args: ['p1a: Krookodile', 'Krookodile, L79, M', '100/100'],
+    });
+    expect(battle.active.currentHp).toBeUndefined();
+    expect(battle.active.maxHp).toBeUndefined();
+    expect(battle.active.hp).toBe(100);
+  });
+
   it('re-sides rosters when the request contradicts the assumed side', () => {
     // Switches can arrive before the first |request|. Those default to p1, so
     // a p2 player would otherwise end up with the opponent's nameplate showing

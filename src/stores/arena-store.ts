@@ -19,6 +19,9 @@ import {
 } from '../compat/battle-adapter';
 import {
   getDefaultServerConfig,
+  loadStoredServer,
+  parseServerInput,
+  saveStoredServer,
   ProtocolClient,
   type ConnectionState,
   type PsFrame,
@@ -35,9 +38,11 @@ import {
 import {
   parseFormats,
   parseQueryResponse,
+  parseChatRoomList,
   parseRoomList,
   parseSearchUpdate,
   toId,
+  type ChatRoomList,
   type RoomList,
 } from '../compat/protocol-parsers';
 import {
@@ -118,6 +123,8 @@ type ArenaState = {
   battleModeByRoom: Record<string, BattleRoomMode>;
   rooms: Record<string, RoomState>;
   roomList: RoomList;
+  /** Chat-room directory from `/cmd rooms` (distinct from battle roomlist). */
+  chatRoomList: ChatRoomList;
   /** Raw `|request|` payloads, replayed when the dex chunk finishes loading. */
   lastRequestByRoom: Record<string, BattleRequest>;
   activeTeam: PackedTeam;
@@ -136,6 +143,9 @@ type ArenaState = {
   connect: () => void;
   disconnect: () => void;
   reconnect: () => void;
+  /** Points the client at a different PS-compatible server. */
+  setServer: (input: string) => boolean;
+  resetServer: () => void;
   chooseName: (name: string) => Promise<void>;
   login: (credentials: LoginCredentials) => Promise<void>;
   logout: () => Promise<void>;
@@ -144,6 +154,7 @@ type ArenaState = {
   focusRoom: (roomId?: string) => void;
   clearNotifications: () => void;
   refreshRoomList: (format?: string) => void;
+  refreshChatRooms: () => void;
   sendRoomMessage: (roomId: string, message: string) => void;
   setSelectedFormat: (format: string) => void;
   setActiveTeam: (team: PackedTeam) => void;
@@ -196,7 +207,7 @@ const initialTeams = () => {
 };
 const bootstrappedTeams = initialTeams();
 
-const protocol = new ProtocolClient();
+const protocol = new ProtocolClient(loadStoredServer());
 let loginTimeout: number | undefined;
 let cancelSearchTimeout: number | undefined;
 
@@ -410,6 +421,7 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
   battleModeByRoom: {},
   rooms: {},
   roomList: { rooms: [] },
+  chatRoomList: { rooms: [], sectionTitles: [] },
   lastRequestByRoom: {},
   activeTeam: bootstrappedTeams[0]?.packed || sampleTeam,
   teams: bootstrappedTeams,
@@ -419,11 +431,40 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
   hardcoreMode: false,
   protocolLogEnabled: import.meta.env.DEV,
   rawProtocolLog: [],
-  server: getDefaultServerConfig(),
+  server: loadStoredServer(),
   protocol,
   connect: () => get().protocol.connect(),
   disconnect: () => get().protocol.disconnect(),
   reconnect: () => get().protocol.reconnect(),
+  setServer: input => {
+    const server = parseServerInput(input, get().server);
+    if (!server) {
+      set({ lastError: 'That does not look like a server address.' });
+      return false;
+    }
+    saveStoredServer(server);
+    // Rooms and battles belong to the old server; drop them rather than show
+    // stale sessions against a server that has never heard of them.
+    set({
+      server,
+      rooms: {},
+      battles: {},
+      roomList: { rooms: [] },
+      chatRoomList: { rooms: [], sectionTitles: [] },
+      activeRoomId: undefined,
+      named: false,
+      challstr: '',
+      lastError: undefined,
+    });
+    get().protocol.setServer(server);
+    return true;
+  },
+  resetServer: () => {
+    const server = getDefaultServerConfig();
+    saveStoredServer(null);
+    set({ server, named: false, challstr: '', lastError: undefined });
+    get().protocol.setServer(server);
+  },
   chooseName: async name => {
     const trimmed = name.trim();
     if (!trimmed) return;
@@ -505,6 +546,10 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
   refreshRoomList: format => {
     const suffix = format ? ` ${toId(format)},,` : '';
     get().protocol.send(`/cmd roomlist${suffix}`);
+  },
+  refreshChatRooms: () => {
+    // `/cmd rooms` is the chat directory; `/cmd roomlist` is battles only.
+    get().protocol.send('/cmd rooms');
   },
   sendRoomMessage: (roomId, message) => {
     const trimmed = message.trim();
@@ -883,6 +928,10 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
         if (response.id === 'roomlist') {
           const roomList = parseRoomList(response.data);
           if (roomList) set({ roomList });
+        }
+        if (response.id === 'rooms') {
+          const chatRoomList = parseChatRoomList(response.data);
+          if (chatRoomList) set({ chatRoomList });
         }
         break;
       }

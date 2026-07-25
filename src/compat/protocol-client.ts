@@ -40,8 +40,63 @@ const DEFAULT_SERVER: ServerConfig = {
   loginServer: import.meta.env.VITE_PS_LOGIN_SERVER || 'https://play.pokemonshowdown.com/action.php',
 };
 
+const SERVER_STORAGE_KEY = 'arena.server';
+
 export function getDefaultServerConfig(): ServerConfig {
   return { ...DEFAULT_SERVER };
+}
+
+/**
+ * A saved server survives reloads so people running their own PS-compatible
+ * server do not have to re-enter it every session. Build-time env vars supply
+ * the default; this overrides it at runtime.
+ */
+export function loadStoredServer(): ServerConfig {
+  try {
+    const raw = localStorage.getItem(SERVER_STORAGE_KEY);
+    if (!raw) return getDefaultServerConfig();
+    const parsed = JSON.parse(raw) as Partial<ServerConfig>;
+    if (!parsed.host) return getDefaultServerConfig();
+    return { ...getDefaultServerConfig(), ...parsed };
+  } catch {
+    return getDefaultServerConfig();
+  }
+}
+
+export function saveStoredServer(server: ServerConfig | null) {
+  try {
+    if (server) localStorage.setItem(SERVER_STORAGE_KEY, JSON.stringify(server));
+    else localStorage.removeItem(SERVER_STORAGE_KEY);
+  } catch {
+    // Private browsing or a full quota; the session still works, it just will
+    // not be remembered.
+  }
+}
+
+/** Normalizes user input like "localhost:8000" or "wss://my.server/showdown". */
+export function parseServerInput(input: string, base = getDefaultServerConfig()): ServerConfig | null {
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+
+  const withScheme = /^[a-z]+:\/\//i.test(trimmed) ? trimmed : `wss://${trimmed}`;
+  let url: URL;
+  try {
+    url = new URL(withScheme);
+  } catch {
+    return null;
+  }
+  if (!url.hostname) return null;
+
+  const secure = url.protocol === 'wss:' || url.protocol === 'https:';
+  const path = url.pathname.replace(/\/websocket\/?$/, '').replace(/\/$/, '');
+  return {
+    ...base,
+    host: url.hostname,
+    port: url.port ? Number(url.port) : secure ? 443 : 8000,
+    prefix: path || '/showdown',
+    secure,
+    id: url.hostname === 'sim3.psim.us' ? 'showdown' : url.hostname.split('.')[0] || base.id,
+  };
 }
 
 export function serverWebSocketUrl(server: ServerConfig) {

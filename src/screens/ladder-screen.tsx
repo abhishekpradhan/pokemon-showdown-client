@@ -1,8 +1,21 @@
 import { RefreshCw, TrendingUp, Trophy } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { SearchableSelect } from '../components/searchable-select';
 import { useShallow } from 'zustand/react/shallow';
 import { useArenaStore } from '../stores/arena-store';
+
+/** Shape of an entry in `/ladder/<format>.json`. */
+type LadderEntry = {
+  username: string;
+  elo?: number;
+  gxe?: number;
+  rpr?: number;
+  w?: number;
+  l?: number;
+  t?: number;
+};
+
+const LADDER_HOST = import.meta.env.VITE_PS_LADDER_HOST || 'https://pokemonshowdown.com';
 
 type LadderRow = {
   rank: number;
@@ -16,9 +29,9 @@ export function LadderScreen() {
   const { formats, selectedFormat, setSelectedFormat } = useArenaStore(
     useShallow(state => ({ formats: state.formats, selectedFormat: state.selectedFormat, setSelectedFormat: state.setSelectedFormat }))
   );
-  const [status, setStatus] = useState('Refresh to load the public standings for this format.');
-  const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<LadderRow[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [reloadToken, setReloadToken] = useState(0);
   const selected = formats.find(format => format.id === selectedFormat);
   const formatOptions = formats.filter(format => format.searchShow).map(format => ({
     value: format.id,
@@ -28,38 +41,52 @@ export function LadderScreen() {
     meta: 'Ranked',
   }));
 
-  const refresh = async () => {
-    setLoading(true);
-    setStatus(`Loading ${selected?.name || selectedFormat} standings…`);
-    try {
-      const response = await fetch(`https://pokemonshowdown.com/ladder/${selectedFormat}.json`);
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const data = await response.json() as {
-        users?: Array<{
-          username: string;
-          elo?: number;
-          gxe?: number;
-          rpr?: number;
-          w?: number;
-          l?: number;
-        }>;
-      };
-      const nextRows = (data.users || []).slice(0, 100).map((user, index) => ({
-        rank: index + 1,
-        name: user.username,
-        elo: Math.round(user.elo || user.rpr || 0),
-        gxe: user.gxe,
-        record: user.w !== undefined || user.l !== undefined ? `${user.w || 0}–${user.l || 0}` : undefined,
-      }));
-      setRows(nextRows);
-      setStatus(nextRows.length ? `${nextRows.length} ranked players loaded.` : 'The ladder returned no ranked players.');
-    } catch (error) {
-      setRows([]);
-      setStatus(error instanceof Error ? `Ladder unavailable: ${error.message}` : 'Ladder unavailable.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Data fetching lives in an effect keyed on the format, with cancellation so
+  // a slow response for a previous format cannot overwrite a newer one. All
+  // state updates happen after the await, never synchronously in the effect.
+  const [loadedFormat, setLoadedFormat] = useState<string | null>(null);
+  const loading = loadedFormat !== selectedFormat && !error;
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    void (async () => {
+      try {
+        const response = await fetch(`${LADDER_HOST}/ladder/${selectedFormat}.json`, {
+          signal: controller.signal,
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        // The endpoint returns { formatid, format, toplist }. Reading `users`
+        // here meant the table was always empty and reported "no ranked
+        // players" for every format.
+        const data = await response.json() as { toplist?: LadderEntry[] };
+        if (controller.signal.aborted) return;
+
+        setRows((data.toplist || []).slice(0, 100).map((user, index) => ({
+          rank: index + 1,
+          name: user.username,
+          elo: Math.round(user.elo ?? user.rpr ?? 0),
+          gxe: user.gxe,
+          record: user.w !== undefined || user.l !== undefined ?
+            `${user.w || 0}–${user.l || 0}${user.t ? `–${user.t}` : ''}` : undefined,
+        })));
+        setError(null);
+        setLoadedFormat(selectedFormat);
+      } catch (caught) {
+        if (controller.signal.aborted) return;
+        setRows([]);
+        setError(caught instanceof Error ? caught.message : 'Ladder unavailable.');
+        setLoadedFormat(selectedFormat);
+      }
+    })();
+
+    return () => controller.abort();
+  }, [selectedFormat, reloadToken]);
+
+  const status = error ? `Ladder unavailable: ${error}` :
+    loading ? 'Loading standings…' :
+    rows.length ? `Top ${rows.length} ranked players.` :
+    'No ranked players yet for this format.';
 
   return (
     <section className="utility-workspace ladder-workspace" aria-label="Ladder">
@@ -69,7 +96,7 @@ export function LadderScreen() {
             <small>Public rankings</small>
             <h1>Ladder</h1>
           </span>
-          <button type="button" className="primary-action" disabled={loading} onClick={refresh}>
+          <button type="button" className="primary-action" disabled={loading} onClick={() => setReloadToken(token => token + 1)}>
             <RefreshCw size={14} aria-hidden /> {loading ? 'Loading…' : 'Refresh'}
           </button>
         </header>
@@ -101,8 +128,8 @@ export function LadderScreen() {
             {!rows.length && (
               <div className="table-empty">
                 <TrendingUp size={22} aria-hidden />
-                <strong>No standings loaded.</strong>
-                <span>Select a searchable format, then refresh the public ladder.</span>
+                <strong>{loading ? 'Loading standings…' : 'No standings available.'}</strong>
+                <span>{loading ? 'Fetching the public ladder.' : 'This format may not have a ranked ladder yet.'}</span>
               </div>
             )}
           </div>
@@ -125,15 +152,14 @@ export function LadderScreen() {
             value={selectedFormat}
             onValueChange={value => {
               setSelectedFormat(value);
-              setRows([]);
-              setStatus('Refresh to load the public standings for this format.');
+              setError(null);
             }}
           />
         </label>
         <dl className="inspector-facts">
           <div><dt>Source</dt><dd>Pokémon Showdown public ladder</dd></div>
           <div><dt>Rows</dt><dd>Top 100</dd></div>
-          <div><dt>Refresh</dt><dd>On demand</dd></div>
+          <div><dt>Refresh</dt><dd>On format change</dd></div>
         </dl>
       </aside>
     </section>

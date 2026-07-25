@@ -113,9 +113,14 @@ export function ReplaysScreen() {
       const parsed = log.split(/\r?\n/).filter(Boolean).map(parseReplayLine);
       if (!parsed.some(line => line.command)) throw new Error('No battle protocol lines found.');
       setLines(parsed);
-      setCursor(0);
+      // Open on the first turn rather than line zero. At line zero no Pokémon
+      // have been sent out yet, so the field renders its "Waiting"/"Opponent"
+      // placeholders and the replay looks broken rather than un-started.
+      const firstTurn = parsed.findIndex(line => line.command === 'turn');
+      setCursor(firstTurn > 0 ? firstTurn : Math.min(parsed.length - 1, 0));
       setPlaying(false);
-      setStatus(`${parsed.length} protocol lines loaded.`);
+      const turns = parsed.filter(line => line.command === 'turn').length;
+      setStatus(`${turns} turn${turns === 1 ? '' : 's'} · ${parsed.length} protocol lines.`);
     } catch (error) {
       setLines([]);
       setStatus(error instanceof Error ? `Replay unavailable: ${error.message}` : 'Replay unavailable.');

@@ -15,8 +15,16 @@ import { useArenaStore } from '../stores/arena-store';
 
 export function RoomsScreen() {
   const navigate = useNavigate();
-  const { activeRoomId, connection, focusRoom, joinRoom, leaveRoom, refreshRoomList, roomList, rooms, sendRoomMessage } = useArenaStore(
-    useShallow(state => ({ activeRoomId: state.activeRoomId, connection: state.connection, focusRoom: state.focusRoom, joinRoom: state.joinRoom, leaveRoom: state.leaveRoom, refreshRoomList: state.refreshRoomList, roomList: state.roomList, rooms: state.rooms, sendRoomMessage: state.sendRoomMessage }))
+  const {
+    activeRoomId, chatRoomList, connection, focusRoom, joinRoom, leaveRoom,
+    refreshChatRooms, refreshRoomList, roomList, rooms, sendRoomMessage,
+  } = useArenaStore(
+    useShallow(state => ({
+      activeRoomId: state.activeRoomId, chatRoomList: state.chatRoomList, connection: state.connection,
+      focusRoom: state.focusRoom, joinRoom: state.joinRoom, leaveRoom: state.leaveRoom,
+      refreshChatRooms: state.refreshChatRooms, refreshRoomList: state.refreshRoomList,
+      roomList: state.roomList, rooms: state.rooms, sendRoomMessage: state.sendRoomMessage,
+    }))
   );
   const [selectedRoomId, setSelectedRoomId] = useState(() =>
     activeRoomId && !activeRoomId.startsWith('battle-') ? activeRoomId : 'lobby'
@@ -25,16 +33,40 @@ export function RoomsScreen() {
   const [message, setMessage] = useState('');
   const joinedRooms = Object.values(rooms).filter(room => room.type !== 'battle');
   const selectedRoom = rooms[selectedRoomId] || rooms.lobby || joinedRooms[0];
-  const directory = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
-    return roomList.rooms
-      .filter(room => !normalized || room.title.toLowerCase().includes(normalized) || room.id.includes(normalized))
-      .slice(0, 60);
-  }, [query, roomList.rooms]);
+  const normalized = query.trim().toLowerCase();
+  const matches = (title: string, id: string) =>
+    !normalized || title.toLowerCase().includes(normalized) || id.includes(normalized);
+
+  // Chat rooms are the point of this screen; battles are secondary and live
+  // under Battle. They come from different commands.
+  // Grouped by the server's own sections, in the server's own order.
+  const chatSections = useMemo(() => {
+    const visible = chatRoomList.rooms.filter(room => matches(room.title, room.id));
+    const order = chatRoomList.sectionTitles;
+    const grouped = new Map<string, typeof visible>();
+    for (const room of visible) {
+      const key = room.section || 'Other';
+      if (!grouped.has(key)) grouped.set(key, []);
+      grouped.get(key)!.push(room);
+    }
+    return [...grouped.entries()].sort((a, b) => {
+      const ai = order.indexOf(a[0]);
+      const bi = order.indexOf(b[0]);
+      return (ai < 0 ? order.length : ai) - (bi < 0 ? order.length : bi);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [normalized, chatRoomList.rooms, chatRoomList.sectionTitles]);
+  const battleDirectory = useMemo(
+    () => roomList.rooms.filter(room => matches(room.title, room.id)).slice(0, 30),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [normalized, roomList.rooms]
+  );
 
   useEffect(() => {
-    if (connection === 'connected') refreshRoomList();
-  }, [connection, refreshRoomList]);
+    if (connection !== 'connected') return;
+    refreshChatRooms();
+    refreshRoomList();
+  }, [connection, refreshChatRooms, refreshRoomList]);
 
   const chooseRoom = (roomId: string, isBattle = false) => {
     joinRoom(roomId);
@@ -61,7 +93,7 @@ export function RoomsScreen() {
             <small>Community</small>
             <h1>Rooms</h1>
           </span>
-          <button type="button" className="pane-icon-button" aria-label="Refresh rooms" onClick={() => refreshRoomList()}>
+          <button type="button" className="pane-icon-button" aria-label="Refresh rooms" onClick={() => { refreshChatRooms(); refreshRoomList(); }}>
             <RefreshCw size={15} />
           </button>
         </header>
@@ -88,22 +120,42 @@ export function RoomsScreen() {
           ))}
           {!joinedRooms.length && <p className="pane-empty">No room sessions open.</p>}
         </div>
-        <div className="directory-section-label">Public directory</div>
+        {chatSections.map(([section, sectionRooms]) => (
+          <div key={section}>
+            <div className="directory-section-label">{section}</div>
+            <div className="public-room-list">
+              {sectionRooms.map(room => (
+                <button type="button" className="directory-row" key={room.id} onClick={() => chooseRoom(room.id)} title={room.desc}>
+                  <Hash size={14} aria-hidden />
+                  <span>
+                    <strong>{room.title}</strong>
+                    <small>{room.desc || `${room.userCount.toLocaleString()} users`}</small>
+                  </span>
+                  <i>{room.userCount.toLocaleString()}</i>
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+        {!chatSections.length && (
+          <p className="pane-empty">{connection === 'connected' ? 'No chat rooms match.' : 'Connect to load rooms.'}</p>
+        )}
+
+        <div className="directory-section-label">Live battles</div>
         <div className="public-room-list">
-          {directory.map(room => {
-            const isBattle = !!room.p1;
-            return (
-              <button type="button" className="directory-row" key={room.id} onClick={() => chooseRoom(room.id, isBattle)}>
-                {isBattle ? <Swords size={14} aria-hidden /> : <Hash size={14} aria-hidden />}
-                <span>
-                  <strong>{room.title}</strong>
-                  <small>{isBattle ? `${room.p1}${room.p2 ? ` vs ${room.p2}` : ''}` : `${room.users ?? 0} users`}</small>
-                </span>
-                <i>{isBattle ? 'Watch' : 'Join'}</i>
-              </button>
-            );
-          })}
-          {!directory.length && <p className="pane-empty">{connection === 'connected' ? 'No rooms match.' : 'Connect to load rooms.'}</p>}
+          {battleDirectory.map(room => (
+            <button type="button" className="directory-row" key={room.id} onClick={() => chooseRoom(room.id, true)}>
+              <Swords size={14} aria-hidden />
+              <span>
+                <strong>{room.format || room.title}</strong>
+                <small>{room.p1 ? `${room.p1} vs ${room.p2 || '?'}` : `${room.users ?? 0} users`}</small>
+              </span>
+              <i>Watch</i>
+            </button>
+          ))}
+          {!battleDirectory.length && (
+            <p className="pane-empty">{connection === 'connected' ? 'No battles match.' : 'Connect to load battles.'}</p>
+          )}
         </div>
       </aside>
 

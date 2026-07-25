@@ -8,15 +8,29 @@ import {
   Gauge,
   RadioTower,
   RefreshCw,
+  Server,
 } from 'lucide-react';
+import { useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
+import { getDefaultServerConfig } from '../compat/protocol-client';
 import { useArenaStore } from '../stores/arena-store';
 import { useWorkspaceStore } from '../stores/workspace-store';
 
 export function SettingsScreen() {
-  const { connect, connection, disconnect, lastError, protocolLogEnabled, rawProtocolLog, reconnect, server, toggleProtocolLog } = useArenaStore(
-    useShallow(state => ({ connect: state.connect, connection: state.connection, disconnect: state.disconnect, lastError: state.lastError, protocolLogEnabled: state.protocolLogEnabled, rawProtocolLog: state.rawProtocolLog, reconnect: state.reconnect, server: state.server, toggleProtocolLog: state.toggleProtocolLog }))
+  const {
+    connect, connection, disconnect, lastError, protocolLogEnabled, rawProtocolLog,
+    reconnect, resetServer, server, setServer, toggleProtocolLog,
+  } = useArenaStore(
+    useShallow(state => ({
+      connect: state.connect, connection: state.connection, disconnect: state.disconnect,
+      lastError: state.lastError, protocolLogEnabled: state.protocolLogEnabled,
+      rawProtocolLog: state.rawProtocolLog, reconnect: state.reconnect,
+      resetServer: state.resetServer, server: state.server, setServer: state.setServer,
+      toggleProtocolLog: state.toggleProtocolLog,
+    }))
   );
+  const [serverInput, setServerInput] = useState('');
+  const isDefaultServer = server.host === getDefaultServerConfig().host;
   const {
     contrast,
     density,
@@ -101,6 +115,31 @@ export function SettingsScreen() {
               {connection === 'connected' ? 'Disconnect' : 'Connect'}
             </button>
           </div>
+          <form
+            className="setting-row server-form"
+            onSubmit={event => {
+              event.preventDefault();
+              if (setServer(serverInput)) setServerInput('');
+            }}
+          >
+            <span className="setting-icon"><Server size={16} aria-hidden /></span>
+            <span>
+              <strong>Custom server</strong>
+              <small>Connect to any PS-compatible server, e.g. <code>localhost:8000</code>.</small>
+              <input
+                aria-label="Server address"
+                placeholder={`${server.host}:${server.port}${server.prefix}`}
+                value={serverInput}
+                onChange={event => setServerInput(event.currentTarget.value)}
+              />
+            </span>
+            <span className="server-form-actions">
+              <button type="submit" className="secondary-action" disabled={!serverInput.trim()}>Use server</button>
+              {!isDefaultServer && (
+                <button type="button" className="secondary-action" onClick={resetServer}>Reset</button>
+              )}
+            </span>
+          </form>
           <div className="setting-row">
             <span className="setting-icon"><RefreshCw size={16} aria-hidden /></span>
             <span><strong>Reconnect sessions</strong><small>Reconnect and rejoin rooms tracked by this workspace.</small></span>
