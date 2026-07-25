@@ -497,6 +497,11 @@ export function battleFromRequest(roomId: string, request: BattleRequest, previo
     const name = pokemon.ident.split(': ')[1] || speciesFromDetails(pokemon.details);
     const details = parseDetails(pokemon.details, generation);
     const condition = parseCondition(pokemon.condition);
+    // A request describes the side, not the battle: it carries no stat stages,
+    // volatiles or Tera state. Those are only ever learned from protocol
+    // lines, so carry them across instead of letting each turn's request wipe
+    // them — otherwise your own boosts vanish while the opponent's persist.
+    const tracked = previous.team.find(entry => samePokemon(entry, name, details.species));
     return {
       slot: index + 1,
       name,
@@ -510,6 +515,11 @@ export function battleFromRequest(roomId: string, request: BattleRequest, previo
       level: details.level,
       gender: details.gender,
       shiny: details.shiny,
+      boosts: tracked?.boosts,
+      volatiles: tracked?.volatiles,
+      terastallized: tracked?.terastallized,
+      item: pokemon.item || tracked?.item,
+      ability: pokemon.ability || pokemon.baseAbility || tracked?.ability,
       active: !!pokemon.active,
     };
   }) || previous.team;

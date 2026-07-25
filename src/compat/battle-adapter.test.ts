@@ -239,6 +239,39 @@ describe('side assignment', () => {
   });
 });
 
+describe('request merging', () => {
+  it('keeps stat stages and volatiles across a new request', () => {
+    // A |request| describes your side but carries no battle state. Rebuilding
+    // the team from it wholesale wiped your own boosts every turn, while the
+    // opponent's — never rebuilt from a request — persisted.
+    const withBoost: ArenaBattle = {
+      ...emptyBattle,
+      id: 'battle-gen9ou-1',
+      format: 'gen9ou',
+      playerSide: 'p1',
+      team: [{
+        slot: 1, name: 'Reuniclus', species: 'Reuniclus', hp: 100,
+        boosts: { spa: 1, spd: 1 }, volatiles: ['Substitute'], active: true,
+      }],
+    };
+
+    const next = battleFromRequest('battle-gen9ou-1', {
+      rqid: 2,
+      side: {
+        id: 'p1',
+        name: 'Tester',
+        pokemon: [{ ident: 'p1: Reuniclus', details: 'Reuniclus, L88, F', condition: '337/337', active: true }],
+      },
+      active: [{ moves: [{ move: 'Calm Mind', pp: 31, maxpp: 32 }] }],
+    }, withBoost);
+
+    expect(next.active.boosts).toEqual({ spa: 1, spd: 1 });
+    expect(next.active.volatiles).toEqual(['Substitute']);
+    // Facts the request does carry still win.
+    expect(next.active.currentHp).toBe(337);
+  });
+});
+
 describe('protocol coverage', () => {
   const base: ArenaBattle = { ...emptyBattle, id: 'battle-gen9ou-1', format: 'gen9ou', playerSide: 'p1' };
   const apply = (battle: ArenaBattle, raw: string) => {
