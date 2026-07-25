@@ -1,116 +1,73 @@
-Contributing to the PS client
-=============================
+# Contributing
 
-Modern fork workflow
---------------------
+Thanks for helping out. This is a standalone client for Pokémon Showdown
+servers — it is not the official client and does not track it.
 
-This fork now has two client surfaces:
-
-- the legacy Pokémon Showdown client, kept for compatibility while parity work
-  proceeds
-- the modern React/Vite client in `modern-client/`
-
-Use feature branches and pull requests into `main`. `main` should be protected
-in GitHub with required CI and Vercel preview checks. The fork tracks upstream
-selectively: security, protocol, data, replay, and battle compatibility fixes
-should be ported intentionally instead of merging upstream UI changes wholesale.
-
-Modern client verification:
+## Getting set up
 
 ```bash
-npm run modern:typecheck
-npm run modern:lint
-npm run modern:test
-npm run modern:build
-npm run modern:e2e
+npm ci
+npm run dev
 ```
 
-Keep AGPLv3 notices and source-availability links intact for public deployments.
+Requires Node 20+ (22 recommended — the live smoke test uses the built-in
+`WebSocket`).
 
-Architecture overview
----------------------
+## Before opening a pull request
 
-This is an overview of what I want PS's architecture to look like when the Preact rewrite is finished. So far, it's just a work in progress.
+```bash
+npm run check     # typecheck + lint + unit tests
+npm run test:e2e  # browser tests
+```
 
-PS loads itself in phases:
+CI runs the same commands plus a production build. Lint runs with
+`--max-warnings 0`; warnings are errors here.
 
-**Phase 1:** Background
+## The one rule that matters
 
-- `client.css`
-  - Basic styling
-- `client-core.ts`
-  - Background model
-  - Background view
+**Protocol compatibility is the constraint everything else bends around.** We
+do not run a server. If the client stops speaking the wire protocol correctly,
+it stops working entirely, and no amount of interface polish compensates.
 
-**Phase 2:** Basic UI
+So, for anything touching `src/compat/`:
 
-- `font-awesome.css`
-- `client-main.ts`
-  - Prefs model
-  - Teams model
-  - User model
-  - Generic Room model
-  - PS model
-- SockJS
-- `client-connection.ts`
-  - Connect to server
-- Preact
-- BattleSound
-- `panel-mainmenu.tsx`
-- `panel-rooms.tsx`
-- `panels.tsx`
-  - URL router
-  - global listeners
-  - Main view
+- Say in the PR how you verified it. "Tests pass" is not enough on its own —
+  the suites are mocked, and a mock that agrees with a wrong assumption will
+  agree with it forever. That is exactly how a completely broken login once
+  shipped green.
+- Run the live smoke test:
 
-**Phase 3:** Lightweight panels
+  ```bash
+  LIVE_PS_TESTS=1 npm run test:live
+  ```
 
-- Caja (HTML sanitizer)
-- `panel-chat.tsx`
-- `panel-ladder.tsx`
+- If you change the handshake, matchmaking, or choice submission, actually play
+  a battle against a real server and say so.
 
-**Phase 4:** Heavyweight panels - loaded only when a user opens one
+When you fix a protocol bug, make the mock in `e2e/mock-ps.ts` reject the wrong
+behaviour too. A test that could not have failed is not coverage.
 
-- `battle.css`
-- `sim-types.css`
-- `utilichart.css`
-- Data files
-- jQuery
-- `panel-battle.tsx`
-- `panel-teambuilder.tsx`
-- `battle-dex.ts`
-- `battle.ts`
+## Style
 
-Phase 4 doesn't load automatically, it'll only load when you start a battle or join a battle room or teambuilder.
+There is no separate style guide; match the surrounding code. A few things
+that are specific to this repo:
 
-Note that jQuery is only loaded in Phase 4. In earlier files, PS doesn't use jQuery. Just interact with the DOM directly, making sure you don't write any code that crashes IE9.
+- **Never guess at game data.** Move types, species typings, sprite filenames
+  and the type chart come from `src/data/dex.ts` and `src/data/sprites.ts`,
+  which wrap `@pkmn`. String-matching a move name to infer its type is how
+  "Knock Off" ended up rendering as a Normal-type move.
+- **CSS is layered.** `src/styles/tokens.css` owns colour, spacing and motion;
+  each surface owns one file; `src/styles.css` is imports only and its order is
+  the cascade order. Do not hardcode a colour — if a token is missing, add one.
+- **Subscribe to slices.** Components select the store fields they use via
+  `useShallow`. Subscribing to the whole store re-renders the app on every
+  protocol frame.
+- Comments should explain why, especially where the protocol is surprising.
 
-ES2018
-------
+## Licence
 
-The client has a weird smattering of constraints:
+AGPL-3.0-or-later. By contributing you agree your work is licensed under it.
 
-- Replays are intended to support IE7 and later
-- The rest of the client is intended to support IE9, Safari 5, and later
-
-This means that our target is ES3 - even outside of replays, things like `{return: 1}` instead of `{"return": 1}` are not allowed.
-
-This is very restrictive for 2018, but fortunately, with Babel 7 and polyfills, we can still write idiomatic ES2018. There are just a few things to watch out for:
-
-- no `Map`s and `Set`s - these can technically be polyfilled, but it's better just to use Objects directly. `Object.create(null)` is available if you need it.
-- no `async`/`await` - there's no way to compile them into ES3 - `Promise`s are okay, though
-- no generators or iterables other than `Array` - they either have tons of overhead or are outright unsupported, and this lets us use `for`-`of` on arrays with zero overhead
-
-We have polyfills for:
-- `Array#includes` - Note: won't be able to find `NaN`s
-- `Array.isArray`
-- `String#startsWith`
-- `String#endsWith`
-- `String#includes`
-- `String#trim`
-- `Object.assign`
-- `Object.create` - Note: second argument is unsupported
-
-These polyfills are optimized for speed, not spec-compliance. As long as you don't write very nonstandard code, you won't have a problem.
-
-`Array#includes` is put directly on the `Array` prototype, so you can't use `for-in` on Arrays. Fortunately, TypeScript will complain if you try.
+If you deploy a modified version publicly, the AGPL requires you to offer users
+the corresponding source. Keep the source link in Settings pointing at your
+fork.

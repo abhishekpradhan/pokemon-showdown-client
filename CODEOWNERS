@@ -1,6 +1,8 @@
-play.pokemonshowdown.com/src/battle-animations-moves.ts @KrisXV
-play.pokemonshowdown.com/src/battle-animations.ts @KrisXV
-teams.pokemonshowdown.com/**/* @mia-pi-git
-modern-client/** @abhishekpradhan
-vercel.json @abhishekpradhan
-.github/** @abhishekpradhan
+# Default owner for everything in this repository.
+*                 @abhishekpradhan
+
+# Protocol and deployment surfaces — changes here can break live sessions.
+/src/compat/      @abhishekpradhan
+/api/             @abhishekpradhan
+/vercel.json      @abhishekpradhan
+/.github/         @abhishekpradhan
