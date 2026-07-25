@@ -95,7 +95,7 @@ export function AppRoot() {
               <Tooltip.Content className="tooltip" side="right">Showdown Arena<Tooltip.Arrow className="tooltip-arrow" /></Tooltip.Content>
             </Tooltip.Portal>
           </Tooltip.Root>
-          <nav className="primary-nav">
+          <nav className="primary-nav" aria-label="Primary">
             {navItems.map(item => {
               const Icon = item.icon;
               const active = item.activePattern.test(location.pathname);

@@ -123,8 +123,8 @@ export type ArenaState = {
   hardcoreMode: boolean;
   protocolLogEnabled: boolean;
   rawProtocolLog: string[];
-  /** Last `/savereplay` payload from the server (Phase 4 uploads it). */
-  pendingReplay?: { id?: string; log?: string; password?: string };
+  /** Replay publish flow: /savereplay → server payload → upload proxy. */
+  replayStatus?: { roomId?: string; state: 'saving' | 'uploaded' | 'failed'; url?: string; error?: string };
 
   // ── Actions ──
   connect: () => void;
@@ -844,7 +844,8 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
     const state = get();
     const room = battleRoomFor(state, roomId);
     if (!room) return;
-    state.protocol.send('/savereplay', room.id);
+    set({ replayStatus: { roomId: room.id, state: 'saving' } });
+    state.protocol.send('/savereplay silent', room.id);
   },
 
   toggleHardcore: hardcoreMode => set({ hardcoreMode }),
@@ -861,7 +862,33 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
 
   onLoginSettled: () => clearLoginTimeout(),
   onSearchSettled: () => clearCancelSearchTimeout(),
-  onReplaySaved: data => set({ pendingReplay: data }),
+  onReplaySaved: data => {
+    const { id, log, password } = data;
+    if (!id || !log) {
+      set({ replayStatus: { state: 'failed', error: 'The server did not return a replay payload.' } });
+      return;
+    }
+    void (async () => {
+      try {
+        const body = new URLSearchParams({ id, log });
+        if (password) body.set('password', password);
+        const response = await fetch('/api/replay', { method: 'POST', body });
+        const text = await response.text();
+        if (!response.ok || /error|invalid/i.test(text.slice(0, 80))) {
+          throw new Error(text.slice(0, 120) || `HTTP ${response.status}`);
+        }
+        const url = `https://replay.pokemonshowdown.com/${id}${password ? `-${password}pw` : ''}`;
+        set(state => ({ replayStatus: { ...state.replayStatus, state: 'uploaded', url } }));
+      } catch (error) {
+        set({
+          replayStatus: {
+            state: 'failed',
+            error: error instanceof Error ? error.message : 'Upload failed.',
+          },
+        });
+      }
+    })();
+  },
 }));
 
 // ── Protocol wiring ─────────────────────────────────────────────────────────

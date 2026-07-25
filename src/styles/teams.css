@@ -401,3 +401,115 @@
   margin-top: 3px;
   font-size: 10px;
 }
+
+/* ── Set editor ─────────────────────────────────────────────────────────── */
+
+.set-editor {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+}
+
+.set-editor-loading {
+  color: var(--arena-faint);
+  font-size: 12px;
+}
+
+.set-editor-heading {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.set-editor-heading > :nth-child(2) { flex: 1; min-inline-size: 0; }
+
+.set-editor-icon { flex: none; }
+
+.set-editor-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.set-field {
+  display: grid;
+  gap: 4px;
+  min-inline-size: 0;
+}
+
+.set-field > span {
+  color: var(--arena-faint);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.set-plain-input {
+  min-block-size: 34px;
+  padding: 0 10px;
+  color: var(--arena-text);
+  background: var(--arena-ink-2);
+  border: 1px solid var(--arena-line);
+  border-radius: var(--arena-radius-sm);
+}
+
+.set-plain-input:focus-visible {
+  border-color: var(--arena-accent);
+  outline: none;
+}
+
+.set-section-label {
+  display: block;
+  color: var(--arena-faint);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.set-section-label em {
+  color: var(--arena-muted);
+  font-style: normal;
+  text-transform: none;
+}
+
+.set-section-label em[data-over="true"] { color: var(--arena-red-text); }
+
+.set-editor-moves,
+.set-editor-evs {
+  display: grid;
+  gap: 6px;
+}
+
+.ev-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.ev-field {
+  display: grid;
+  gap: 3px;
+}
+
+.ev-field span {
+  color: var(--arena-muted);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.ev-field input {
+  min-block-size: 32px;
+  padding: 0 8px;
+  color: var(--arena-text);
+  font-variant-numeric: tabular-nums;
+  background: var(--arena-ink-2);
+  border: 1px solid var(--arena-line);
+  border-radius: var(--arena-radius-sm);
+}
+
+.ev-field input:focus-visible {
+  border-color: var(--arena-accent);
+  outline: none;
+}

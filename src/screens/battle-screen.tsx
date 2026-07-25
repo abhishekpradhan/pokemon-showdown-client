@@ -4,6 +4,8 @@ import * as Switch from '@radix-ui/react-switch';
 import { motion } from 'motion/react';
 import {
   CloudSun,
+  Download,
+  Film,
   Crosshair,
   Flag,
   Info,
@@ -17,6 +19,8 @@ import {
 } from 'lucide-react';
 import { type FormEvent, useEffect, useState } from 'react';
 import { BattleField } from '../components/battle-field';
+import { BattleTimerChip } from '../components/battle-timer';
+import { ChatFeed } from '../components/chat-feed';
 import { MoveControls } from '../components/move-controls';
 import { TeamBench } from '../components/team-bench';
 import { useShallow } from 'zustand/react/shallow';
@@ -26,8 +30,8 @@ type InspectorTab = 'log' | 'chat' | 'info';
 
 export function BattleScreen() {
   const params = useParams({ from: '/battle/$battleId' });
-  const { rooms, connection, focusRoom, forfeitBattle, getBattleDecision, hardcoreMode, joinRoom, resetBattleChoiceSession, sendBattleChat, submitBattleChoice, submitBattleTarget, toggleBattleTimer, toggleHardcore, undoBattleChoice } = useArenaStore(
-    useShallow(state => ({ rooms: state.rooms, connection: state.connection, focusRoom: state.focusRoom, forfeitBattle: state.forfeitBattle, getBattleDecision: state.getBattleDecision, hardcoreMode: state.hardcoreMode, joinRoom: state.joinRoom, resetBattleChoiceSession: state.resetBattleChoiceSession, sendBattleChat: state.sendBattleChat, submitBattleChoice: state.submitBattleChoice, submitBattleTarget: state.submitBattleTarget, toggleBattleTimer: state.toggleBattleTimer, toggleHardcore: state.toggleHardcore, undoBattleChoice: state.undoBattleChoice }))
+  const { replayStatus, rooms, saveReplay, username, connection, focusRoom, forfeitBattle, getBattleDecision, hardcoreMode, joinRoom, resetBattleChoiceSession, sendBattleChat, submitBattleChoice, submitBattleTarget, toggleBattleTimer, toggleHardcore, undoBattleChoice } = useArenaStore(
+    useShallow(state => ({ replayStatus: state.replayStatus, rooms: state.rooms, saveReplay: state.saveReplay, username: state.username, connection: state.connection, focusRoom: state.focusRoom, forfeitBattle: state.forfeitBattle, getBattleDecision: state.getBattleDecision, hardcoreMode: state.hardcoreMode, joinRoom: state.joinRoom, resetBattleChoiceSession: state.resetBattleChoiceSession, sendBattleChat: state.sendBattleChat, submitBattleChoice: state.submitBattleChoice, submitBattleTarget: state.submitBattleTarget, toggleBattleTimer: state.toggleBattleTimer, toggleHardcore: state.toggleHardcore, undoBattleChoice: state.undoBattleChoice }))
   );
   const [chatMessage, setChatMessage] = useState('');
   const [forfeitOpen, setForfeitOpen] = useState(false);
@@ -68,6 +72,20 @@ export function BattleScreen() {
     pendingTarget ? 'Choose a target' :
     playerControls ? `Choose ${battle.active.name}’s action` : 'Spectating battle';
 
+  const downloadLog = () => {
+    if (!battleRoom) return;
+    // |request| lines carry our full team — private — and never appear in
+    // official replay logs either.
+    const log = battleRoom.rawLog.filter(line => !line.startsWith('|request|')).join('\n');
+    const blob = new Blob([log], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `${battleRoom.id}.log`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
+
   const submitChat = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     sendBattleChat(chatMessage, battle.id);
@@ -91,6 +109,7 @@ export function BattleScreen() {
             </span>
           </div>
           <div className="battle-toolbar-state">
+            {battleRoom && <BattleTimerChip timer={battleRoom.timer} />}
             {battle.weather && <span><CloudSun size={13} aria-hidden /> {battle.weather}</span>}
             <span>{decision.mode}</span>
           </div>
@@ -189,9 +208,7 @@ export function BattleScreen() {
           {inspectorTab === 'chat' && (
             <section className="battle-chat-panel" aria-label="Battle chat">
               <div className="chat-feed">
-                {battleRoom?.chat.length ? battleRoom.chat.map((line, index) => (
-                  <p key={`${line.user}-${line.message}-${index}`}><strong>{line.user}</strong><span>{line.message}</span></p>
-                )) : <p className="chat-empty">No messages in this room.</p>}
+                <ChatFeed messages={battleRoom?.chat ?? []} selfName={username} />
               </div>
               <form className="chat-entry" onSubmit={submitChat}>
                 <MessageSquare size={16} aria-hidden />
@@ -235,8 +252,30 @@ export function BattleScreen() {
         </div>
 
         <footer className="battle-inspector-actions">
-          <button className="battle-command" type="button" onClick={() => toggleBattleTimer(battle.id)}>
-            <TimerReset size={15} aria-hidden /> Timer {battle.timerOn ? 'on' : 'off'}
+          {battle.ended ? (
+            replayStatus?.state === 'uploaded' && replayStatus.url ? (
+              <a className="battle-command is-link" href={replayStatus.url} target="_blank" rel="noopener noreferrer">
+                <Film size={15} aria-hidden /> View replay
+              </a>
+            ) : (
+              <button
+                className="battle-command"
+                type="button"
+                disabled={replayStatus?.state === 'saving'}
+                onClick={() => saveReplay(battle.id)}
+              >
+                <Film size={15} aria-hidden />
+                {replayStatus?.state === 'saving' ? 'Saving…' :
+                  replayStatus?.state === 'failed' ? 'Retry save' : 'Save replay'}
+              </button>
+            )
+          ) : (
+            <button className="battle-command" type="button" onClick={() => toggleBattleTimer(battle.id)}>
+              <TimerReset size={15} aria-hidden /> Timer {battle.timerOn ? 'on' : 'off'}
+            </button>
+          )}
+          <button className="battle-command" type="button" onClick={downloadLog}>
+            <Download size={15} aria-hidden /> Log
           </button>
           <Dialog.Root open={forfeitOpen} onOpenChange={setForfeitOpen}>
             <Dialog.Trigger className="forfeit-button">

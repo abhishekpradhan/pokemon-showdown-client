@@ -9,6 +9,14 @@ const psLoginProxy = {
   rewrite: () => new URL(PS_LOGIN_SERVER).pathname,
 };
 
+const PS_REPLAY_SERVER = process.env.PS_REPLAY_SERVER || 'https://replay.pokemonshowdown.com';
+
+const psReplayProxy = {
+  target: PS_REPLAY_SERVER,
+  changeOrigin: true,
+  rewrite: () => '/api/replays/upload',
+};
+
 export default defineConfig({
   plugins: [react()],
   server: {
@@ -17,12 +25,12 @@ export default defineConfig({
     // Mirrors the /api/action serverless function so dev and production share
     // one code path. action.php sends no CORS headers, so it cannot be called
     // from the browser directly.
-    proxy: { '/api/action': psLoginProxy },
+    proxy: { '/api/action': psLoginProxy, '/api/replay': psReplayProxy },
   },
   preview: {
     port: 4173,
     strictPort: true,
-    proxy: { '/api/action': psLoginProxy },
+    proxy: { '/api/action': psLoginProxy, '/api/replay': psReplayProxy },
   },
   build: {
     // The dex chunk is legitimately ~1.8MB raw. It is lazy-loaded and cached

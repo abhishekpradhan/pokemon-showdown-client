@@ -1,4 +1,5 @@
 import { Link } from '@tanstack/react-router';
+import { useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
   ArrowUpRight,
@@ -17,9 +18,10 @@ import { useShallow } from 'zustand/react/shallow';
 import { useArenaStore } from '../stores/arena-store';
 
 export function HomeScreen() {
-  const { acceptChallenge, activeTeamId, cancelSearch, challenges, rejectChallenge, connection, formats, lastError, named, searchFormats, searchState, selectTeam, selectedFormat, setSelectedFormat, startSearch, teams, username, validateTeamForFormat } = useArenaStore(
-    useShallow(state => ({ acceptChallenge: state.acceptChallenge, activeTeamId: state.activeTeamId, cancelSearch: state.cancelSearch, challenges: state.challenges, rejectChallenge: state.rejectChallenge, connection: state.connection, formats: state.formats, lastError: state.lastError, named: state.named, searchFormats: state.searchFormats, searchState: state.searchState, selectTeam: state.selectTeam, selectedFormat: state.selectedFormat, setSelectedFormat: state.setSelectedFormat, startSearch: state.startSearch, teams: state.teams, username: state.username, validateTeamForFormat: state.validateTeamForFormat }))
+  const { acceptChallenge, activeTeamId, cancelSearch, challenges, rejectChallenge, sendChallenge, connection, formats, lastError, named, searchFormats, searchState, selectTeam, selectedFormat, setSelectedFormat, startSearch, teams, username, validateTeamForFormat } = useArenaStore(
+    useShallow(state => ({ acceptChallenge: state.acceptChallenge, activeTeamId: state.activeTeamId, cancelSearch: state.cancelSearch, challenges: state.challenges, rejectChallenge: state.rejectChallenge, sendChallenge: state.sendChallenge, connection: state.connection, formats: state.formats, lastError: state.lastError, named: state.named, searchFormats: state.searchFormats, searchState: state.searchState, selectTeam: state.selectTeam, selectedFormat: state.selectedFormat, setSelectedFormat: state.setSelectedFormat, startSearch: state.startSearch, teams: state.teams, username: state.username, validateTeamForFormat: state.validateTeamForFormat }))
   );
+  const [challengeTarget, setChallengeTarget] = useState('');
   const selected = formats.find(format => format.id === selectedFormat);
   const activeTeam = teams.find(team => team.id === activeTeamId);
   const requiresTeam = selected?.team !== false;
@@ -179,6 +181,30 @@ export function HomeScreen() {
             <span>{lastError || blockers[0]}</span>
           </div>
         )}
+
+        <div className="inspector-section-heading">
+          <span>Challenge a player</span>
+        </div>
+        <form
+          className="challenge-send"
+          onSubmit={event => {
+            event.preventDefault();
+            if (!challengeTarget.trim()) return;
+            sendChallenge(challengeTarget);
+            setChallengeTarget('');
+          }}
+        >
+          <input
+            aria-label="Player to challenge"
+            placeholder="Username"
+            value={challengeTarget}
+            onChange={event => setChallengeTarget(event.currentTarget.value)}
+          />
+          <button type="submit" className="secondary-action" disabled={!challengeTarget.trim()}>
+            Challenge
+          </button>
+        </form>
+        <p className="challenge-send-hint">Uses the selected format and team above.</p>
 
         {Object.keys(challenges.from).length > 0 && (
           <>

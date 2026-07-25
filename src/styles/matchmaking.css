@@ -426,3 +426,31 @@
   font-size: 9px;
   line-height: 1.45;
 }
+
+/* Send-challenge form on the readiness panel. */
+.challenge-send {
+  display: flex;
+  gap: 6px;
+}
+
+.challenge-send input {
+  flex: 1;
+  min-inline-size: 0;
+  min-block-size: 34px;
+  padding: 0 10px;
+  color: var(--arena-text);
+  background: var(--arena-ink-2);
+  border: 1px solid var(--arena-line);
+  border-radius: var(--arena-radius-sm);
+}
+
+.challenge-send input:focus-visible {
+  border-color: var(--arena-accent);
+  outline: none;
+}
+
+.challenge-send-hint {
+  margin: 4px 0 0;
+  color: var(--arena-faint);
+  font-size: 10px;
+}

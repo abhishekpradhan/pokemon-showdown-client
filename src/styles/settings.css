@@ -193,14 +193,15 @@ html[data-motion="reduced"] *::after {
 }
 
 @media (max-width: 1120px) {
-  .team-workspace,
-  .rooms-workspace {
+  /* The library collapses first; the set editor must stay reachable — it is
+     an editor now, not a read-only inspector. It stacks under the stage. */
+  .team-workspace {
     grid-template-columns: 210px minmax(0, 1fr);
   }
 
-  .team-workspace > .workspace-inspector,
-  .rooms-workspace > .workspace-inspector {
-    display: none;
+  .team-workspace > .workspace-inspector {
+    grid-column: 1 / -1;
+    max-block-size: none;
   }
 }
 
@@ -220,11 +221,6 @@ html[data-motion="reduced"] *::after {
   .room-directory {
     min-height: 300px;
     max-height: 390px;
-  }
-
-  .team-workspace > .workspace-inspector,
-  .rooms-workspace > .workspace-inspector {
-    display: none;
   }
 
   .team-editor-stage,

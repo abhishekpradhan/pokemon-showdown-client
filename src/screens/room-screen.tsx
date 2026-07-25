@@ -1,5 +1,5 @@
 import { Link, useParams } from '@tanstack/react-router';
-import { Hash, LogOut, MessageCircle, Send, Users } from 'lucide-react';
+import { Hash, LogOut, MessageCircle, Send, Swords, Users } from 'lucide-react';
 import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { ChatFeed } from '../components/chat-feed';
@@ -11,13 +11,16 @@ import { useArenaStore } from '../stores/arena-store';
  */
 export function RoomScreen() {
   const params = useParams({ from: '/room/$roomId' });
-  const { connection, focusRoom, joinRoom, leaveRoom, rooms, sendRoomMessage, username } = useArenaStore(
+  const { connection, focusRoom, formats, joinRoom, leaveRoom, rooms, selectedFormat, sendChallenge, sendRoomMessage, username } = useArenaStore(
     useShallow(state => ({
       connection: state.connection,
       focusRoom: state.focusRoom,
+      formats: state.formats,
       joinRoom: state.joinRoom,
       leaveRoom: state.leaveRoom,
       rooms: state.rooms,
+      selectedFormat: state.selectedFormat,
+      sendChallenge: state.sendChallenge,
       sendRoomMessage: state.sendRoomMessage,
       username: state.username,
     }))
@@ -72,6 +75,16 @@ export function RoomScreen() {
           </span>
         </span>
         <div className="room-surface-actions">
+          {room.type === 'pm' && (
+            <button
+              type="button"
+              className="secondary-action"
+              title={`Challenge to ${formats.find(format => format.id === selectedFormat)?.name || selectedFormat}`}
+              onClick={() => sendChallenge(room.partner)}
+            >
+              <Swords size={14} aria-hidden /> Challenge
+            </button>
+          )}
           {room.type !== 'pm' && room.users.length > 0 && (
             <span className="room-user-count"><Users size={14} aria-hidden /> {room.users.length.toLocaleString()}</span>
           )}

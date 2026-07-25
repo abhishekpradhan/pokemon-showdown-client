@@ -1,7 +1,8 @@
-import { Copy, FilePlus2, Pencil, ShieldCheck, Trash2 } from 'lucide-react';
+import { Copy, FilePlus2, Pencil, Plus, ShieldCheck, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { ConfirmDialog } from '../components/confirm-dialog';
 import { SearchableSelect } from '../components/searchable-select';
+import { SetEditor } from '../components/set-editor';
 import { StatusCallout } from '../components/status-callout';
 import { TeamBench } from '../components/team-bench';
 import { exportTeam, importTeam, teamSummary, type StoredTeam } from '../compat/team-store';
@@ -9,22 +10,9 @@ import { useShallow } from 'zustand/react/shallow';
 import { useArenaStore } from '../stores/arena-store';
 import { getAbility, getItem, getMove } from '../data/dex';
 
-/**
- * Packed teams store ids (`closecombat`), not display names. Resolve through
- * the dex so the builder reads the way players write sets.
- */
 const displayMove = (id: string) => getMove(id)?.name || id;
 const displayItem = (id?: string) => (id ? getItem(id)?.name || id : 'No item');
 const displayAbility = (id?: string) => (id ? getAbility(id)?.name || id : 'No ability');
-
-const statLabels = {
-  hp: 'HP',
-  atk: 'Atk',
-  def: 'Def',
-  spa: 'SpA',
-  spd: 'SpD',
-  spe: 'Spe',
-} as const;
 
 export function TeamWorkspace() {
   const { activeTeam, activeTeamId, deleteTeam, duplicateTeam, exportActiveTeam, formats, importTeamText, lastError, renameTeam, replaceTeamFromText, selectTeam, selectedFormat, teamNotice, teams, updateTeamFormat } = useArenaStore(
@@ -237,40 +225,40 @@ export function TeamWorkspace() {
         </div>
       </div>
 
-      <aside className="workspace-inspector set-inspector" aria-label="Selected Pokémon details">
+      <aside className="workspace-inspector set-inspector" aria-label="Set editor">
         <header className="inspector-heading">
           <span>
-            <small>Set inspector</small>
-            <strong>{selectedSet?.species || 'No Pokémon selected'}</strong>
+            <small>Set editor</small>
+            <strong>{selectedSet?.species || 'New Pokémon'}</strong>
           </span>
-          {selectedSet?.teraType && <em>{selectedSet.teraType} Tera</em>}
+          <button
+            type="button"
+            className="secondary-action"
+            disabled={previewSets.length >= 6}
+            onClick={() => {
+              const sets = [...previewSets, { species: 'Pikachu', moves: [] }];
+              setTeamText(exportTeam(sets));
+              setSelectedSetIndex(sets.length - 1);
+            }}
+          >
+            <Plus size={14} aria-hidden /> Add
+          </button>
         </header>
         {selectedSet ? (
-          <>
-            <div className="set-portrait">
-              <img src={`https://play.pokemonshowdown.com/sprites/gen5/${selectedSet.species.toLowerCase().replace(/[^a-z0-9]/g, '')}.png`} alt="" />
-              <span>
-                <strong>{selectedSet.name || selectedSet.species}</strong>
-                <small>{selectedSet.nature || 'Neutral'} nature</small>
-              </span>
-            </div>
-            <dl className="set-facts">
-              <div><dt>Item</dt><dd>{selectedSet.item ? displayItem(selectedSet.item) : 'None'}</dd></div>
-              <div><dt>Ability</dt><dd>{selectedSet.ability ? displayAbility(selectedSet.ability) : 'Unspecified'}</dd></div>
-              <div><dt>Level</dt><dd>{selectedSet.level || 100}</dd></div>
-            </dl>
-            <div className="inspector-section-heading"><span>Moves</span></div>
-            <ol className="set-move-list">
-              {selectedSet.moves.map(move => <li key={move}>{displayMove(move)}</li>)}
-            </ol>
-            <div className="inspector-section-heading"><span>EV spread</span></div>
-            <div className="stat-grid">
-              {Object.entries(statLabels).map(([stat, label]) => (
-                <span key={stat}><small>{label}</small><strong>{selectedSet.evs?.[stat as keyof typeof statLabels] || 0}</strong></span>
-              ))}
-            </div>
-          </>
-        ) : <p className="pane-empty">Select a parsed set to inspect it.</p>}
+          <SetEditor
+            set={selectedSet}
+            formatId={teamFormat}
+            onChange={next => {
+              const sets = previewSets.map((existing, index) => index === selectedSetIndex ? next : existing);
+              setTeamText(exportTeam(sets));
+            }}
+            onRemove={previewSets.length > 1 ? () => {
+              const sets = previewSets.filter((_, index) => index !== selectedSetIndex);
+              setTeamText(exportTeam(sets));
+              setSelectedSetIndex(Math.max(0, selectedSetIndex - 1));
+            } : undefined}
+          />
+        ) : <p className="pane-empty">Add a Pokémon to start building.</p>}
       </aside>
     </section>
   );

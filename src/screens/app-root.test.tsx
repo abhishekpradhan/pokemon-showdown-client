@@ -18,7 +18,7 @@ describe('modern app shell', () => {
   it('renders the cockpit shell and matchmaking workspace', async () => {
     renderWithRouter();
     expect(await screen.findByRole('heading', { name: /ready when you are/i })).toBeInTheDocument();
-    expect(screen.getByRole('navigation')).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: 'Primary' })).toBeInTheDocument();
     expect(screen.getByLabelText('Open sessions')).toBeInTheDocument();
   });
 });
