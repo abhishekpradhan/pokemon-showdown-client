@@ -194,112 +194,7 @@
   padding: 0 16px 14px;
 }
 
-.set-card-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 10px;
-}
-
-.set-card {
-  display: grid;
-  gap: 10px;
-  padding: 12px;
-  color: var(--arena-muted);
-  text-align: start;
-  background: var(--arena-panel);
-  border: 1px solid var(--arena-line);
-  border-radius: var(--arena-radius-lg);
-  cursor: pointer;
-  transition: border-color var(--arena-fast) ease, background var(--arena-fast) ease;
-}
-
-.set-card:hover {
-  color: var(--arena-text);
-  background: var(--arena-panel-strong);
-  border-color: var(--arena-line-strong);
-}
-
-.set-card.is-selected {
-  color: var(--arena-text);
-  /* Opaque mix — a translucent tint blended with the stage behind the card
-     and pushed the sublabel under AA contrast. */
-  background: color-mix(in srgb, var(--arena-accent) 6%, var(--arena-panel));
-  border-color: var(--arena-accent);
-}
-
-.set-card-heading {
-  display: grid;
-  grid-template-columns: 44px minmax(0, 1fr) auto;
-  gap: 10px;
-  align-items: center;
-}
-
-.set-card-heading img {
-  width: 44px;
-  max-height: 48px;
-  object-fit: contain;
-  image-rendering: pixelated;
-}
-
-.set-card-heading strong {
-  display: block;
-  overflow: hidden;
-  font-size: 14px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.set-card-heading small {
-  display: block;
-  overflow: hidden;
-  margin-top: 2px;
-  color: var(--arena-faint);
-  font-size: 11.5px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.set-card-heading svg { color: var(--arena-accent); }
-
-.set-card-moves {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 5px;
-}
-
-.set-card-moves i {
-  overflow: hidden;
-  padding: 6px 10px;
-  color: var(--arena-muted);
-  font-size: 12.5px;
-  font-style: normal;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  background: none;
-  border: 1px solid var(--arena-line);
-  border-radius: 7px;
-}
-
-.set-card.is-selected .set-card-moves i { color: var(--arena-soft); }
-
-.set-card-moves i.is-empty {
-  color: var(--arena-faint);
-  background: none;
-  border-style: dashed;
-}
-
-.set-empty {
-  display: grid;
-  place-items: center;
-  min-height: 180px;
-  padding: 24px;
-  color: var(--arena-faint);
-  border: 1px dashed var(--arena-line);
-  border-radius: 7px;
-  text-align: center;
-}
-
-.set-empty strong {
+.set-card.is-selected .set-empty strong {
   margin-top: 10px;
   color: var(--arena-soft);
   font-size: 12px;
@@ -309,27 +204,6 @@
   margin-top: 4px;
   font-size: 10.5px;
 }
-
-.import-editor {
-  margin: 0 16px;
-  padding: 0 12px 12px;
-  background: var(--arena-panel);
-  border: 1px solid var(--arena-line);
-  border-radius: 7px;
-}
-
-.import-editor summary {
-  padding: 12px 0;
-  color: var(--arena-muted);
-  cursor: pointer;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  user-select: none;
-}
-
-.import-editor summary:hover { color: var(--arena-text); }
 
 .import-editor textarea,
 .replay-loader textarea {
@@ -590,6 +464,279 @@
 }
 
 .ev-field input:focus-visible {
+  border-color: var(--arena-accent);
+  outline: none;
+}
+
+
+/* ── Team canvas ─────────────────────────────────────────────────────────
+   A team is six slots. Filled slots are cards, empty slots are the add
+   affordance, and the selected slot's editor opens full-width below. */
+
+.team-canvas {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.team-toolbar {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(220px, 300px) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.team-name-input {
+  min-width: 0;
+  min-block-size: 40px;
+  padding: 0 12px;
+  color: var(--arena-text);
+  font-size: 17px;
+  font-weight: 700;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  transition: border-color var(--arena-fast) ease, background var(--arena-fast) ease;
+}
+
+.team-name-input:hover { border-color: var(--arena-line); }
+
+.team-name-input:focus-visible {
+  background: var(--arena-panel);
+  border-color: var(--arena-accent);
+  outline: none;
+}
+
+.team-name-input::placeholder { color: var(--arena-faint); }
+
+.team-toolbar-format .select-trigger {
+  background: var(--arena-panel);
+  border-color: var(--arena-line);
+}
+
+.team-toolbar-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.team-slot-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 10px;
+}
+
+.team-slot {
+  position: relative;
+  min-block-size: 118px;
+}
+
+.team-slot-body {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  inline-size: 100%;
+  block-size: 100%;
+  padding: 12px;
+  color: var(--arena-muted);
+  text-align: start;
+  background: var(--arena-panel);
+  border: 1px solid var(--arena-line);
+  border-radius: var(--arena-radius-lg);
+  cursor: pointer;
+  transition: border-color var(--arena-fast) ease, background var(--arena-fast) ease;
+}
+
+.team-slot-body:hover {
+  color: var(--arena-text);
+  border-color: var(--arena-line-strong);
+}
+
+.team-slot.is-selected .team-slot-body {
+  color: var(--arena-text);
+  background: color-mix(in srgb, var(--arena-accent) 6%, var(--arena-panel));
+  border-color: var(--arena-accent);
+}
+
+.team-slot.is-empty {
+  display: grid;
+  gap: 6px;
+  place-content: center;
+  justify-items: center;
+  color: var(--arena-faint);
+  font-size: 12.5px;
+  font-weight: 650;
+  background: none;
+  border: 1.5px dashed var(--arena-line-strong);
+  border-radius: var(--arena-radius-lg);
+  cursor: pointer;
+  transition: color var(--arena-fast) ease, border-color var(--arena-fast) ease;
+}
+
+.team-slot.is-empty:hover:not(:disabled) {
+  color: var(--arena-accent-text);
+  border-color: var(--arena-accent);
+}
+
+.team-slot.is-empty:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.team-slot-heading {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.team-slot-heading img {
+  width: 44px;
+  max-height: 46px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.team-slot-blank {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  color: var(--arena-faint);
+  font-size: 17px;
+  font-weight: 700;
+  background: var(--arena-hover);
+  border-radius: 10px;
+}
+
+.team-slot-heading strong {
+  display: block;
+  overflow: hidden;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.team-slot-heading small {
+  display: block;
+  overflow: hidden;
+  margin-top: 2px;
+  color: var(--arena-faint);
+  font-size: 11.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.team-slot-moves {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+}
+
+.team-slot-moves i {
+  overflow: hidden;
+  padding: 5px 9px;
+  color: var(--arena-muted);
+  font-size: 12px;
+  font-style: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border: 1px solid var(--arena-line);
+  border-radius: 6px;
+}
+
+.team-slot-moves i.is-blank {
+  color: var(--arena-faint);
+  border-style: dashed;
+}
+
+.team-slot-remove {
+  position: absolute;
+  inset-block-start: 8px;
+  inset-inline-end: 8px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  color: var(--arena-faint);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--arena-fast) ease, color var(--arena-fast) ease;
+}
+
+.team-slot:hover .team-slot-remove,
+.team-slot-remove:focus-visible { opacity: 1; }
+
+.team-slot-remove:hover {
+  color: var(--arena-red-text);
+  background: var(--arena-hover);
+}
+
+/* ── Wide editor panel ──────────────────────────────────────────────────── */
+
+.team-editor-panel {
+  padding: 16px;
+  background: var(--arena-panel);
+  border: 1px solid var(--arena-line);
+  border-radius: var(--arena-radius-lg);
+}
+
+.team-editor-hint {
+  margin: 0;
+  padding: 18px;
+  color: var(--arena-faint);
+  font-size: 13px;
+  text-align: center;
+  border: 1.5px dashed var(--arena-line);
+  border-radius: var(--arena-radius-lg);
+}
+
+/* The editor's own markup is narrow-first; the wide panel re-columns it. */
+.team-editor-panel .set-editor-heading > :nth-child(2) { max-inline-size: 300px; }
+
+.team-editor-panel .set-editor-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.team-editor-panel .set-editor-moves .set-editor-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.team-editor-panel .ev-grid {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.team-editor-panel .set-editor-grid.is-compact {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+/* ── Import dialog ──────────────────────────────────────────────────────── */
+
+.import-dialog { inline-size: min(640px, calc(100vw - 32px)); }
+
+.import-dialog-text {
+  display: block;
+  inline-size: 100%;
+  min-block-size: 240px;
+  margin-block: 12px 4px;
+  padding: 12px;
+  color: var(--arena-soft);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.55;
+  background: var(--arena-ink-2);
+  border: 1px solid var(--arena-line);
+  border-radius: 8px;
+  resize: vertical;
+}
+
+.import-dialog-text:focus-visible {
   border-color: var(--arena-accent);
   outline: none;
 }

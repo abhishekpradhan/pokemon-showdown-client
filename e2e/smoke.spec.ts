@@ -102,8 +102,15 @@ test('teambuilder imports selects duplicates and deletes teams', async ({ page }
   await page.goto('/teambuilder');
   await page.getByRole('button', { name: 'New team' }).first().click();
   await page.getByRole('textbox', { name: 'Team name' }).fill('Builder Test');
+
+  // Import lives in a dialog; the canvas itself is the six-slot editor.
+  await page.getByRole('button', { name: /Import \/ Export/ }).click();
   await page.getByRole('textbox', { name: 'Team import text' }).fill('Raichu @ Light Ball\nAbility: Static\nTera Type: Electric\n- Thunderbolt');
-  await page.getByRole('button', { name: 'Import and save' }).click();
+  await page.getByRole('button', { name: 'Import team' }).click();
+
+  // The import populated slot one; saving files it in the library.
+  await expect(page.getByRole('button', { name: 'Edit Raichu' })).toBeVisible();
+  await page.getByRole('button', { name: 'Save as new team' }).click();
   await expect(page.getByLabel('Saved teams').getByText('Builder Test', { exact: true })).toBeVisible();
 
   await page.getByRole('button', { name: 'Duplicate Builder Test' }).click();

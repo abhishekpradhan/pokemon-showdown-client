@@ -1,37 +1,48 @@
-import { Copy, FilePlus2, Pencil, Plus, ShieldCheck, Trash2 } from 'lucide-react';
+import * as Dialog from '@radix-ui/react-dialog';
+import { ClipboardCopy, Copy, FileDown, FilePlus2, Plus, Trash2, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { ConfirmDialog } from '../components/confirm-dialog';
 import { SearchableSelect } from '../components/searchable-select';
 import { SetEditor } from '../components/set-editor';
 import { StatusCallout } from '../components/status-callout';
-import { exportTeam, importTeam, validateTeamSets, type StoredTeam } from '../compat/team-store';
+import { exportTeam, importTeam, validateTeamSets, type StoredTeam, type TeamSet } from '../compat/team-store';
 import { useShallow } from 'zustand/react/shallow';
 import { useArenaStore } from '../stores/arena-store';
 import { getAbility, getItem, getMove } from '../data/dex';
+
+/**
+ * The team canvas: a team is six slots. Filled slots are cards; empty slots
+ * are the add affordance; the selected slot's editor opens full-width below
+ * the grid. Sets are real state — text import/export is a dialog that
+ * derives from and feeds into them, not the other way round.
+ */
+
+const TEAM_SIZE = 6;
 
 const displayMove = (id: string) => getMove(id)?.name || id;
 const displayItem = (id?: string) => (id ? getItem(id)?.name || id : 'No item');
 const displayAbility = (id?: string) => (id ? getAbility(id)?.name || id : 'No ability');
 
 export function TeamWorkspace() {
-  const { activeTeam, activeTeamId, deleteTeam, duplicateTeam, exportActiveTeam, formats, importTeamText, lastError, renameTeam, replaceTeamFromText, selectTeam, selectedFormat, teamNotice, teams, updateTeamFormat } = useArenaStore(
-    useShallow(state => ({ activeTeam: state.activeTeam, activeTeamId: state.activeTeamId, deleteTeam: state.deleteTeam, duplicateTeam: state.duplicateTeam, exportActiveTeam: state.exportActiveTeam, formats: state.formats, importTeamText: state.importTeamText, lastError: state.lastError, renameTeam: state.renameTeam, replaceTeamFromText: state.replaceTeamFromText, selectTeam: state.selectTeam, selectedFormat: state.selectedFormat, teamNotice: state.teamNotice, teams: state.teams, updateTeamFormat: state.updateTeamFormat }))
+  const { activeTeam, activeTeamId, deleteTeam, duplicateTeam, formats, importTeamText, lastError, renameTeam, replaceTeamFromText, selectTeam, selectedFormat, teamNotice, teams, updateTeamFormat } = useArenaStore(
+    useShallow(state => ({ activeTeam: state.activeTeam, activeTeamId: state.activeTeamId, deleteTeam: state.deleteTeam, duplicateTeam: state.duplicateTeam, formats: state.formats, importTeamText: state.importTeamText, lastError: state.lastError, renameTeam: state.renameTeam, replaceTeamFromText: state.replaceTeamFromText, selectTeam: state.selectTeam, selectedFormat: state.selectedFormat, teamNotice: state.teamNotice, teams: state.teams, updateTeamFormat: state.updateTeamFormat }))
   );
   const [editingTeamId, setEditingTeamId] = useState<string | undefined>(activeTeamId);
   const [teamName, setTeamName] = useState(() => teams.find(team => team.id === activeTeamId)?.name || '');
   const [teamFormat, setTeamFormat] = useState(() => teams.find(team => team.id === activeTeamId)?.format || selectedFormat);
-  const [teamText, setTeamText] = useState(() => exportTeam(activeTeam));
-  const [selectedSetIndex, setSelectedSetIndex] = useState(0);
+  const [sets, setSets] = useState<TeamSet[]>(() => importTeam(exportTeam(activeTeam)));
+  const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
   const [teamToDelete, setTeamToDelete] = useState<string | undefined>();
-  // The import box is secondary once a team has sets; it opens itself for
-  // an empty editor, where pasting is the primary action.
-  const [importOpen, setImportOpen] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importText, setImportText] = useState('');
+  const [copied, setCopied] = useState(false);
+
   const editingTeam = teams.find(team => team.id === editingTeamId);
-  const previewSets = useMemo(() => importTeam(teamText), [teamText]);
-  // Soft legality feedback on whatever is being edited. The server's team
-  // validator remains the authority — these never block anything.
-  const validation = useMemo(() => previewSets.length ? validateTeamSets(previewSets) : null, [previewSets]);
-  const selectedSet = previewSets[selectedSetIndex] || previewSets[0];
+  const filledSets = useMemo(() => sets.filter(set => set.species.trim()), [sets]);
+  // Soft legality feedback. The server's validator remains the authority —
+  // these never block anything.
+  const validation = useMemo(() => filledSets.length ? validateTeamSets(filledSets) : null, [filledSets]);
+  const selectedSet = selectedSlot !== null ? sets[selectedSlot] : undefined;
   const formatOptions = formats.map(format => ({
     value: format.id,
     label: format.name,
@@ -45,8 +56,8 @@ export function TeamWorkspace() {
     setEditingTeamId(team.id);
     setTeamName(team.name);
     setTeamFormat(team.format);
-    setTeamText(exportTeam(team.packed));
-    setSelectedSetIndex(0);
+    setSets(team.sets.map(set => ({ ...set })));
+    setSelectedSlot(null);
   };
 
   const editTeam = (teamId: string) => {
@@ -58,13 +69,14 @@ export function TeamWorkspace() {
     setEditingTeamId(undefined);
     setTeamName('');
     setTeamFormat(selectedFormat);
-    setTeamText('');
-    setSelectedSetIndex(0);
+    setSets([]);
+    setSelectedSlot(null);
   };
 
   const saveTeam = () => {
+    const text = exportTeam(filledSets);
     if (!editingTeamId) {
-      importTeamText(teamText, teamName, teamFormat);
+      importTeamText(text, teamName, teamFormat);
       const nextState = useArenaStore.getState();
       const importedTeam = nextState.teams.find(team => team.id === nextState.activeTeamId);
       if (importedTeam) loadTeam(importedTeam);
@@ -72,7 +84,7 @@ export function TeamWorkspace() {
     }
     if (teamName.trim() && teamName !== editingTeam?.name) renameTeam(editingTeamId, teamName);
     if (teamFormat !== editingTeam?.format) updateTeamFormat(editingTeamId, teamFormat);
-    replaceTeamFromText(editingTeamId, teamText);
+    replaceTeamFromText(editingTeamId, text);
   };
 
   const duplicateEditingTeam = () => {
@@ -81,6 +93,40 @@ export function TeamWorkspace() {
     const nextState = useArenaStore.getState();
     const copy = nextState.teams.find(team => team.id === nextState.activeTeamId);
     if (copy) loadTeam(copy);
+  };
+
+  const addSlot = () => {
+    if (sets.length >= TEAM_SIZE) return;
+    setSets(current => [...current, { species: '', moves: [] }]);
+    setSelectedSlot(sets.length);
+  };
+
+  const removeSlot = (index: number) => {
+    setSets(current => current.filter((_, position) => position !== index));
+    setSelectedSlot(null);
+  };
+
+  const updateSlot = (index: number, next: TeamSet) => {
+    setSets(current => current.map((set, position) => position === index ? next : set));
+  };
+
+  const applyImport = () => {
+    const imported = importTeam(importText);
+    if (!imported.length) return;
+    setSets(imported);
+    setSelectedSlot(null);
+    setImportDialogOpen(false);
+    setImportText('');
+  };
+
+  const openImportDialog = () => {
+    setImportText(filledSets.length ? exportTeam(filledSets) : '');
+    setCopied(false);
+    setImportDialogOpen(true);
+  };
+
+  const copyExport = () => {
+    void navigator.clipboard?.writeText(exportTeam(filledSets)).then(() => setCopied(true));
   };
 
   return (
@@ -128,13 +174,29 @@ export function TeamWorkspace() {
         </button>
       </aside>
 
-      <div className="workspace-stage team-editor-stage">
-        <header className="stage-heading">
-          <span>
-            <small>{editingTeamId ? 'Editing team' : 'New team'}</small>
-            <h2>{teamName || 'Untitled team'}</h2>
-          </span>
-          <div className="stage-actions">
+      <div className="workspace-stage team-canvas">
+        <header className="team-toolbar">
+          <input
+            className="team-name-input"
+            aria-label="Team name"
+            value={teamName}
+            placeholder="Untitled team"
+            onChange={event => setTeamName(event.currentTarget.value)}
+          />
+          <div className="team-toolbar-format">
+            <SearchableSelect
+              ariaLabel="Set team format"
+              emptyLabel="No formats match"
+              options={formatOptions}
+              placeholder="Team format"
+              value={teamFormat}
+              onValueChange={setTeamFormat}
+            />
+          </div>
+          <div className="team-toolbar-actions">
+            <button type="button" className="secondary-action" onClick={openImportDialog}>
+              <FileDown size={14} aria-hidden /> Import / Export
+            </button>
             {editingTeamId && (
               <>
                 <button type="button" className="icon-button" aria-label={`Duplicate ${editingTeam?.name}`} onClick={duplicateEditingTeam}>
@@ -157,79 +219,11 @@ export function TeamWorkspace() {
                 </ConfirmDialog>
               </>
             )}
-            <button type="button" className="primary-action" onClick={saveTeam}>
-              {editingTeamId ? 'Save team' : 'Import and save'}
+            <button type="button" className="primary-action" onClick={saveTeam} disabled={!filledSets.length}>
+              {editingTeamId ? 'Save team' : 'Save as new team'}
             </button>
           </div>
         </header>
-
-        <div className="team-meta-controls">
-          <label>
-            <span>Name</span>
-            <input aria-label="Team name" value={teamName} placeholder="Team name" onChange={event => setTeamName(event.currentTarget.value)} />
-          </label>
-          <label>
-            <span>Format</span>
-            <SearchableSelect
-              ariaLabel="Set team format"
-              emptyLabel="No formats match"
-              options={formatOptions}
-              placeholder="Team format"
-              value={teamFormat}
-              onValueChange={setTeamFormat}
-            />
-          </label>
-        </div>
-
-        <div className="set-card-grid" aria-label="Team sets">
-          {previewSets.map((set, index) => (
-            <button
-              type="button"
-              className={`set-card ${index === selectedSetIndex ? 'is-selected' : ''}`}
-              key={`${set.species}-${index}`}
-              aria-pressed={index === selectedSetIndex}
-              onClick={() => setSelectedSetIndex(index)}
-            >
-              <span className="set-card-heading">
-                <img src={`https://play.pokemonshowdown.com/sprites/gen5/${set.species.toLowerCase().replace(/[^a-z0-9]/g, '')}.png`} alt="" />
-                <span>
-                  <strong>{set.name || set.species}</strong>
-                  <small>{displayItem(set.item)} · {displayAbility(set.ability)}</small>
-                </span>
-                {index === selectedSetIndex && <Pencil size={14} aria-hidden />}
-              </span>
-              <span className="set-card-moves">
-                {set.moves.slice(0, 4).map(move => <i key={move}>{displayMove(move)}</i>)}
-                {!set.moves.length && <i className="is-empty">No moves yet</i>}
-              </span>
-            </button>
-          ))}
-          {!previewSets.length && (
-            <div className="set-empty">
-              <ShieldCheck size={22} aria-hidden />
-              <strong>Paste a team export to begin.</strong>
-              <span>The structured team view updates as you edit the import text.</span>
-            </div>
-          )}
-        </div>
-
-        <details
-          className="import-editor"
-          open={importOpen || !previewSets.length}
-          onToggle={event => setImportOpen(event.currentTarget.open)}
-        >
-          <summary>Import / export text</summary>
-          <textarea
-            aria-label="Team import text"
-            placeholder="Paste a Pokémon Showdown team export or packed team"
-            value={teamText}
-            onChange={event => setTeamText(event.currentTarget.value)}
-          />
-          <div className="button-row">
-            <button type="button" className="secondary-action" onClick={() => setTeamText(exportActiveTeam())}>Use active team export</button>
-            <button type="button" className="secondary-action" onClick={newTeam}>Clear</button>
-          </div>
-        </details>
 
         <div className="editor-status" aria-live="polite">
           {teamNotice && <StatusCallout tone="success">{teamNotice}</StatusCallout>}
@@ -244,43 +238,111 @@ export function TeamWorkspace() {
             </StatusCallout>
           )}
         </div>
+
+        <div className="team-slot-grid" aria-label="Team slots">
+          {Array.from({ length: TEAM_SIZE }, (_, index) => {
+            const set = sets[index];
+            if (!set) {
+              return (
+                <button
+                  type="button"
+                  className="team-slot is-empty"
+                  key={`empty-${index}`}
+                  disabled={index > sets.length}
+                  onClick={addSlot}
+                >
+                  <Plus size={17} aria-hidden />
+                  <span>Add Pokémon</span>
+                </button>
+              );
+            }
+            const selected = selectedSlot === index;
+            return (
+              <div className={`team-slot ${selected ? 'is-selected' : ''}`} key={index}>
+                <button
+                  type="button"
+                  className="team-slot-body"
+                  aria-pressed={selected}
+                  aria-label={`Edit ${set.species || `slot ${index + 1}`}`}
+                  onClick={() => setSelectedSlot(selected ? null : index)}
+                >
+                  <span className="team-slot-heading">
+                    {set.species ? (
+                      <img
+                        src={`https://play.pokemonshowdown.com/sprites/gen5/${set.species.toLowerCase().replace(/[^a-z0-9]/g, '')}.png`}
+                        alt=""
+                      />
+                    ) : (
+                      <span className="team-slot-blank" aria-hidden>?</span>
+                    )}
+                    <span>
+                      <strong>{set.name || set.species || 'Choose species'}</strong>
+                      <small>{displayItem(set.item)} · {displayAbility(set.ability)}</small>
+                    </span>
+                  </span>
+                  <span className="team-slot-moves">
+                    {set.moves.filter(Boolean).slice(0, 4).map(move => <i key={move}>{displayMove(move)}</i>)}
+                    {!set.moves.filter(Boolean).length && <i className="is-blank">No moves yet</i>}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className="team-slot-remove"
+                  aria-label={`Remove ${set.species || `slot ${index + 1}`}`}
+                  onClick={() => removeSlot(index)}
+                >
+                  <X size={13} />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+
+        {selectedSet !== undefined && selectedSlot !== null && (
+          <section className="team-editor-panel" aria-label="Set editor">
+            <SetEditor
+              set={selectedSet}
+              formatId={teamFormat}
+              onChange={next => updateSlot(selectedSlot, next)}
+            />
+          </section>
+        )}
+        {selectedSet === undefined && sets.length > 0 && (
+          <p className="team-editor-hint">Select a slot to edit its set.</p>
+        )}
       </div>
 
-      <aside className="workspace-inspector set-inspector" aria-label="Set editor">
-        <header className="inspector-heading">
-          <span>
-            <small>Set editor</small>
-            <strong>{selectedSet?.species || 'New Pokémon'}</strong>
-          </span>
-          <button
-            type="button"
-            className="secondary-action"
-            disabled={previewSets.length >= 6}
-            onClick={() => {
-              const sets = [...previewSets, { species: 'Pikachu', moves: [] }];
-              setTeamText(exportTeam(sets));
-              setSelectedSetIndex(sets.length - 1);
-            }}
-          >
-            <Plus size={14} aria-hidden /> Add
-          </button>
-        </header>
-        {selectedSet ? (
-          <SetEditor
-            set={selectedSet}
-            formatId={teamFormat}
-            onChange={next => {
-              const sets = previewSets.map((existing, index) => index === selectedSetIndex ? next : existing);
-              setTeamText(exportTeam(sets));
-            }}
-            onRemove={previewSets.length > 1 ? () => {
-              const sets = previewSets.filter((_, index) => index !== selectedSetIndex);
-              setTeamText(exportTeam(sets));
-              setSelectedSetIndex(Math.max(0, selectedSetIndex - 1));
-            } : undefined}
-          />
-        ) : <p className="pane-empty">Add a Pokémon to start building.</p>}
-      </aside>
+      <Dialog.Root open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="dialog-overlay" />
+          <Dialog.Content className="account-dialog import-dialog">
+            <div className="dialog-heading">
+              <div>
+                <Dialog.Title>Import / export team</Dialog.Title>
+                <Dialog.Description>
+                  Pokémon Showdown export or packed format. Importing replaces the current slots.
+                </Dialog.Description>
+              </div>
+              <Dialog.Close className="icon-button" aria-label="Close import dialog"><X size={17} /></Dialog.Close>
+            </div>
+            <textarea
+              className="import-dialog-text"
+              aria-label="Team import text"
+              placeholder="Paste a Pokémon Showdown team export or packed team"
+              value={importText}
+              onChange={event => setImportText(event.currentTarget.value)}
+            />
+            <div className="button-row">
+              <button type="button" className="primary-action" onClick={applyImport} disabled={!importText.trim()}>
+                Import team
+              </button>
+              <button type="button" className="secondary-action" onClick={copyExport} disabled={!filledSets.length}>
+                <ClipboardCopy size={14} aria-hidden /> {copied ? 'Copied' : 'Copy export'}
+              </button>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
     </section>
   );
 }

@@ -10,10 +10,8 @@
   grid-template-columns: 224px minmax(0, 1fr) 258px;
 }
 
-/* The right column is an editor, not a read-only inspector; selects need
-   room for real names ("Booster Energy", "Close Combat"). */
 .team-workspace {
-  grid-template-columns: 224px minmax(0, 1fr) 348px;
+  grid-template-columns: 240px minmax(0, 1fr);
 }
 
 .ladder-workspace,

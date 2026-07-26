@@ -179,15 +179,19 @@ html[data-contrast="high"] {
 }
 
 @media (max-width: 1120px) {
-  /* The library collapses first; the set editor must stay reachable — it is
-     an editor now, not a read-only inspector. It stacks under the stage. */
   .team-workspace {
     grid-template-columns: 210px minmax(0, 1fr);
   }
 
-  .team-workspace > .workspace-inspector {
-    grid-column: 1 / -1;
-    max-block-size: none;
+  /* The wide editor re-columns down before the layout collapses. */
+  .team-editor-panel .set-editor-grid,
+  .team-editor-panel .set-editor-moves .set-editor-grid,
+  .team-editor-panel .set-editor-grid.is-compact {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .team-editor-panel .ev-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
