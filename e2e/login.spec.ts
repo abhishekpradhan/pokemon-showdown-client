@@ -28,7 +28,7 @@ test('signs a guest name with an assertion from the login server', async ({ page
   await page.getByRole('textbox', { name: 'Username' }).fill('CodexTester');
   await page.getByRole('button', { name: /Choose name/i }).click();
 
-  await expect(page.getByRole('button', { name: 'CodexTester' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'CodexTester', exact: true })).toBeVisible();
 
   const calls = await actionCalls(page);
   expect(calls.some(call => call.includes('act=getassertion') && call.includes('userid=codextester'))).toBe(true);
@@ -46,7 +46,7 @@ test('never sends an unsigned /trn', async ({ page }) => {
   await page.getByRole('button', { name: /Unnamed guest/i }).click();
   await page.getByRole('textbox', { name: 'Username' }).fill('CodexTester');
   await page.getByRole('button', { name: /Choose name/i }).click();
-  await expect(page.getByRole('button', { name: 'CodexTester' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'CodexTester', exact: true })).toBeVisible();
 
   const sent = await sentMessages(page);
   const unsigned = sent.filter(message => /\/trn [^,]+$/.test(message.trim()));
@@ -95,7 +95,7 @@ test('spectating renders a true spectator view', async ({ page }) => {
   await page.getByRole('button', { name: /Unnamed guest/i }).click();
   await page.getByRole('textbox', { name: 'Username' }).fill('CodexTester');
   await page.getByRole('button', { name: /Choose name/i }).click();
-  await expect(page.getByRole('button', { name: 'CodexTester' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'CodexTester', exact: true })).toBeVisible();
 
   await page.goto('/battle/battle-gen9uu-spectate1');
   await expect(page.locator('.battle-room-title')).toContainText('AlphaPlayer');
@@ -113,4 +113,11 @@ test('spectating renders a true spectator view', async ({ page }) => {
   // Actions announce themselves on the field. The mock's turn ends on a
   // super-effective note, which is the label the banner settles on.
   await expect(page.locator('.field-announce')).toHaveText("It's super effective!");
+
+  // Spectating must not trap navigation: the battle takes focus once when it
+  // opens, and after that every other surface stays reachable.
+  await page.getByRole('link', { name: 'Teams' }).click();
+  await expect(page).toHaveURL(/\/teambuilder/);
+  await page.getByRole('link', { name: 'Rooms' }).click();
+  await expect(page).toHaveURL(/\/rooms/);
 });

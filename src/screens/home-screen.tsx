@@ -1,5 +1,5 @@
-import { Link } from '@tanstack/react-router';
-import { useState } from 'react';
+import { Link, useNavigate } from '@tanstack/react-router';
+import { useEffect, useState } from 'react';
 import {
   ArrowUpRight,
   Check,
@@ -7,6 +7,7 @@ import {
   Radio,
   Shield,
   Signal,
+  Swords,
   Timer,
   UserRound,
   Wifi,
@@ -17,10 +18,22 @@ import { useShallow } from 'zustand/react/shallow';
 import { useArenaStore } from '../stores/arena-store';
 
 export function HomeScreen() {
-  const { acceptChallenge, activeTeamId, cancelSearch, challenges, rejectChallenge, sendChallenge, connection, formats, lastError, named, searchFormats, searchState, selectTeam, selectedFormat, setSelectedFormat, startSearch, teams, username, validateTeamForFormat } = useArenaStore(
-    useShallow(state => ({ acceptChallenge: state.acceptChallenge, activeTeamId: state.activeTeamId, cancelSearch: state.cancelSearch, challenges: state.challenges, rejectChallenge: state.rejectChallenge, sendChallenge: state.sendChallenge, connection: state.connection, formats: state.formats, lastError: state.lastError, named: state.named, searchFormats: state.searchFormats, searchState: state.searchState, selectTeam: state.selectTeam, selectedFormat: state.selectedFormat, setSelectedFormat: state.setSelectedFormat, startSearch: state.startSearch, teams: state.teams, username: state.username, validateTeamForFormat: state.validateTeamForFormat }))
+  const { acceptChallenge, activeTeamId, cancelSearch, challenges, focusRoom, joinRoom, rejectChallenge, refreshRoomList, roomList, sendChallenge, connection, formats, lastError, named, searchFormats, searchState, selectTeam, selectedFormat, setSelectedFormat, startSearch, teams, username, validateTeamForFormat } = useArenaStore(
+    useShallow(state => ({ acceptChallenge: state.acceptChallenge, activeTeamId: state.activeTeamId, cancelSearch: state.cancelSearch, challenges: state.challenges, focusRoom: state.focusRoom, joinRoom: state.joinRoom, rejectChallenge: state.rejectChallenge, refreshRoomList: state.refreshRoomList, roomList: state.roomList, sendChallenge: state.sendChallenge, connection: state.connection, formats: state.formats, lastError: state.lastError, named: state.named, searchFormats: state.searchFormats, searchState: state.searchState, selectTeam: state.selectTeam, selectedFormat: state.selectedFormat, setSelectedFormat: state.setSelectedFormat, startSearch: state.startSearch, teams: state.teams, username: state.username, validateTeamForFormat: state.validateTeamForFormat }))
   );
+  const navigate = useNavigate();
   const [challengeTarget, setChallengeTarget] = useState('');
+  const liveBattles = roomList.rooms.slice(0, 8);
+
+  useEffect(() => {
+    if (connection === 'connected') refreshRoomList();
+  }, [connection, refreshRoomList]);
+
+  const watchBattle = (roomId: string) => {
+    joinRoom(roomId);
+    focusRoom(roomId);
+    void navigate({ to: '/battle/$battleId', params: { battleId: roomId } });
+  };
   const selected = formats.find(format => format.id === selectedFormat);
   const activeTeam = teams.find(team => team.id === activeTeamId);
   const requiresTeam = selected?.team !== false;
@@ -203,6 +216,26 @@ export function HomeScreen() {
             </div>
           </>
         )}
+
+        <div className="inspector-section-heading">
+          <span>Live now</span>
+          <Link to="/rooms" className="inspector-section-link">Rooms <ArrowUpRight size={12} aria-hidden /></Link>
+        </div>
+        <div className="live-battle-list" aria-label="Live battles">
+          {liveBattles.map(room => (
+            <button type="button" className="live-battle-row" key={room.id} onClick={() => watchBattle(room.id)}>
+              <Swords size={14} aria-hidden />
+              <span>
+                <strong>{room.p1 ? `${room.p1} vs ${room.p2 || '?'}` : room.title}</strong>
+                <small>{room.format || room.id.replace(/^battle-/, '').replace(/-\d+$/, '')}</small>
+              </span>
+              <i>Watch</i>
+            </button>
+          ))}
+          {!liveBattles.length && (
+            <p className="pane-empty">{connection === 'connected' ? 'Loading live battles…' : 'Connect to browse battles.'}</p>
+          )}
+        </div>
 
         <div className="match-inspector-footer">
           <Timer size={14} aria-hidden />

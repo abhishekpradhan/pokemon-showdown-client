@@ -178,14 +178,6 @@ html[data-contrast="high"] {
   --arena-muted: #b4becb;
 }
 
-html[data-motion="reduced"] *,
-html[data-motion="reduced"] *::before,
-html[data-motion="reduced"] *::after {
-  animation-duration: 0.001ms !important;
-  animation-iteration-count: 1 !important;
-  transition-duration: 0.001ms !important;
-}
-
 @media (max-width: 1120px) {
   /* The library collapses first; the set editor must stay reachable — it is
      an editor now, not a read-only inspector. It stacks under the stage. */

@@ -150,6 +150,15 @@ green suite, and the live smoke test agreed, because it only checked that
 The lesson generalises: a mock encodes your assumptions, so it confirms your
 mistakes. When fixing a protocol bug, teach the mock to fail on it.
 
+## Information architecture
+
+The Battle page is the hub: matchmaking, challenges, and the live-battle
+directory (watch anything in progress) live together, because "find a battle"
+and "watch a battle" are the same intent. Rooms is the chat directory only. A
+battle takes navigation focus exactly once, when it opens; after that every
+surface stays reachable — steering the router at spectators is a bug, not a
+feature.
+
 ## Motion
 
 There is no JS animation library. Framer-motion drove entrance fades until a

@@ -156,9 +156,8 @@ const handleGlobal = (line: PsLine, store: ArenaStoreApi): boolean => {
         challengeTo?: { to: string; format: string } | null;
       };
       const from = data.challengesFrom || {};
-      setState(state => ({
+      setState(() => ({
         challenges: { from, to: data.challengeTo || null },
-        notifications: state.notifications + (Object.keys(from).length ? 1 : 0),
       }));
     } catch {
       // Malformed challenge payloads are not actionable.
@@ -210,7 +209,6 @@ const handleGlobal = (line: PsLine, store: ArenaStoreApi): boolean => {
       };
       return {
         rooms: upsert(current.rooms, appendChat(existing, chatMessage, focused) as Room),
-        notifications: current.notifications + 1,
       };
     });
     return true;
@@ -258,7 +256,6 @@ const handleLifecycle = (roomId: string, line: PsLine, store: ArenaStoreApi): bo
       return {
         rooms: upsert(state.rooms, room),
         activeRoomId: roomId,
-        notifications: type === 'battle' ? state.notifications + 1 : state.notifications,
       };
     });
     return true;

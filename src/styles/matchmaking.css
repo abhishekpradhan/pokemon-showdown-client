@@ -8,14 +8,6 @@
 }
 
 .match-stage {
-  /* Scenery, like the battle field: the artwork stays dark in both themes
-     and text on it pins the dark-theme scale. */
-  --arena-text: #f4f7fb;
-  --arena-soft: #d9e0e9;
-  --arena-muted: #9aa5b4;
-  --arena-faint: #94a0b1;
-
-  color: var(--arena-text);
   position: relative;
   display: flex;
   flex-direction: column;
@@ -23,23 +15,27 @@
   min-height: 0;
   padding: clamp(18px, 3vw, 34px);
   overflow: hidden;
+  /* No bitmap collage: a calm accent glow over the theme surface. Both
+     themes get the same composition from their own tokens. */
   background:
-    linear-gradient(90deg, rgba(8, 12, 17, 0.92), rgba(8, 12, 17, 0.33) 65%),
-    linear-gradient(0deg, rgba(8, 12, 17, 0.9), transparent 55%),
-    url("https://play.pokemonshowdown.com/fx/bg-spl.png") center / cover;
+    radial-gradient(90% 70% at 85% -10%, rgb(91 156 255 / 16%), transparent 55%),
+    radial-gradient(70% 55% at -8% 108%, rgb(91 156 255 / 9%), transparent 55%),
+    var(--arena-ink-2);
   border: 1px solid var(--arena-line);
   border-radius: 10px;
   isolation: isolate;
 }
 
+/* A faint arena grid gives the stage depth without imagery. */
 .match-stage::after {
   content: "";
   position: absolute;
   inset: 0;
   z-index: -1;
   background:
-    linear-gradient(115deg, transparent 45%, rgba(91, 156, 255, 0.07)),
-    radial-gradient(circle at 73% 40%, transparent 0 24%, rgba(4, 8, 12, 0.18) 48%);
+    linear-gradient(var(--arena-line) 1px, transparent 1px) 0 0 / 100% 56px,
+    linear-gradient(90deg, var(--arena-line) 1px, transparent 1px) 0 0 / 56px 100%;
+  mask-image: radial-gradient(85% 75% at 70% 20%, rgb(0 0 0 / 55%), transparent 75%);
 }
 
 .match-stage.is-searching::after {
@@ -116,13 +112,10 @@
 
 .match-control-deck {
   padding: 12px;
-  /* Dark glass over the artwork in both themes — a theme-white card here
-     read as a hole punched in the scenery. */
-  background: rgb(13 17 24 / 86%);
-  border: 1px solid rgb(255 255 255 / 12%);
+  background: var(--arena-panel);
+  border: 1px solid var(--arena-line);
   border-radius: 9px;
-  box-shadow: 0 24px 62px rgba(0, 0, 0, 0.34);
-  backdrop-filter: blur(18px);
+  box-shadow: var(--arena-shadow-sm);
 }
 
 .match-control-grid {
@@ -151,10 +144,9 @@
   width: 100%;
   min-height: 42px;
   height: 42px;
-  /* Fields on the dark glass deck stay dark glass in both themes. */
-  color: #f4f7fb;
-  background: rgb(255 255 255 / 8%);
-  border-color: rgb(255 255 255 / 16%);
+  color: var(--arena-text);
+  background: var(--arena-ink-2);
+  border-color: var(--arena-line);
   box-shadow: none;
 }
 
@@ -464,4 +456,71 @@
   margin: 4px 0 0;
   color: var(--arena-faint);
   font-size: 12px;
+}
+
+/* ── Live battles (home rail) ────────────────────────────────────────────── */
+
+a.inspector-section-link {
+  display: inline-flex;
+  gap: 3px;
+  align-items: center;
+  color: var(--arena-accent-text);
+  font-size: 11px;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+a.inspector-section-link:hover { text-decoration: underline; }
+
+.live-battle-list {
+  display: grid;
+  gap: 4px;
+  overflow-y: auto;
+  min-block-size: 0;
+}
+
+.live-battle-row {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 10px;
+  color: var(--arena-soft);
+  text-align: start;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: background var(--arena-fast) ease, border-color var(--arena-fast) ease;
+}
+
+.live-battle-row:hover {
+  background: var(--arena-hover);
+  border-color: var(--arena-line);
+}
+
+.live-battle-row svg { color: var(--arena-faint); }
+
+.live-battle-row strong {
+  display: block;
+  overflow: hidden;
+  font-size: 12.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.live-battle-row small {
+  display: block;
+  overflow: hidden;
+  color: var(--arena-faint);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.live-battle-row i {
+  color: var(--arena-accent-text);
+  font-size: 11.5px;
+  font-style: normal;
+  font-weight: 650;
 }

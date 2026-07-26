@@ -9,7 +9,7 @@
 .team-library-row {
   position: relative;
   display: grid;
-  grid-template-columns: 48px minmax(0, 1fr);
+  grid-template-columns: 48px minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
   width: 100%;
@@ -77,12 +77,16 @@
 }
 
 .team-library-row > i {
-  position: absolute;
-  right: 7px;
-  bottom: 6px;
+  align-self: center;
+  padding: 3px 8px;
   color: var(--arena-accent-text);
+  font-size: 10.5px;
   font-style: normal;
-  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: rgb(91 156 255 / 12%);
+  border-radius: 999px;
 }
 
 .new-team-button {

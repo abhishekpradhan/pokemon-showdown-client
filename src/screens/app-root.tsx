@@ -1,6 +1,5 @@
 import { Link, Outlet, useLocation, useNavigate } from '@tanstack/react-router';
 import * as Dialog from '@radix-ui/react-dialog';
-import * as Tooltip from '@radix-ui/react-tooltip';
 import {
   Bell,
   Bot,
@@ -24,10 +23,10 @@ import { navItems } from '../navigation';
 export function AppRoot() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { acceptChallenge, activeRoomId, challenges, clearNotifications, connect, connection, disconnect, lastError, login, loginPending, logout, named, needsPassword, notifications, reconnect, rejectChallenge, rooms, username } = useArenaStore(
-    useShallow(state => ({ acceptChallenge: state.acceptChallenge, activeRoomId: state.activeRoomId, challenges: state.challenges, clearNotifications: state.clearNotifications, rejectChallenge: state.rejectChallenge, connect: state.connect, connection: state.connection, disconnect: state.disconnect, lastError: state.lastError, login: state.login, loginPending: state.loginPending, logout: state.logout, named: state.named, needsPassword: state.needsPassword, notifications: state.notifications, reconnect: state.reconnect, rooms: state.rooms, username: state.username }))
+  const { acceptChallenge, challenges, connect, connection, disconnect, lastError, login, loginPending, logout, named, needsPassword, reconnect, rejectChallenge, rooms, username } = useArenaStore(
+    useShallow(state => ({ acceptChallenge: state.acceptChallenge, challenges: state.challenges, rejectChallenge: state.rejectChallenge, connect: state.connect, connection: state.connection, disconnect: state.disconnect, lastError: state.lastError, login: state.login, loginPending: state.loginPending, logout: state.logout, named: state.named, needsPassword: state.needsPassword, reconnect: state.reconnect, rooms: state.rooms, username: state.username }))
   );
-  const { motion, notificationsEnabled, setTheme, theme } = useWorkspaceStore();
+  const { notificationsEnabled, setTheme, theme } = useWorkspaceStore();
   const [nameInput, setNameInput] = useState(named ? username : '');
   const [passwordInput, setPasswordInput] = useState('');
   const [accountOpen, setAccountOpen] = useState(false);
@@ -35,11 +34,13 @@ export function AppRoot() {
   const submittedAccountRef = useRef(false);
   const accountLabel = named ? username : 'Unnamed guest';
   const focusWorkspace = () => document.getElementById('workspace')?.focus();
-  const activeRoom = activeRoomId ? rooms[activeRoomId] : undefined;
-  const context = location.pathname.startsWith('/battle/') ?
+  const routeBattleId = location.pathname.startsWith('/battle/') ?
+    location.pathname.slice('/battle/'.length) : undefined;
+  const routeBattle = routeBattleId ? rooms[routeBattleId] : undefined;
+  const context = routeBattleId ?
     {
-      label: (activeRoom?.type === 'battle' ? activeRoom.battle.format : undefined) || 'Live battle',
-      meta: activeRoomId || 'Battle room',
+      label: (routeBattle?.type === 'battle' ? routeBattle.battle.format : undefined) || 'Live battle',
+      meta: routeBattleId,
     } :
     location.pathname === '/teambuilder' ? { label: 'Team workspace', meta: 'Local teams' } :
     location.pathname === '/rooms' ? { label: 'Room console', meta: 'Community' } :
@@ -48,9 +49,12 @@ export function AppRoot() {
     location.pathname === '/settings' ? { label: 'Client settings', meta: 'Preferences' } :
     { label: 'Matchmaking', meta: 'Battle queue' };
   const incomingChallenges = Object.entries(challenges.from);
+  // The badge tells the truth: it counts exactly what the popover lists.
+
   const unreadPms = Object.values(rooms)
     .filter(room => room.type === 'pm' && room.unread > 0)
     .slice(0, 4);
+  const badgeCount = incomingChallenges.length + unreadPms.length;
   const submitName = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     submittedAccountRef.current = true;
@@ -69,10 +73,6 @@ export function AppRoot() {
     }
   }, [accountOpen, loginPending, named]);
 
-  useEffect(() => {
-    document.documentElement.dataset.motion = motion;
-  }, [motion]);
-
   // Resolve the theme preference to a concrete data-theme, tracking the OS
   // when set to "system".
   useEffect(() => {
@@ -86,52 +86,45 @@ export function AppRoot() {
     return () => media.removeEventListener('change', apply);
   }, [theme]);
 
+  // A battle takes focus exactly once, when it opens (matched or joined) —
+  // continuously steering to it trapped spectators on the battle screen.
+  const handledBattlesRef = useRef<Set<string>>(new Set());
   useEffect(() => {
-    if (!activeRoomId?.startsWith('battle-') || rooms[activeRoomId]?.type !== 'battle') return;
-    if (location.pathname === `/battle/${activeRoomId}`) return;
-    void navigate({ to: '/battle/$battleId', params: { battleId: activeRoomId } });
-  }, [activeRoomId, rooms, location.pathname, navigate]);
+    const battleIds = Object.values(rooms)
+      .filter(room => room.type === 'battle' && room.connected)
+      .map(room => room.id);
+    const fresh = battleIds.filter(id => !handledBattlesRef.current.has(id));
+    for (const id of battleIds) handledBattlesRef.current.add(id);
+    if (!fresh.length) return;
+    const target = fresh[fresh.length - 1];
+    if (location.pathname !== `/battle/${target}`) {
+      void navigate({ to: '/battle/$battleId', params: { battleId: target } });
+    }
+  }, [rooms, location.pathname, navigate]);
 
   return (
-    <Tooltip.Provider delayDuration={150}>
-      <div className="arena-app">
+    <div className="arena-app">
         <button className="skip-link" type="button" onClick={focusWorkspace}>
           Skip to workspace
         </button>
         <aside className="primary-rail" aria-label="Primary">
-          <Tooltip.Root>
-            <Tooltip.Trigger asChild>
-              <Link to="/" className="brand-mark" aria-label="Showdown Arena home">
-                <img src="/favicon.svg" alt="" />
-              </Link>
-            </Tooltip.Trigger>
-            <Tooltip.Portal>
-              <Tooltip.Content className="tooltip" side="right">Showdown Arena<Tooltip.Arrow className="tooltip-arrow" /></Tooltip.Content>
-            </Tooltip.Portal>
-          </Tooltip.Root>
+          <Link to="/" className="brand-mark" aria-label="Showdown Arena home">
+            <img src="/favicon.svg" alt="" />
+          </Link>
           <nav className="primary-nav" aria-label="Primary">
             {navItems.map(item => {
               const Icon = item.icon;
               const active = item.activePattern.test(location.pathname);
               return (
-                <Tooltip.Root key={item.to}>
-                  <Tooltip.Trigger asChild>
-                    <Link
-                      to={item.to}
-                      className={clsx('primary-nav-link', active && 'is-active')}
-                      aria-current={active ? 'page' : undefined}
-                    >
-                      <Icon size={19} aria-hidden />
-                      <span>{item.label}</span>
-                    </Link>
-                  </Tooltip.Trigger>
-                  <Tooltip.Portal>
-                    <Tooltip.Content className="tooltip" side="right">
-                      {item.label}
-                      <Tooltip.Arrow className="tooltip-arrow" />
-                    </Tooltip.Content>
-                  </Tooltip.Portal>
-                </Tooltip.Root>
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  className={clsx('primary-nav-link', active && 'is-active')}
+                  aria-current={active ? 'page' : undefined}
+                >
+                  <Icon size={19} aria-hidden />
+                  <span>{item.label}</span>
+                </Link>
               );
             })}
           </nav>
@@ -171,13 +164,10 @@ export function AppRoot() {
                   type="button"
                   aria-label="Notifications"
                   aria-expanded={notificationsOpen}
-                  onClick={() => {
-                    setNotificationsOpen(open => !open);
-                    if (!notificationsOpen) clearNotifications();
-                  }}
+                  onClick={() => setNotificationsOpen(open => !open)}
                 >
                   <Bell size={17} aria-hidden />
-                  {notificationsEnabled && notifications > 0 && <span>{notifications}</span>}
+                  {notificationsEnabled && badgeCount > 0 && <span>{badgeCount}</span>}
                 </button>
                 {notificationsOpen && (
                   <div className="notification-popover">
@@ -313,6 +303,5 @@ export function AppRoot() {
           </main>
         </div>
       </div>
-    </Tooltip.Provider>
   );
 }

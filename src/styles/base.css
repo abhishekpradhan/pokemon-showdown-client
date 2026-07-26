@@ -21,9 +21,7 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100svh;
-  background:
-    linear-gradient(90deg, rgba(21, 22, 24, 0.96), rgba(21, 22, 24, 0.78) 48%, rgba(36, 32, 29, 0.92)),
-    url("https://play.pokemonshowdown.com/fx/bg-gen3-arena.png") center / cover fixed;
+  background: var(--arena-ink);
   color: var(--arena-text);
 }
 
@@ -318,7 +316,7 @@ textarea:focus-visible,
 
 
 .select-trigger em {
-  color: rgba(255, 255, 255, 0.72);
+  color: var(--arena-faint);
   font-size: 12px;
   font-style: normal;
 }
@@ -534,9 +532,9 @@ textarea:focus-visible,
   width: 100%;
   min-height: 52px;
   padding: 10px;
-  color: #1f1e1b;
-  background: rgba(255, 255, 255, 0.56);
-  border: 1px solid rgba(80, 72, 60, 0.12);
+  color: var(--arena-soft);
+  background: var(--arena-panel);
+  border: 1px solid var(--arena-line);
   border-radius: var(--arena-radius);
   text-align: left;
   cursor: pointer;
@@ -793,12 +791,11 @@ textarea:focus-visible,
   z-index: 2;
   margin: -28px clamp(10px, 2.2vw, 24px) 0;
   padding: 14px;
-  color: var(--arena-dark-text);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(243, 236, 224, 0.94));
-  border: 1px solid rgba(255, 255, 255, 0.68);
+  color: var(--arena-text);
+  background: var(--arena-panel);
+  border: 1px solid var(--arena-line);
   border-radius: 10px;
-  box-shadow: 0 18px 54px rgba(0, 0, 0, 0.22);
+  box-shadow: var(--arena-shadow-sm);
 }
 
 
@@ -1032,16 +1029,19 @@ textarea:focus-visible,
   position: relative;
   width: 48px;
   height: 28px;
-  background: #b7afa2;
-  border: 0;
+  /* Unchecked track must contrast the white thumb in both themes. */
+  background: var(--arena-line-strong);
+  border: 1px solid var(--arena-line);
   border-radius: 999px;
   cursor: pointer;
+  transition: background var(--arena-fast) ease;
 }
 
 
 
 .switch-root[data-state="checked"] {
-  background: var(--arena-red);
+  background: var(--arena-accent);
+  border-color: var(--arena-accent);
 }
 
 

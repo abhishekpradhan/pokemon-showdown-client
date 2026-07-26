@@ -16,7 +16,7 @@ test('loads home with real readiness states and no demo language', async ({ page
   await page.getByRole('textbox', { name: 'Username' }).fill('CodexTester');
   await page.getByRole('button', { name: /Choose name/i }).click();
   await expect(page.getByText('Waiting for server confirmation.')).toBeVisible();
-  await expect(page.getByRole('button', { name: /CodexTester/i })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'CodexTester', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: /find battle/i })).toBeEnabled();
 });
 
@@ -49,7 +49,7 @@ test('search creates a mock battle room and sends exact battle choices', async (
   await page.getByRole('button', { name: /Unnamed guest/i }).click();
   await page.getByRole('textbox', { name: 'Username' }).fill('CodexTester');
   await page.getByRole('button', { name: /Choose name/i }).click();
-  await expect(page.getByRole('button', { name: /CodexTester/i })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'CodexTester', exact: true })).toBeVisible();
   await page.getByRole('button', { name: /find battle/i }).click();
 
   await expect(page).toHaveURL(/\/battle\/battle-gen9ou-1/);
@@ -141,7 +141,7 @@ test('keeps mobile battle controls usable without horizontal overflow', async ({
   await page.getByRole('button', { name: /Unnamed guest/i }).click();
   await page.getByRole('textbox', { name: 'Username' }).fill('CodexTester');
   await page.getByRole('button', { name: /Choose name/i }).click();
-  await expect(page.getByRole('button', { name: /CodexTester/i })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'CodexTester', exact: true })).toBeVisible();
   await page.getByRole('button', { name: /find battle/i }).click();
   await expect(page).toHaveURL(/\/battle\/battle-gen9ou-1/);
   await expect(page.getByRole('button', { name: /Moonblast/i })).toBeVisible();

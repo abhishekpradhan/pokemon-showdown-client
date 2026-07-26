@@ -107,7 +107,6 @@ export type ArenaState = {
   roomList: RoomList;
   chatRoomList: ChatRoomList;
   challenges: Challenges;
-  notifications: number;
 
   // ── Rooms (the registry: chat, PMs and battles in one map) ──
   rooms: Record<string, Room>;
@@ -138,7 +137,6 @@ export type ArenaState = {
   joinRoom: (roomId: string) => void;
   leaveRoom: (roomId: string) => void;
   focusRoom: (roomId?: string) => void;
-  clearNotifications: () => void;
   refreshRoomList: (format?: string) => void;
   refreshChatRooms: () => void;
   sendRoomMessage: (roomId: string, message: string) => void;
@@ -302,7 +300,6 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
   roomList: { rooms: [] },
   chatRoomList: { rooms: [], sectionTitles: [] },
   challenges: { from: {}, to: null },
-  notifications: 0,
 
   rooms: demoRooms(),
   activeRoomId: undefined,
@@ -437,7 +434,6 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
         state.rooms,
     };
   }),
-  clearNotifications: () => set({ notifications: 0 }),
   refreshRoomList: format => {
     const suffix = format ? ` ${toId(format)},,` : '';
     get().protocol.send(`/cmd roomlist${suffix}`);

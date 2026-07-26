@@ -1,5 +1,5 @@
 import { useNavigate } from '@tanstack/react-router';
-import { Hash, RefreshCw, Search, Swords } from 'lucide-react';
+import { Hash, RefreshCw, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useArenaStore } from '../stores/arena-store';
@@ -11,15 +11,13 @@ import { useArenaStore } from '../stores/arena-store';
  */
 export function RoomsScreen() {
   const navigate = useNavigate();
-  const { chatRoomList, connection, focusRoom, joinRoom, refreshChatRooms, refreshRoomList, roomList } = useArenaStore(
+  const { chatRoomList, connection, focusRoom, joinRoom, refreshChatRooms } = useArenaStore(
     useShallow(state => ({
       chatRoomList: state.chatRoomList,
       connection: state.connection,
       focusRoom: state.focusRoom,
       joinRoom: state.joinRoom,
       refreshChatRooms: state.refreshChatRooms,
-      refreshRoomList: state.refreshRoomList,
-      roomList: state.roomList,
     }))
   );
   const [query, setQuery] = useState('');
@@ -45,17 +43,10 @@ export function RoomsScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [normalized, chatRoomList.rooms, chatRoomList.sectionTitles]);
 
-  const battleDirectory = useMemo(
-    () => roomList.rooms.filter(room => matches(room.title, room.id)).slice(0, 30),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [normalized, roomList.rooms]
-  );
-
   useEffect(() => {
     if (connection !== 'connected') return;
     refreshChatRooms();
-    refreshRoomList();
-  }, [connection, refreshChatRooms, refreshRoomList]);
+  }, [connection, refreshChatRooms]);
 
   const chooseRoom = (roomId: string, isBattle = false) => {
     joinRoom(roomId);
@@ -88,7 +79,7 @@ export function RoomsScreen() {
             type="button"
             className="pane-icon-button"
             aria-label="Refresh rooms"
-            onClick={() => { refreshChatRooms(); refreshRoomList(); }}
+            onClick={() => refreshChatRooms()}
           >
             <RefreshCw size={15} />
           </button>
@@ -122,22 +113,6 @@ export function RoomsScreen() {
           )}
         </div>
 
-        <aside className="directory-battles" aria-label="Live battles">
-          <div className="directory-section-label">Live battles</div>
-          {battleDirectory.map(room => (
-            <button type="button" className="directory-row" key={room.id} onClick={() => chooseRoom(room.id, true)}>
-              <Swords size={14} aria-hidden />
-              <span>
-                <strong>{room.format || room.title}</strong>
-                <small>{room.p1 ? `${room.p1} vs ${room.p2 || '?'}` : `${room.users ?? 0} users`}</small>
-              </span>
-              <i>Watch</i>
-            </button>
-          ))}
-          {!battleDirectory.length && (
-            <p className="pane-empty">{connection === 'connected' ? 'No battles match.' : 'Connect to load battles.'}</p>
-          )}
-        </aside>
       </div>
     </section>
   );

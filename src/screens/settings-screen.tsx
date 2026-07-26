@@ -33,9 +33,7 @@ export function SettingsScreen() {
   const [serverInput, setServerInput] = useState('');
   const isDefaultServer = server.host === getDefaultServerConfig().host;
   const {
-    motion,
     notificationsEnabled,
-    setMotion,
     setNotificationsEnabled,
     setTheme,
     theme,
@@ -70,18 +68,6 @@ export function SettingsScreen() {
                 <Monitor size={13} aria-hidden /> System
               </button>
             </div>
-          </div>
-          <div className="setting-row">
-            <span className="setting-icon"><CircleGauge size={16} aria-hidden /></span>
-            <span><strong>Reduced motion</strong><small>Disable workspace transitions and ambient animation.</small></span>
-            <Switch.Root
-              className="switch-root"
-              checked={motion === 'reduced'}
-              onCheckedChange={checked => setMotion(checked ? 'reduced' : 'full')}
-              aria-label="Reduced motion"
-            >
-              <Switch.Thumb className="switch-thumb" />
-            </Switch.Root>
           </div>
           <div className="setting-row">
             <span className="setting-icon"><Bell size={16} aria-hidden /></span>
