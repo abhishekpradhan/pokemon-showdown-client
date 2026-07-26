@@ -3,6 +3,7 @@ import * as Dialog from '@radix-ui/react-dialog';
 import * as Switch from '@radix-ui/react-switch';
 import {
   Download,
+  Eye,
   Film,
   Crosshair,
   Flag,
@@ -159,6 +160,9 @@ export function BattleScreen() {
             </span>
           </div>
           <div className="battle-toolbar-state">
+            {decision.mode === 'spectator' && (
+              <span className="spectate-chip"><Eye size={12} aria-hidden /> Spectating</span>
+            )}
             {battleRoom && <BattleTimerChip timer={battleRoom.timer} />}
           </div>
           <div className="toolbar-actions">

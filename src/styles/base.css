@@ -1064,7 +1064,7 @@ textarea:focus-visible,
 
 
 .switch-row span {
-  color: rgba(255, 253, 247, 0.86);
+  color: var(--arena-soft);
 }
 
 

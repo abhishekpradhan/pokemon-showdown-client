@@ -967,7 +967,7 @@
 .battle-facts dd {
   margin: 0;
   overflow-wrap: anywhere;
-  color: #c8d1dd;
+  color: var(--arena-soft);
 }
 
 .battle-info-panel .switch-row {
@@ -1428,3 +1428,20 @@
 
 /* No reduced-motion rules here: settings.css already flattens every
    animation globally for both the OS preference and the in-app toggle. */
+
+
+/* Session-role badge: unlike weather, "you are spectating" is about the
+   session, so it belongs in the toolbar. */
+.spectate-chip {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  padding: 4px 9px;
+  color: var(--arena-accent-text);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: rgb(91 156 255 / 12%);
+  border-radius: 999px;
+}
