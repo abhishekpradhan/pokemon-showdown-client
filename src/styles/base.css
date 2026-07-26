@@ -194,43 +194,6 @@ textarea:focus-visible,
 
 
 
-.command-bar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: min(620px, 100%);
-  min-height: 42px;
-  padding: 0 12px;
-  color: var(--arena-muted);
-  background: rgba(255, 255, 255, 0.09);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: var(--arena-radius);
-}
-
-
-
-.command-bar input {
-  flex: 1;
-  min-width: 0;
-  color: #fff;
-  background: transparent;
-  border: 0;
-  outline: 0;
-}
-
-
-
-.command-bar kbd {
-  min-width: 24px;
-  padding: 2px 7px;
-  color: #201f1d;
-  background: #f6f1e4;
-  border-radius: 5px;
-  text-align: center;
-}
-
-
-
 .topbar-actions {
   display: flex;
   align-items: center;

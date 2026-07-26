@@ -173,15 +173,29 @@ test('provides keyboard access to the main workspace', async ({ page }) => {
 test('supports keyboard selection and command focus', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Ready when you are.' })).toBeVisible();
+
+  // '/' opens the command palette; arrows + Enter run the highlighted result.
   await page.keyboard.press('/');
-  await expect(page.getByRole('textbox', { name: 'Command search' })).toBeFocused();
+  const paletteInput = page.getByRole('textbox', { name: 'Search commands' });
+  await expect(paletteInput).toBeFocused();
+  await paletteInput.fill('teams');
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/\/teambuilder/);
   await page.keyboard.press('Escape');
+
+  // Palette can also select a format: lands on matchmaking with it applied.
+  await page.keyboard.press('/');
+  await paletteInput.fill('random battle');
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL('/');
+  await expect(page.getByRole('button', { name: 'Select battle format' })).toContainText('Random Battle');
+
   await page.getByRole('button', { name: 'Select battle format' }).focus();
   await page.keyboard.press('Enter');
-  await page.keyboard.type('random');
+  await page.keyboard.type('ou');
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('button', { name: 'Select battle format' })).toContainText('Random Battle');
+  await expect(page.getByRole('button', { name: 'Select battle format' })).toContainText('[Gen 9] OU');
 });
 
 test('replay lab projects protocol events onto the shared battle field', async ({ page }) => {

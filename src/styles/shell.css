@@ -182,33 +182,147 @@ textarea:focus-visible,
   letter-spacing: 0.06em;
 }
 
-.command-bar {
-  min-height: 38px;
-  height: 38px;
-  background: #151a23;
-  border: 1px solid rgba(226, 232, 240, 0.1);
+.command-trigger {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  justify-self: center;
+  min-height: 34px;
+  padding: 0 6px 0 12px;
+  inline-size: min(100%, 420px);
+  color: var(--arena-faint);
+  font-size: 12.5px;
+  background: var(--arena-ink-2);
+  border: 1px solid var(--arena-line);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color var(--arena-fast) ease, background var(--arena-fast) ease;
+}
+
+.command-trigger:hover {
+  color: var(--arena-soft);
+  background: var(--arena-panel);
+  border-color: var(--arena-line-strong);
+}
+
+.command-trigger span { flex: 1; text-align: start; }
+
+.command-trigger kbd {
+  padding: 2px 6px;
+  color: var(--arena-faint);
+  font-family: var(--font-ui);
+  font-size: 10.5px;
+  background: var(--arena-ink);
+  border: 1px solid var(--arena-line);
+  border-radius: 5px;
+}
+
+.command-palette {
+  position: fixed;
+  top: 12vh;
+  left: 50%;
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  inline-size: min(560px, calc(100vw - 32px));
+  max-block-size: min(460px, 70vh);
+  overflow: hidden;
+  background: var(--arena-panel);
+  border: 1px solid var(--arena-line-strong);
+  border-radius: 12px;
+  box-shadow: var(--arena-shadow);
+  transform: translateX(-50%);
+}
+
+.palette-input {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 12px 14px;
+  color: var(--arena-faint);
+  border-bottom: 1px solid var(--arena-line);
+}
+
+.palette-input input {
+  flex: 1;
+  min-inline-size: 0;
+  color: var(--arena-text);
+  font-size: 14px;
+  background: none;
+  border: none;
+  outline: none;
+}
+
+.palette-input input::placeholder { color: var(--arena-faint); }
+
+.palette-input kbd {
+  padding: 2px 6px;
+  font-family: var(--font-ui);
+  font-size: 10.5px;
+  background: var(--arena-ink);
+  border: 1px solid var(--arena-line);
+  border-radius: 5px;
+}
+
+.palette-results {
+  flex: 1;
+  min-block-size: 0;
+  padding: 6px;
+  overflow-y: auto;
+}
+
+.palette-group-label {
+  display: block;
+  padding: 8px 10px 4px;
+  color: var(--arena-faint);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.palette-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  inline-size: 100%;
+  padding: 8px 10px;
+  color: var(--arena-soft);
+  font-size: 13px;
+  text-align: start;
+  background: none;
+  border: none;
   border-radius: 7px;
-  box-shadow: none;
+  cursor: pointer;
 }
 
-.command-bar:focus-within {
-  background: #181f29;
-  border-color: rgba(91, 156, 255, 0.56);
-  box-shadow: 0 0 0 3px rgba(91, 156, 255, 0.08);
+.palette-row svg { color: var(--arena-faint); flex: none; }
+
+.palette-row-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.command-bar input {
-  color: #e9eef5;
-}
-
-.command-bar input::placeholder {
+.palette-row small {
   color: var(--arena-faint);
+  font-size: 11px;
+  text-transform: capitalize;
 }
 
-.command-bar kbd {
+.palette-row.is-highlighted {
+  color: var(--arena-text);
+  background: rgb(91 156 255 / 14%);
+}
+
+.palette-row.is-highlighted svg { color: var(--arena-accent); }
+
+.palette-empty {
+  padding: 22px 12px;
   color: var(--arena-faint);
-  background: #0d1117;
-  border-color: rgba(255, 255, 255, 0.09);
+  font-size: 13px;
+  text-align: center;
 }
 
 .topbar-actions {
@@ -262,11 +376,24 @@ textarea:focus-visible,
 }
 
 .popover-heading {
-  padding: 2px 4px 7px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 2px 7px 8px;
 }
 
 .popover-heading strong {
-  font-size: 12px;
+  font-size: 13px;
+}
+
+/* Compact close — the generic icon-button floor is a touch affordance and
+   overwhelms a 330px popover. */
+.popover-heading .icon-button {
+  width: 26px;
+  min-height: 26px;
+  height: 26px;
+  border-color: transparent;
+  background: transparent;
 }
 
 .notification-row {
@@ -434,27 +561,38 @@ textarea:focus-visible,
 
 .session-tabs {
   display: flex;
-  gap: 6px;
-  align-items: center;
+  gap: 2px;
+  align-items: stretch;
   overflow-x: auto;
-  padding: 6px 14px 0;
-  scrollbar-width: thin;
+  padding: 4px 10px 0;
+  border-bottom: 1px solid var(--arena-line);
+  scrollbar-width: none;
 }
 
+/* Browser-style tabs: quiet until hovered, the active one carries the
+   accent underline. No per-tab borders — the strip's baseline is the frame. */
 .session-tab {
+  position: relative;
   display: inline-flex;
   flex: none;
   align-items: center;
   max-inline-size: 240px;
-  background: var(--arena-panel);
-  border: 1px solid var(--arena-line);
   border-radius: var(--arena-radius) var(--arena-radius) 0 0;
-  border-block-end: none;
+  transition: background var(--arena-fast) ease;
 }
 
-.session-tab.is-active {
-  background: var(--arena-panel-strong);
-  border-color: var(--arena-line-strong);
+.session-tab:hover { background: var(--arena-panel); }
+
+.session-tab.is-active { background: var(--arena-panel-strong); }
+
+.session-tab.is-active::after {
+  content: "";
+  position: absolute;
+  inset-block-end: 0;
+  inset-inline: 8px;
+  block-size: 2px;
+  background: var(--arena-accent);
+  border-radius: 2px 2px 0 0;
 }
 
 .session-tab.is-searching {
@@ -510,11 +648,23 @@ textarea:focus-visible,
 .session-tab-close {
   display: inline-flex;
   align-items: center;
-  padding: 7px 8px;
+  align-self: center;
+  margin-inline-end: 6px;
+  padding: 3px;
   color: var(--arena-faint);
   background: none;
   border: none;
+  border-radius: 4px;
   cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--arena-fast) ease;
 }
 
-.session-tab-close:hover { color: var(--arena-red-text); }
+.session-tab:hover .session-tab-close,
+.session-tab.is-active .session-tab-close,
+.session-tab-close:focus-visible { opacity: 1; }
+
+.session-tab-close:hover {
+  color: var(--arena-text);
+  background: rgb(255 255 255 / 10%);
+}
