@@ -53,6 +53,7 @@ export default defineConfig({
   },
   define: {
     __APP_ENV__: JSON.stringify(process.env.VITE_VERCEL_ENV || process.env.NODE_ENV || 'development'),
+    __APP_VERSION__: JSON.stringify(`v${process.env.npm_package_version || '1.0.0'}`),
   },
   test: {
     environment: 'jsdom',

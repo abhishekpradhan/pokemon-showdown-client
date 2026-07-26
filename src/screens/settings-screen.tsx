@@ -1,11 +1,11 @@
 import * as Switch from '@radix-ui/react-switch';
 import {
   Bell,
-  CircleGauge,
   ExternalLink,
   FileCode2,
   Monitor,
   Moon,
+  Paintbrush,
   RadioTower,
   RefreshCw,
   Server,
@@ -17,6 +17,11 @@ import { getDefaultServerConfig } from '../compat/protocol-client';
 import { useArenaStore } from '../stores/arena-store';
 import { useWorkspaceStore } from '../stores/workspace-store';
 
+/**
+ * Settings: one narrow column, one section per intent, one row anatomy.
+ * The protocol log renders only while diagnostics is on — wire frames are
+ * not furniture.
+ */
 export function SettingsScreen() {
   const {
     connect, connection, disconnect, lastError, protocolLogEnabled, rawProtocolLog,
@@ -32,121 +37,120 @@ export function SettingsScreen() {
   );
   const [serverInput, setServerInput] = useState('');
   const isDefaultServer = server.host === getDefaultServerConfig().host;
-  const {
-    notificationsEnabled,
-    setNotificationsEnabled,
-    setTheme,
-    theme,
-  } = useWorkspaceStore();
+  const { notificationsEnabled, setNotificationsEnabled, setTheme, theme } = useWorkspaceStore();
 
   return (
-    <section className="utility-workspace settings-workspace" aria-label="Settings">
-      <div className="workspace-stage settings-stage">
-        <header className="stage-heading">
+    <section className="settings-page" aria-label="Settings">
+      <header className="settings-heading">
+        <h1>Settings</h1>
+        <p>Stored in this browser. Nothing leaves your machine except what you send to the battle server.</p>
+      </header>
+
+      <section className="settings-section" aria-labelledby="appearance-settings">
+        <h2 id="appearance-settings"><Paintbrush size={15} aria-hidden /> Appearance</h2>
+        <div className="setting-row">
+          <span><strong>Theme</strong><small>Match the system, or pin light or dark.</small></span>
+          <div className="setting-segmented" aria-label="Theme">
+            <button type="button" className={theme === 'light' ? 'is-active' : ''} onClick={() => setTheme('light')}>
+              <Sun size={13} aria-hidden /> Light
+            </button>
+            <button type="button" className={theme === 'dark' ? 'is-active' : ''} onClick={() => setTheme('dark')}>
+              <Moon size={13} aria-hidden /> Dark
+            </button>
+            <button type="button" className={theme === 'system' ? 'is-active' : ''} onClick={() => setTheme('system')}>
+              <Monitor size={13} aria-hidden /> System
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section className="settings-section" aria-labelledby="notification-settings">
+        <h2 id="notification-settings"><Bell size={15} aria-hidden /> Notifications</h2>
+        <div className="setting-row">
+          <span><strong>Activity notifications</strong><small>Track battle sessions, challenges, and private messages.</small></span>
+          <Switch.Root
+            className="switch-root"
+            checked={notificationsEnabled}
+            onCheckedChange={setNotificationsEnabled}
+            aria-label="Activity notifications"
+          >
+            <Switch.Thumb className="switch-thumb" />
+          </Switch.Root>
+        </div>
+      </section>
+
+      <section className="settings-section" aria-labelledby="connection-settings">
+        <h2 id="connection-settings"><RadioTower size={15} aria-hidden /> Connection</h2>
+        <div className="setting-row">
           <span>
-            <small>Client preferences</small>
-            <h1>Settings</h1>
+            <strong className="server-name">
+              <i className={`server-state is-${connection}`} aria-hidden />
+              {server.id}
+            </strong>
+            <small>{server.host}:{server.port}{server.prefix} · {connection}</small>
           </span>
-        </header>
-
-        <section className="settings-section" aria-labelledby="appearance-settings">
-          <div className="settings-section-heading">
-            <span><CircleGauge size={16} aria-hidden /><strong id="appearance-settings">Workspace</strong></span>
-            <small>Saved in this browser</small>
-          </div>
-          <div className="setting-row">
-            <span className="setting-icon"><Sun size={16} aria-hidden /></span>
-            <span><strong>Theme</strong><small>Match the system, or pin light or dark.</small></span>
-            <div className="setting-segmented" aria-label="Theme">
-              <button type="button" className={theme === 'light' ? 'is-active' : ''} onClick={() => setTheme('light')}>
-                <Sun size={13} aria-hidden /> Light
-              </button>
-              <button type="button" className={theme === 'dark' ? 'is-active' : ''} onClick={() => setTheme('dark')}>
-                <Moon size={13} aria-hidden /> Dark
-              </button>
-              <button type="button" className={theme === 'system' ? 'is-active' : ''} onClick={() => setTheme('system')}>
-                <Monitor size={13} aria-hidden /> System
-              </button>
-            </div>
-          </div>
-          <div className="setting-row">
-            <span className="setting-icon"><Bell size={16} aria-hidden /></span>
-            <span><strong>Activity notifications</strong><small>Track battle sessions, challenges, and private messages.</small></span>
-            <Switch.Root
-              className="switch-root"
-              checked={notificationsEnabled}
-              onCheckedChange={setNotificationsEnabled}
-              aria-label="Activity notifications"
-            >
-              <Switch.Thumb className="switch-thumb" />
-            </Switch.Root>
-          </div>
-        </section>
-
-        <section className="settings-section" aria-labelledby="connection-settings">
-          <div className="settings-section-heading">
-            <span><RadioTower size={16} aria-hidden /><strong id="connection-settings">Connection</strong></span>
-            <small>{connection}</small>
-          </div>
-          <div className="setting-row">
-            <span className={`server-state is-${connection}`} />
-            <span><strong>{server.id}</strong><small>{server.host}:{server.port}{server.prefix}</small></span>
+          <div className="setting-actions">
+            <button type="button" className="secondary-action" onClick={reconnect}>
+              <RefreshCw size={13} aria-hidden /> Reconnect
+            </button>
             <button type="button" className="secondary-action" onClick={() => connection === 'connected' ? disconnect() : connect()}>
               {connection === 'connected' ? 'Disconnect' : 'Connect'}
             </button>
           </div>
-          <form
-            className="setting-row server-form"
-            onSubmit={event => {
-              event.preventDefault();
-              if (setServer(serverInput)) setServerInput('');
-            }}
-          >
-            <span className="setting-icon"><Server size={16} aria-hidden /></span>
-            <span>
-              <strong>Custom server</strong>
-              <small>Connect to any PS-compatible server, e.g. <code>localhost:8000</code>.</small>
-              <input
-                aria-label="Server address"
-                placeholder={`${server.host}:${server.port}${server.prefix}`}
-                value={serverInput}
-                onChange={event => setServerInput(event.currentTarget.value)}
-              />
-            </span>
-            <span className="server-form-actions">
-              <button type="submit" className="secondary-action" disabled={!serverInput.trim()}>Use server</button>
-              {!isDefaultServer && (
-                <button type="button" className="secondary-action" onClick={resetServer}>Reset</button>
-              )}
-            </span>
-          </form>
-          <div className="setting-row">
-            <span className="setting-icon"><RefreshCw size={16} aria-hidden /></span>
-            <span><strong>Reconnect sessions</strong><small>Reconnect and rejoin rooms tracked by this workspace.</small></span>
-            <button type="button" className="secondary-action" onClick={reconnect}>Reconnect</button>
+        </div>
+        <form
+          className="setting-field"
+          onSubmit={event => {
+            event.preventDefault();
+            if (setServer(serverInput)) setServerInput('');
+          }}
+        >
+          <span><strong>Custom server</strong><small>Connect to any PS-compatible server, e.g. <code>localhost:8000</code>.</small></span>
+          <div className="setting-field-controls">
+            <span className="setting-field-icon" aria-hidden><Server size={14} /></span>
+            <input
+              aria-label="Server address"
+              placeholder={`${server.host}:${server.port}${server.prefix}`}
+              value={serverInput}
+              onChange={event => setServerInput(event.currentTarget.value)}
+            />
+            <button type="submit" className="secondary-action" disabled={!serverInput.trim()}>Use server</button>
+            {!isDefaultServer && (
+              <button type="button" className="secondary-action" onClick={resetServer}>Reset</button>
+            )}
           </div>
-          <div className="setting-row">
-            <span className="setting-icon"><FileCode2 size={16} aria-hidden /></span>
-            <span><strong>Protocol diagnostics</strong><small>Keep a redacted local log for troubleshooting.</small></span>
-            <Switch.Root
-              className="switch-root"
-              checked={protocolLogEnabled}
-              onCheckedChange={toggleProtocolLog}
-              aria-label="Protocol diagnostics"
-            >
-              <Switch.Thumb className="switch-thumb" />
-            </Switch.Root>
-          </div>
-          {lastError && <p className="settings-error" role="alert">{lastError}</p>}
-        </section>
+        </form>
+        {lastError && <p className="settings-error" role="alert">{lastError}</p>}
+      </section>
 
-        <section className="settings-section source-section" aria-labelledby="source-settings">
-          <div className="settings-section-heading">
-            <span><FileCode2 size={16} aria-hidden /><strong id="source-settings">Source and license</strong></span>
-            <small>AGPL-3.0</small>
-          </div>
-          <p>This fork keeps its source and license visible for deployed copies.</p>
-          <div className="button-row">
+      <section className="settings-section" aria-labelledby="diagnostics-settings">
+        <h2 id="diagnostics-settings"><FileCode2 size={15} aria-hidden /> Diagnostics</h2>
+        <div className="setting-row">
+          <span><strong>Protocol log</strong><small>Keep a redacted local log of server traffic for troubleshooting.</small></span>
+          <Switch.Root
+            className="switch-root"
+            checked={protocolLogEnabled}
+            onCheckedChange={toggleProtocolLog}
+            aria-label="Protocol diagnostics"
+          >
+            <Switch.Thumb className="switch-thumb" />
+          </Switch.Root>
+        </div>
+        {protocolLogEnabled && (
+          <pre className="protocol-log" aria-label="Protocol log" role="region" tabIndex={0}>
+            {rawProtocolLog.slice(0, 80).join('\n') || 'No protocol messages yet.'}
+          </pre>
+        )}
+      </section>
+
+      <section className="settings-section" aria-labelledby="about-settings">
+        <h2 id="about-settings"><ExternalLink size={15} aria-hidden /> About</h2>
+        <div className="setting-row">
+          <span>
+            <strong>Showdown Arena {__APP_VERSION__}</strong>
+            <small>AGPL-3.0 · this fork keeps its source and license visible for deployed copies.</small>
+          </span>
+          <div className="setting-actions">
             <a className="secondary-action" href="https://github.com/abhishekpradhan/pokemon-showdown-client">
               Source code <ExternalLink size={13} aria-hidden />
             </a>
@@ -154,27 +158,8 @@ export function SettingsScreen() {
               License <ExternalLink size={13} aria-hidden />
             </a>
           </div>
-        </section>
-      </div>
-
-      <aside className="workspace-inspector diagnostics-inspector">
-        <header className="inspector-heading">
-          <span>
-            <small>Diagnostics</small>
-            <strong>Protocol activity</strong>
-          </span>
-          <em>{protocolLogEnabled ? 'Recording' : 'Off'}</em>
-        </header>
-        <dl className="inspector-facts">
-          <div><dt>State</dt><dd>{connection}</dd></div>
-          <div><dt>Host</dt><dd>{server.host}</dd></div>
-          <div><dt>Port</dt><dd>{server.port}</dd></div>
-          <div><dt>Path</dt><dd>{server.prefix}</dd></div>
-        </dl>
-        <pre className="protocol-log" aria-label="Protocol log" role="region" tabIndex={0}>
-          {protocolLogEnabled ? rawProtocolLog.slice(0, 80).join('\n') || 'No protocol messages yet.' : 'Enable protocol diagnostics to inspect redacted traffic.'}
-        </pre>
-      </aside>
+        </div>
+      </section>
     </section>
   );
 }

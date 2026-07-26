@@ -15,8 +15,7 @@
 }
 
 .ladder-workspace,
-.replay-workspace,
-.settings-workspace {
+.replay-workspace {
   grid-template-columns: minmax(0, 1fr) 292px;
 }
 
