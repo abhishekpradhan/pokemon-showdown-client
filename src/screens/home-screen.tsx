@@ -23,7 +23,7 @@ export function HomeScreen() {
   );
   const navigate = useNavigate();
   const [challengeTarget, setChallengeTarget] = useState('');
-  const liveBattles = roomList.rooms.slice(0, 8);
+  const liveBattles = roomList.rooms.slice(0, 12);
 
   useEffect(() => {
     if (connection === 'connected') refreshRoomList();
@@ -77,28 +77,26 @@ export function HomeScreen() {
 
   return (
     <section className="match-workspace" aria-label="Matchmaking">
-      <section className={`match-stage is-${searchState}`}>
-        <div className="match-stage-toolbar">
-          <span className={`live-label is-${connection}`}>
-            <Signal size={13} aria-hidden />
-            {connection === 'connected' ? 'Battle server live' : `Server ${connection}`}
-          </span>
-          <Link to="/rooms" className="stage-link">
-            Browse public rooms <ArrowUpRight size={13} aria-hidden />
-          </Link>
-        </div>
+      <div className="match-main">
+        <section className={`match-stage is-${searchState}`}>
+          <div className="match-stage-toolbar">
+            <span className={`live-label is-${connection}`}>
+              <Signal size={13} aria-hidden />
+              {connection === 'connected' ? 'Battle server live' : `Server ${connection}`}
+            </span>
+          </div>
 
-        <div className="match-stage-copy">
-          <span className="eyebrow">Matchmaking</span>
-          <h1>{searchState === 'searching' ? 'Looking for an opponent.' : 'Ready when you are.'}</h1>
-          <p>
-            {searchState === 'searching' ?
-              `${formats.find(format => format.id === searchFormats[0])?.name || selected?.name || 'Selected format'} is in the queue.` :
-              'Choose the ruleset and team for your next battle.'}
-          </p>
-        </div>
+          <div className="match-stage-copy">
+            <span className="eyebrow">Matchmaking</span>
+            <h1>{searchState === 'searching' ? 'Looking for an opponent.' : 'Ready when you are.'}</h1>
+            <p>
+              {searchState === 'searching' ?
+                `${formats.find(format => format.id === searchFormats[0])?.name || selected?.name || 'Selected format'} is in the queue.` :
+                'Choose the ruleset and team for your next battle.'}
+            </p>
+          </div>
 
-        <div className="match-control-deck">
+          <div className="match-control-deck">
           {searchState === 'idle' ? (
               <div className="match-control-grid" key="setup">
                 <label className="control-field">
@@ -131,14 +129,39 @@ export function HomeScreen() {
                 <button className="queue-cancel" type="button" onClick={cancelSearch}>Cancel</button>
               </div>
             )}
-          <div className="queue-line" data-state={searchState}><span /></div>
-        </div>
-      </section>
+            <div className="queue-line" data-state={searchState}><span /></div>
+          </div>
+        </section>
+
+        <section className="live-now" aria-label="Live battles">
+          <div className="live-now-heading">
+            <span>
+              <small>Spectate</small>
+              <h2>Live now</h2>
+            </span>
+            <Link to="/rooms" className="stage-link">
+              Browse rooms <ArrowUpRight size={13} aria-hidden />
+            </Link>
+          </div>
+          <div className="live-grid">
+            {liveBattles.map(room => (
+              <button type="button" className="live-card" key={room.id} onClick={() => watchBattle(room.id)}>
+                <small>{room.format || room.id.replace(/^battle-/, '').replace(/-\d+$/, '')}</small>
+                <strong>{room.p1 ? `${room.p1} vs ${room.p2 || '?'}` : room.title}</strong>
+                <span className="live-card-action"><Swords size={13} aria-hidden /> Watch</span>
+              </button>
+            ))}
+            {!liveBattles.length && (
+              <p className="pane-empty">{connection === 'connected' ? 'Loading live battles…' : 'Connect to browse battles.'}</p>
+            )}
+          </div>
+        </section>
+      </div>
 
       <aside className="match-inspector" aria-label="Queue readiness">
         <div className="inspector-heading">
           <span>
-            <small>Preflight</small>
+            <small>Session</small>
             <strong>Queue readiness</strong>
           </span>
           <em>{canSearch ? 'Ready' : `${blockers.length} blocked`}</em>
@@ -217,25 +240,6 @@ export function HomeScreen() {
           </>
         )}
 
-        <div className="inspector-section-heading">
-          <span>Live now</span>
-          <Link to="/rooms" className="inspector-section-link">Rooms <ArrowUpRight size={12} aria-hidden /></Link>
-        </div>
-        <div className="live-battle-list" aria-label="Live battles">
-          {liveBattles.map(room => (
-            <button type="button" className="live-battle-row" key={room.id} onClick={() => watchBattle(room.id)}>
-              <Swords size={14} aria-hidden />
-              <span>
-                <strong>{room.p1 ? `${room.p1} vs ${room.p2 || '?'}` : room.title}</strong>
-                <small>{room.format || room.id.replace(/^battle-/, '').replace(/-\d+$/, '')}</small>
-              </span>
-              <i>Watch</i>
-            </button>
-          ))}
-          {!liveBattles.length && (
-            <p className="pane-empty">{connection === 'connected' ? 'Loading live battles…' : 'Connect to browse battles.'}</p>
-          )}
-        </div>
 
         <div className="match-inspector-footer">
           <Timer size={14} aria-hidden />

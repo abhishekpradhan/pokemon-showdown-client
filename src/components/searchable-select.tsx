@@ -186,11 +186,11 @@ export function SearchableSelect({
                     onMouseEnter={() => enabledIndex >= 0 && setActiveIndex(enabledIndex)}
                     onClick={() => choose(option.value)}
                   >
-                    <span>
-                      <strong>{option.label}</strong>
-                      {option.description && <small>{option.description}</small>}
+                    <span className="select-option-gutter" aria-hidden>
+                      {option.value === value && <Check size={14} />}
                     </span>
-                    {option.value === value && <Check size={15} aria-hidden />}
+                    <strong className="select-option-label">{option.label}</strong>
+                    {option.description && <small className="select-option-meta">{option.description}</small>}
                   </button>
                   );
                 })}

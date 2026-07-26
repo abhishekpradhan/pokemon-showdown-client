@@ -7,13 +7,23 @@
   min-height: 0;
 }
 
+.match-main {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+}
+
 .match-stage {
   position: relative;
   display: flex;
+  flex: none;
   flex-direction: column;
+  gap: 14px;
   min-width: 0;
-  min-height: 0;
-  padding: clamp(18px, 3vw, 34px);
+  padding: clamp(16px, 2vw, 24px);
   overflow: hidden;
   /* No bitmap collage: a calm accent glow over the theme surface. Both
      themes get the same composition from their own tokens. */
@@ -96,11 +106,11 @@
 
 .match-stage-copy h1 {
   max-width: 580px;
-  margin: 8px 0 10px;
-  font-size: clamp(38px, 5vw, 66px);
-  font-weight: 720;
-  line-height: 0.98;
-  letter-spacing: -0.045em;
+  margin: 6px 0 6px;
+  font-size: clamp(24px, 2.6vw, 34px);
+  font-weight: 750;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
 }
 
 .match-stage-copy p {
@@ -522,5 +532,97 @@ a.inspector-section-link:hover { text-decoration: underline; }
   color: var(--arena-accent-text);
   font-size: 11.5px;
   font-style: normal;
+  font-weight: 650;
+}
+
+
+/* ── Live now (main content) ─────────────────────────────────────────────── */
+
+.live-now {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 10px;
+  min-block-size: 0;
+  padding: 16px;
+  background: var(--arena-ink-2);
+  border: 1px solid var(--arena-line);
+  border-radius: 10px;
+}
+
+.live-now-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+}
+
+.live-now-heading small {
+  display: block;
+  color: var(--arena-faint);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.live-now-heading h2 {
+  margin: 2px 0 0;
+  color: var(--arena-text);
+  font-size: 17px;
+  font-weight: 750;
+}
+
+.live-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 8px;
+  align-content: start;
+  overflow-y: auto;
+  min-block-size: 0;
+}
+
+.live-card {
+  display: grid;
+  gap: 4px;
+  padding: 11px 12px;
+  color: var(--arena-soft);
+  text-align: start;
+  background: var(--arena-panel);
+  border: 1px solid var(--arena-line);
+  border-radius: 9px;
+  cursor: pointer;
+  transition: border-color var(--arena-fast) ease, transform var(--arena-fast) ease;
+}
+
+.live-card:hover {
+  border-color: var(--arena-line-strong);
+  transform: translateY(-1px);
+}
+
+.live-card small {
+  overflow: hidden;
+  color: var(--arena-faint);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.live-card strong {
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.live-card-action {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  margin-top: 2px;
+  color: var(--arena-accent-text);
+  font-size: 11.5px;
   font-weight: 650;
 }

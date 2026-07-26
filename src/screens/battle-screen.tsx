@@ -1,4 +1,4 @@
-import { Link, useParams } from '@tanstack/react-router';
+import { useParams } from '@tanstack/react-router';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as Switch from '@radix-ui/react-switch';
 import {
@@ -19,6 +19,7 @@ import {
 import { type FormEvent, useEffect, useState } from 'react';
 import { buildMoveDeck } from '../compat/battle-adapter';
 import { BattleField } from '../components/battle-field';
+import { JoiningState } from '../components/joining-state';
 import { BattleTimerChip } from '../components/battle-timer';
 import { ChatFeed } from '../components/chat-feed';
 import { MoveControls } from '../components/move-controls';
@@ -52,12 +53,28 @@ export function BattleScreen() {
   }, [battleRoomId, connection, focusRoom, joinRoom, params.battleId]);
 
   if (!battle || (params.battleId === 'demo-gen9ou' && !demoFixturesEnabled)) {
+    // The stage frame renders immediately; only the field itself waits.
     return (
-      <section className="empty-state battle-loading" aria-label="Battle room unavailable">
-        <span className="eyebrow">Battle session</span>
-        <h1>{connection === 'connected' ? 'Joining battle room…' : 'Battle room unavailable'}</h1>
-        <p>{connection === 'connected' ? params.battleId : 'Reconnect or start a new matchmaking search.'}</p>
-        <Link to="/" className="primary-action">Return to matchmaking</Link>
+      <section className="battle-layout battle-console" aria-label={`Battle ${params.battleId}`}>
+        <div className="battle-stage">
+          <header className="battle-toolbar">
+            <div className="battle-room-title">
+              <span className="battle-state-dot" data-state="waiting" />
+              <span>
+                <strong>Joining battle</strong>
+                <small>{params.battleId}</small>
+              </span>
+            </div>
+          </header>
+          <JoiningState
+            title="Joining battle"
+            detail={params.battleId}
+            connected={connection === 'connected'}
+            backTo="/"
+            backLabel="Return to matchmaking"
+          />
+        </div>
+        <aside className="battle-side" aria-label="Battle inspector" />
       </section>
     );
   }

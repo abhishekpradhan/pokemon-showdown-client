@@ -13,11 +13,10 @@ export function FormatSelector({ value, onValueChange, formats }: {
       value: format.id,
       label: format.name,
       group: format.section || 'Formats',
-      description: [
-        format.searchShow ? 'Searchable' : 'Not searchable',
+      // One distinguishing fact per row — the repeated qualifier lists read
+      // as noise at a glance.
+      description: !format.searchShow ? 'Challenge only' :
         format.team === false ? 'Preset team' : 'Team required',
-        format.challengeShow && !format.searchShow ? 'Challenge only' : '',
-      ].filter(Boolean).join(' · '),
       meta: format.team === false ? 'Preset' : 'Team',
     }))}
     placeholder="Select format"

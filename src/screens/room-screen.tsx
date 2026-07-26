@@ -3,6 +3,7 @@ import { Hash, LogOut, MessageCircle, Send, Swords, Users } from 'lucide-react';
 import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { ChatFeed } from '../components/chat-feed';
+import { JoiningState } from '../components/joining-state';
 import { nextRouteAfterClose } from '../rooms/registry';
 import { useArenaStore } from '../stores/arena-store';
 
@@ -48,21 +49,30 @@ export function RoomScreen() {
     feedRef.current?.scrollTo({ top: feedRef.current.scrollHeight });
   }, [room?.chat.length]);
 
-  if (!room || !room.connected) {
+  if (room && !room.connected) {
     return (
       <section className="empty-state" aria-label="Room unavailable">
         <span className="eyebrow">Room session</span>
-        <h1>{room ? 'You left this room' : connection === 'connected' ? 'Joining room…' : 'Room unavailable'}</h1>
-        <p>{room ? room.title : connection === 'connected' ? params.roomId : 'Connect to the server to join rooms.'}</p>
+        <h1>You left this room</h1>
+        <p>{room.title}</p>
         <div className="button-row">
           <Link to="/rooms" className="primary-action">Browse rooms</Link>
-          {room && (
-            <button type="button" className="secondary-action" onClick={() => joinRoom(room.id)}>
-              Rejoin {room.title}
-            </button>
-          )}
+          <button type="button" className="secondary-action" onClick={() => joinRoom(room.id)}>
+            Rejoin {room.title}
+          </button>
         </div>
       </section>
+    );
+  }
+
+  if (!room) {
+    return (
+      <JoiningState
+        title={`Joining ${params.roomId}`}
+        connected={connection === 'connected'}
+        backTo="/rooms"
+        backLabel="Browse rooms"
+      />
     );
   }
 
