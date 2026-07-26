@@ -110,10 +110,12 @@ export function TeamWorkspace() {
                 ))}
               </span>
               <span>
-                <strong>{team.name}</strong>
+                <span className="team-library-name">
+                  <strong>{team.name}</strong>
+                  {team.id === activeTeamId && <i>Active</i>}
+                </span>
                 <small>{team.format} · {team.sets.length} Pokémon</small>
               </span>
-              {team.id === activeTeamId && <i>Active</i>}
             </button>
           ))}
           {!teams.length && <p className="pane-empty">No teams saved locally.</p>}

@@ -9,7 +9,7 @@
 .team-library-row {
   position: relative;
   display: grid;
-  grid-template-columns: 48px minmax(0, 1fr) auto;
+  grid-template-columns: 48px minmax(0, 1fr);
   align-items: center;
   gap: 8px;
   width: 100%;
@@ -76,11 +76,24 @@
   font-size: 12px;
 }
 
-.team-library-row > i {
-  align-self: center;
-  padding: 3px 8px;
+.team-library-name {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+}
+
+.team-library-name strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.team-library-name i {
+  flex: none;
+  padding: 2px 7px;
   color: var(--arena-accent-text);
-  font-size: 10.5px;
+  font-size: 10px;
   font-style: normal;
   font-weight: 700;
   letter-spacing: 0.04em;
