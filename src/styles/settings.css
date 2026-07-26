@@ -250,16 +250,8 @@ html[data-motion="reduced"] *::after {
     margin-inline: 11px;
   }
 
-  .set-workbench {
-    padding-inline: 11px;
-  }
-
-  .set-row {
-    grid-template-columns: 44px minmax(0, 1fr) 18px;
-  }
-
-  .set-moves {
-    display: none;
+  .set-card-grid {
+    grid-template-columns: 1fr;
   }
 
   .import-editor {

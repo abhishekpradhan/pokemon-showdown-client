@@ -150,6 +150,17 @@ green suite, and the live smoke test agreed, because it only checked that
 The lesson generalises: a mock encodes your assumptions, so it confirms your
 mistakes. When fixing a protocol bug, teach the mock to fail on it.
 
+## Theming
+
+Every surface colour flows from semantic tokens in `tokens.css`; the light
+theme is a token override block selected by `[data-theme]`, which app-root
+stamps from the Settings preference (light / dark / system, tracking the OS
+via matchMedia). Three slots exist per theme where one value cannot serve
+both: accent-as-text on tinted chips, text on accent-filled controls, and
+inverse chrome (tooltips, the skip link). The battle field stays scenery-dark
+in both themes by design. Hardcoded colours in stylesheets are a regression:
+the light-theme axe audit in `a11y.spec.ts` is what catches them.
+
 ## Known gaps
 
 - No sound. Field choreography is deliberately minimal: protocol-driven CSS

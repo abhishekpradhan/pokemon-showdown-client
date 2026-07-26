@@ -4,8 +4,7 @@ import { ConfirmDialog } from '../components/confirm-dialog';
 import { SearchableSelect } from '../components/searchable-select';
 import { SetEditor } from '../components/set-editor';
 import { StatusCallout } from '../components/status-callout';
-import { TeamBench } from '../components/team-bench';
-import { exportTeam, importTeam, teamSummary, validateTeamSets, type StoredTeam } from '../compat/team-store';
+import { exportTeam, importTeam, validateTeamSets, type StoredTeam } from '../compat/team-store';
 import { useShallow } from 'zustand/react/shallow';
 import { useArenaStore } from '../stores/arena-store';
 import { getAbility, getItem, getMove } from '../data/dex';
@@ -30,7 +29,6 @@ export function TeamWorkspace() {
   // validator remains the authority — these never block anything.
   const validation = useMemo(() => previewSets.length ? validateTeamSets(previewSets) : null, [previewSets]);
   const selectedSet = previewSets[selectedSetIndex] || previewSets[0];
-  const summary = editingTeam ? teamSummary(editingTeam) : undefined;
   const formatOptions = formats.map(format => ({
     value: format.id,
     label: format.name,
@@ -178,25 +176,27 @@ export function TeamWorkspace() {
           </label>
         </div>
 
-        {summary && <TeamBench team={summary.pokemon} />}
-
-        <div className="set-workbench" aria-label="Team sets">
+        <div className="set-card-grid" aria-label="Team sets">
           {previewSets.map((set, index) => (
             <button
               type="button"
-              className={`set-row ${index === selectedSetIndex ? 'is-active' : ''}`}
+              className={`set-card ${index === selectedSetIndex ? 'is-selected' : ''}`}
               key={`${set.species}-${index}`}
+              aria-pressed={index === selectedSetIndex}
               onClick={() => setSelectedSetIndex(index)}
             >
-              <img src={`https://play.pokemonshowdown.com/sprites/gen5/${set.species.toLowerCase().replace(/[^a-z0-9]/g, '')}.png`} alt="" />
-              <span>
-                <strong>{set.name || set.species}</strong>
-                <small>{displayItem(set.item)} · {displayAbility(set.ability)}</small>
+              <span className="set-card-heading">
+                <img src={`https://play.pokemonshowdown.com/sprites/gen5/${set.species.toLowerCase().replace(/[^a-z0-9]/g, '')}.png`} alt="" />
+                <span>
+                  <strong>{set.name || set.species}</strong>
+                  <small>{displayItem(set.item)} · {displayAbility(set.ability)}</small>
+                </span>
+                {index === selectedSetIndex && <Pencil size={14} aria-hidden />}
               </span>
-              <span className="set-moves">
+              <span className="set-card-moves">
                 {set.moves.slice(0, 4).map(move => <i key={move}>{displayMove(move)}</i>)}
+                {!set.moves.length && <i className="is-empty">No moves yet</i>}
               </span>
-              <Pencil size={14} aria-hidden />
             </button>
           ))}
           {!previewSets.length && (

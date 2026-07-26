@@ -27,7 +27,7 @@ const STAT_KEYS = ['hp', 'atk', 'def', 'spa', 'spd', 'spe'] as const;
 const STAT_LABELS: Record<(typeof STAT_KEYS)[number], string> = {
   hp: 'HP', atk: 'Atk', def: 'Def', spa: 'SpA', spd: 'SpD', spe: 'Spe',
 };
-const MAX_TOTAL_EVS = 508;
+const MAX_TOTAL_EVS = 510;
 
 export function SetEditor({ set, formatId, onChange, onRemove }: {
   set: TeamSet;
