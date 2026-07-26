@@ -17,6 +17,7 @@ html {
 
 
 body {
+  font-family: var(--font-ui);
   margin: 0;
   min-width: 320px;
   min-height: 100svh;
@@ -272,7 +273,7 @@ textarea:focus-visible,
   color: #fff;
   background: var(--arena-red);
   border-radius: 999px;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 
@@ -352,7 +353,7 @@ textarea:focus-visible,
 
 .select-trigger em {
   color: rgba(255, 255, 255, 0.72);
-  font-size: 11px;
+  font-size: 12px;
   font-style: normal;
 }
 
@@ -421,7 +422,7 @@ textarea:focus-visible,
 .select-section > span {
   padding: 6px 8px 2px;
   color: var(--arena-faint);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
   text-transform: uppercase;
 }
@@ -965,7 +966,7 @@ textarea:focus-visible,
   background: #9f2f2f;
   border-radius: 4px;
   font-style: normal;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 
@@ -1184,7 +1185,7 @@ textarea:focus-visible,
   color: #f7f4ec;
   background: #151618;
   border-radius: var(--arena-radius);
-  font-size: 11px;
+  font-size: 12px;
   white-space: pre-wrap;
 }
 

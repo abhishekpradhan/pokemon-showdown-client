@@ -70,6 +70,34 @@ test('search creates a mock battle room and sends exact battle choices', async (
   await expect.poll(async () => page.evaluate(() => (window as unknown as { __mockPsSent: string[] }).__mockPsSent.join('\n'))).toContain('|/search gen9ou');
 });
 
+test('leaving a room leaves for real and lands on the directory', async ({ page }) => {
+  await page.goto('/room/lobby');
+  await expect(page.getByRole('heading', { name: 'Lobby' })).toBeVisible();
+  await page.getByRole('button', { name: /Leave/ }).click();
+
+  await expect(page).toHaveURL(/\/rooms/);
+  await expect(page.locator('.session-tab')).toHaveCount(0);
+  const sent = await page.evaluate(() => (window as unknown as { __mockPsSent: string[] }).__mockPsSent.join('\n'));
+  expect(sent).toContain('lobby|/leave');
+  // The old bug: the room surface auto-rejoined the moment you left.
+  expect(sent).not.toContain('|/join lobby');
+});
+
+test('closing the active tab moves to the neighbouring tab', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: /Unnamed guest/i }).click();
+  await page.getByRole('textbox', { name: 'Username' }).fill('CodexTester');
+  await page.getByRole('button', { name: /Choose name/i }).click();
+  await page.getByRole('button', { name: /find battle/i }).click();
+  await expect(page).toHaveURL(/\/battle\/battle-gen9ou-1/);
+
+  // Lobby (joined at connect) and the battle are both open; closing the
+  // active battle should land on the lobby tab, not dump to matchmaking.
+  await page.getByRole('button', { name: 'Close CodexTester v MockRival' }).click();
+  await expect(page).toHaveURL(/\/room\/lobby/);
+  await expect(page.getByRole('heading', { name: 'Lobby' })).toBeVisible();
+});
+
 test('teambuilder imports selects duplicates and deletes teams', async ({ page }) => {
   await page.goto('/teambuilder');
   await page.getByRole('button', { name: 'New team' }).first().click();

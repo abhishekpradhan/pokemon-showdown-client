@@ -13,7 +13,7 @@
   max-width: 54%;
   overflow: hidden;
   color: var(--arena-faint);
-  font-size: 9px;
+  font-size: 10.5px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -42,7 +42,7 @@
 
 .replay-empty strong {
   color: #bcc6d2;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .replay-transport {
@@ -84,7 +84,7 @@
 
 .replay-transport > span {
   color: var(--arena-faint);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .replay-inspector {
@@ -118,7 +118,7 @@
   justify-content: space-between;
   padding: 11px 14px 7px;
   color: var(--arena-faint);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 750;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -172,11 +172,11 @@
 
 .replay-event-list span {
   color: #6f9fe6;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .replay-event-list strong {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
   line-height: 1.4;
 }

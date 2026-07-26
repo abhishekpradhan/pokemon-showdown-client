@@ -24,13 +24,13 @@
 
 .ladder-summary strong {
   color: #dce4ed;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .ladder-summary p {
   margin: 0;
   color: var(--arena-faint);
-  font-size: 9px;
+  font-size: 10.5px;
 }
 
 .ladder-table {
@@ -61,7 +61,7 @@
   z-index: 1;
   padding: 10px 12px;
   color: var(--arena-muted);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-align: end;

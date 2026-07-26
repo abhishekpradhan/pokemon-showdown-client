@@ -1,8 +1,9 @@
-import { Link, useParams } from '@tanstack/react-router';
+import { Link, useNavigate, useParams } from '@tanstack/react-router';
 import { Hash, LogOut, MessageCircle, Send, Swords, Users } from 'lucide-react';
 import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { ChatFeed } from '../components/chat-feed';
+import { nextRouteAfterClose } from '../rooms/registry';
 import { useArenaStore } from '../stores/arena-store';
 
 /**
@@ -11,6 +12,7 @@ import { useArenaStore } from '../stores/arena-store';
  */
 export function RoomScreen() {
   const params = useParams({ from: '/room/$roomId' });
+  const navigate = useNavigate();
   const { connection, focusRoom, formats, joinRoom, leaveRoom, rooms, selectedFormat, sendChallenge, sendRoomMessage, username } = useArenaStore(
     useShallow(state => ({
       connection: state.connection,
@@ -30,26 +32,36 @@ export function RoomScreen() {
   const feedRef = useRef<HTMLDivElement>(null);
 
   const roomId = room?.id;
+  const roomConnected = !!room?.connected;
   useEffect(() => {
-    if (roomId) {
+    if (roomId && roomConnected) {
       focusRoom(roomId);
       return;
     }
-    // PMs are local constructs; only server rooms can be joined.
-    if (!params.roomId.startsWith('pm-') && connection === 'connected') joinRoom(params.roomId);
-  }, [connection, focusRoom, joinRoom, params.roomId, roomId]);
+    // Join only rooms we have no record of. A room that exists with
+    // connected=false was left on purpose — rejoining it here would make
+    // Leave a no-op (the trap this guard exists for).
+    if (!roomId && !params.roomId.startsWith('pm-') && connection === 'connected') joinRoom(params.roomId);
+  }, [connection, focusRoom, joinRoom, params.roomId, roomId, roomConnected]);
 
   useEffect(() => {
     feedRef.current?.scrollTo({ top: feedRef.current.scrollHeight });
   }, [room?.chat.length]);
 
-  if (!room) {
+  if (!room || !room.connected) {
     return (
       <section className="empty-state" aria-label="Room unavailable">
         <span className="eyebrow">Room session</span>
-        <h1>{connection === 'connected' ? 'Joining room…' : 'Room unavailable'}</h1>
-        <p>{connection === 'connected' ? params.roomId : 'Connect to the server to join rooms.'}</p>
-        <Link to="/rooms" className="primary-action">Browse rooms</Link>
+        <h1>{room ? 'You left this room' : connection === 'connected' ? 'Joining room…' : 'Room unavailable'}</h1>
+        <p>{room ? room.title : connection === 'connected' ? params.roomId : 'Connect to the server to join rooms.'}</p>
+        <div className="button-row">
+          <Link to="/rooms" className="primary-action">Browse rooms</Link>
+          {room && (
+            <button type="button" className="secondary-action" onClick={() => joinRoom(room.id)}>
+              Rejoin {room.title}
+            </button>
+          )}
+        </div>
       </section>
     );
   }
@@ -88,7 +100,15 @@ export function RoomScreen() {
           {room.type !== 'pm' && room.users.length > 0 && (
             <span className="room-user-count"><Users size={14} aria-hidden /> {room.users.length.toLocaleString()}</span>
           )}
-          <button type="button" className="secondary-action" onClick={() => leaveRoom(room.id)}>
+          <button
+            type="button"
+            className="secondary-action"
+            onClick={() => {
+              const next = nextRouteAfterClose(rooms, room.id);
+              leaveRoom(room.id);
+              void navigate({ to: next });
+            }}
+          >
             <LogOut size={14} aria-hidden /> Leave
           </button>
         </div>

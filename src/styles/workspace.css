@@ -61,7 +61,7 @@
 .pane-heading small,
 .stage-heading small {
   color: var(--arena-faint);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 770;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -128,7 +128,7 @@
 .stage-heading .primary-action {
   min-height: 34px;
   padding: 0 12px;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 /* Colour comes from the token-driven rule in base.css; redefining it here
@@ -162,7 +162,7 @@
   padding: 12px;
   margin: 0;
   color: var(--arena-faint);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.5;
 }
 

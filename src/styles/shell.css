@@ -73,7 +73,7 @@ textarea:focus-visible,
 }
 
 .primary-nav-link span {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 650;
   line-height: 1;
 }
@@ -177,7 +177,7 @@ textarea:focus-visible,
 .workspace-context small {
   margin-top: 2px;
   color: var(--arena-faint);
-  font-size: 9px;
+  font-size: 10.5px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
@@ -228,7 +228,7 @@ textarea:focus-visible,
 .user-trigger {
   gap: 5px;
   padding-inline: 8px;
-  font-size: 11px;
+  font-size: 12px;
   white-space: nowrap;
 }
 
@@ -286,14 +286,14 @@ textarea:focus-visible,
 }
 
 .notification-row strong {
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .notification-row small,
 .popover-empty {
   margin-top: 3px;
   color: var(--arena-faint);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .popover-empty {
@@ -500,7 +500,7 @@ textarea:focus-visible,
 .session-tab-unread {
   padding: 1px 6px;
   color: #08121f;
-  font-size: 10px;
+  font-size: 12px;
   font-style: normal;
   font-weight: 800;
   background: var(--arena-accent);

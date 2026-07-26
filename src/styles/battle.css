@@ -52,7 +52,7 @@
 }
 
 .battle-room-title strong {
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .battle-room-title strong i {
@@ -64,7 +64,7 @@
 .battle-room-title small {
   margin-top: 2px;
   color: var(--arena-faint);
-  font-size: 9px;
+  font-size: 10.5px;
 }
 
 .battle-state-dot {
@@ -98,7 +98,7 @@
   color: #8b96a5;
   background: rgba(255, 255, 255, 0.04);
   border-radius: 4px;
-  font-size: 9px;
+  font-size: 10.5px;
   text-transform: capitalize;
 }
 
@@ -202,7 +202,7 @@
 
 .field-player i {
   color: var(--arena-muted);
-  font-size: 11px;
+  font-size: 12px;
   font-style: normal;
   font-variant-numeric: tabular-nums;
 }
@@ -210,7 +210,7 @@
 .field-turn {
   padding: 4px 12px;
   color: var(--arena-text);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -311,11 +311,11 @@
 
 .nameplate-level {
   color: var(--arena-muted);
-  font-size: 11px;
+  font-size: 12px;
   font-variant-numeric: tabular-nums;
 }
 
-.nameplate-gender { font-size: 11px; }
+.nameplate-gender { font-size: 12px; }
 .nameplate-gender.is-M { color: #6fb2ff; }
 .nameplate-gender.is-F { color: #ff8fc0; }
 
@@ -329,7 +329,7 @@
 .status-chip,
 .tera-badge {
   padding: 2px 7px;
-  font-size: 9px;
+  font-size: 10.5px;
   font-weight: 800;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -383,7 +383,7 @@
 .hp-readout {
   min-inline-size: 52px;
   color: var(--arena-soft);
-  font-size: 11px;
+  font-size: 12px;
   font-variant-numeric: tabular-nums;
   font-weight: 650;
   text-align: end;
@@ -405,7 +405,7 @@
 .field-effects span {
   padding: 3px 9px;
   color: var(--arena-text);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -435,7 +435,7 @@
 
 .decision-heading .eyebrow {
   color: var(--arena-faint);
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.08em;
 }
 
@@ -448,7 +448,7 @@
 .decision-note,
 .decision-error {
   margin: 3px 0 0;
-  font-size: 9px;
+  font-size: 10.5px;
 }
 
 .decision-note {
@@ -464,7 +464,7 @@
   color: #8fbcff;
   background: rgba(91, 156, 255, 0.1);
   border-radius: 4px;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 760;
   text-transform: uppercase;
 }
@@ -508,7 +508,7 @@
   min-block-size: 30px;
   padding: 0 12px;
   color: #cfe0ff;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 750;
   background: rgb(91 156 255 / 12%);
   border: 1px solid rgb(91 156 255 / 32%);
@@ -528,7 +528,7 @@
 
 .gimmick-hint {
   color: var(--arena-accent);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 650;
 }
 
@@ -598,7 +598,7 @@
 .move-effect {
   flex: none;
   padding: 1px 6px;
-  font-size: 10px;
+  font-size: 12px;
   font-style: normal;
   font-weight: 800;
   border-radius: 999px;
@@ -612,7 +612,7 @@
   justify-self: start;
   padding: 2px 8px;
   color: var(--type-ink);
-  font-size: 9px;
+  font-size: 10.5px;
   font-weight: 800;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -622,13 +622,13 @@
 
 .move-meta {
   color: var(--arena-muted);
-  font-size: 11px;
+  font-size: 12px;
   font-variant-numeric: tabular-nums;
 }
 
 .move-pp {
   color: var(--arena-faint);
-  font-size: 11px;
+  font-size: 12px;
   font-variant-numeric: tabular-nums;
 }
 
@@ -693,7 +693,7 @@
 
 .bench-body strong {
   overflow: hidden;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 650;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -723,7 +723,7 @@
   justify-self: start;
   padding: 1px 5px;
   color: #0d1015;
-  font-size: 10px;
+  font-size: 12px;
   font-style: normal;
   font-weight: 800;
   background: var(--status-color);
@@ -744,7 +744,7 @@
   background: #191f28;
   border: 1px dashed rgba(255, 255, 255, 0.1);
   border-radius: 6px;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .waiting-pulse {
@@ -770,12 +770,12 @@
   text-align: start;
   background: #1c2634;
   border-color: rgba(91, 156, 255, 0.22);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .target-button span { display: grid; line-height: 1.25; }
 .target-button strong { font-size: 12px; }
-.target-button small { color: var(--arena-faint); font-size: 10px; }
+.target-button small { color: var(--arena-faint); font-size: 12px; }
 
 .target-button[data-side='foe'] { border-color: rgba(255, 107, 107, 0.35); }
 .target-button[data-side='foe'] svg { color: #ff8b8b; }
@@ -811,7 +811,7 @@
   border: 0;
   border-radius: 5px;
   cursor: pointer;
-  font-size: 9px;
+  font-size: 10.5px;
   font-weight: 700;
 }
 
@@ -846,12 +846,12 @@
 
 .battle-log-panel .panel-heading span {
   color: var(--arena-faint);
-  font-size: 9px;
+  font-size: 10.5px;
 }
 
 .battle-log-panel .panel-heading strong {
   color: #70a7fa;
-  font-size: 9px;
+  font-size: 10.5px;
 }
 
 .battle-log-list {
@@ -869,7 +869,7 @@
   border: 0;
   border-top: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 0;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.4;
 }
 
@@ -890,12 +890,12 @@
   padding: 8px 2px;
   margin: 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .battle-chat-panel .chat-feed strong {
   color: #83aff2;
-  font-size: 9px;
+  font-size: 10.5px;
 }
 
 .battle-chat-panel .chat-feed span,
@@ -929,7 +929,7 @@
   gap: 10px;
   padding: 10px 2px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.055);
-  font-size: 9px;
+  font-size: 10.5px;
 }
 
 .battle-facts dt {
@@ -955,7 +955,7 @@
 .battle-info-panel .switch-row small {
   margin-top: 3px;
   color: var(--arena-faint);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .battle-inspector-actions {
@@ -982,7 +982,7 @@
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 5px;
   cursor: pointer;
-  font-size: 9px;
+  font-size: 10.5px;
   font-weight: 700;
 }
 
@@ -1216,7 +1216,7 @@
 
 .boost-chip {
   padding: 2px 6px;
-  font-size: 9px;
+  font-size: 10.5px;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.03em;
@@ -1236,7 +1236,7 @@
 .volatile-chip {
   padding: 2px 7px;
   color: var(--arena-soft);
-  font-size: 9px;
+  font-size: 10.5px;
   font-weight: 700;
   background: rgb(255 255 255 / 12%);
   border: 1px solid rgb(255 255 255 / 16%);
@@ -1271,7 +1271,7 @@
   align-items: center;
   padding: 3px 8px;
   color: #ffd9a8;
-  font-size: 9px;
+  font-size: 10.5px;
   font-weight: 700;
   letter-spacing: 0.03em;
   text-transform: uppercase;
@@ -1294,7 +1294,7 @@
   align-items: center;
   padding: 3px 9px;
   color: var(--arena-soft);
-  font-size: 11px;
+  font-size: 12px;
   font-variant-numeric: tabular-nums;
   font-weight: 750;
   background: rgb(255 255 255 / 7%);

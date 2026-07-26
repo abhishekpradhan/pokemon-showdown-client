@@ -87,7 +87,7 @@
 
 .account-form label > span {
   color: var(--arena-muted);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 650;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -120,6 +120,6 @@
 .account-hint {
   margin: 0;
   color: var(--arena-muted);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.5;
 }

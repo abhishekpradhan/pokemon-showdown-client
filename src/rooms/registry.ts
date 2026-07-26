@@ -102,3 +102,22 @@ export const battleRooms = (rooms: Record<string, Room>): BattleRoom[] =>
 
 export const openRooms = (rooms: Record<string, Room>): Room[] =>
   Object.values(rooms).filter(room => room.connected);
+
+export const routeForRoom = (room: Room): string =>
+  room.type === 'battle' ? `/battle/${room.id}` : `/room/${room.id}`;
+
+/**
+ * Where the app should land after closing a room: the neighbouring tab if any
+ * (the one before it, else the one after), otherwise the surface the room
+ * came from — battles back to matchmaking, chat and PMs to the directory.
+ */
+export const nextRouteAfterClose = (rooms: Record<string, Room>, closingId: string): string => {
+  const open = openRooms(rooms).filter(room => room.id !== 'lobby-preview');
+  const index = open.findIndex(room => room.id === closingId);
+  const siblings = open.filter(room => room.id !== closingId);
+  if (siblings.length) {
+    const neighbour = index > 0 ? open[index - 1] : siblings[0];
+    return routeForRoom(neighbour);
+  }
+  return rooms[closingId]?.type === 'battle' ? '/' : '/rooms';
+};

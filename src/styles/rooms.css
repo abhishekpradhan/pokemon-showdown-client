@@ -19,13 +19,13 @@
   background: transparent;
   border: 0;
   outline: 0;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .directory-section-label {
   padding: 14px 11px 5px;
   color: var(--arena-faint);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 760;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -80,19 +80,19 @@
 }
 
 .directory-row strong {
-  font-size: 9px;
+  font-size: 10.5px;
 }
 
 .directory-row small {
   margin-top: 3px;
   color: var(--arena-faint);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .directory-row i {
   color: #729ee0;
   font-style: normal;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .room-stage {
@@ -104,7 +104,7 @@
 .room-stage-heading .secondary-action {
   min-height: 32px;
   padding: 0 9px;
-  font-size: 9px;
+  font-size: 10.5px;
 }
 
 .room-transcript {
@@ -131,7 +131,7 @@
   color: #b8d4ff;
   background: rgba(91, 156, 255, 0.12);
   border-radius: 6px;
-  font-size: 9px;
+  font-size: 10.5px;
   font-weight: 780;
 }
 
@@ -141,20 +141,20 @@
 
 .room-message strong {
   color: #b7c8df;
-  font-size: 9px;
+  font-size: 10.5px;
 }
 
 .room-message p {
   margin: 3px 0 0;
   color: #aab5c2;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
 
 .room-message time {
   color: var(--arena-faint);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .room-message.is-error p {
@@ -172,12 +172,12 @@
 .transcript-empty strong {
   margin-top: 10px;
   color: #aeb8c5;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .transcript-empty span {
   margin-top: 4px;
-  font-size: 9px;
+  font-size: 10.5px;
 }
 
 .room-composer {
@@ -200,7 +200,7 @@
   background: transparent;
   border: 0;
   outline: 0;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .room-composer button {
@@ -243,7 +243,7 @@
 
 .member-row strong {
   overflow: hidden;
-  font-size: 9px;
+  font-size: 10.5px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -287,7 +287,7 @@
 
 .room-surface-title small {
   color: var(--arena-muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .room-surface-actions {
@@ -364,7 +364,7 @@
   flex: none;
   margin-inline-start: auto;
   color: var(--arena-faint);
-  font-size: 10px;
+  font-size: 12px;
   font-variant-numeric: tabular-nums;
 }
 
@@ -470,13 +470,13 @@
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   color: var(--arena-muted);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.4;
 }
 
 .directory-card i {
   color: var(--arena-faint);
-  font-size: 10px;
+  font-size: 12px;
   font-style: normal;
   font-variant-numeric: tabular-nums;
 }
@@ -512,7 +512,7 @@
 .challenge-row small,
 .notification-row.is-challenge small {
   color: var(--arena-muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .challenge-actions {
@@ -524,7 +524,7 @@
 .challenge-actions .secondary-action {
   min-block-size: 30px;
   padding: 0 10px;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 @media (max-width: 900px) {

@@ -30,12 +30,12 @@
 
 .settings-section-heading strong {
   color: #d9e1ea;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .settings-section-heading small {
   color: var(--arena-faint);
-  font-size: 10px;
+  font-size: 12px;
   text-transform: capitalize;
 }
 
@@ -69,19 +69,19 @@
 
 .setting-row strong {
   color: #ccd5df;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .setting-row small {
   margin-top: 3px;
   color: var(--arena-faint);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .setting-row .secondary-action {
   min-height: 31px;
   padding: 0 9px;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .setting-segmented {
@@ -98,7 +98,7 @@
   border: 0;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .setting-segmented button.is-active {
@@ -140,7 +140,7 @@
   color: #e8a1a1;
   background: rgba(240, 90, 90, 0.08);
   border-radius: 5px;
-  font-size: 9px;
+  font-size: 10.5px;
 }
 
 .source-section {
@@ -154,12 +154,12 @@
 
 .source-section > p {
   color: var(--arena-faint);
-  font-size: 9px;
+  font-size: 10.5px;
 }
 
 .source-section .secondary-action {
   min-height: 32px;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .diagnostics-inspector .protocol-log {
@@ -169,7 +169,7 @@
   color: var(--arena-faint);
   background: #0e1319;
   border-color: rgba(255, 255, 255, 0.07);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.55;
 }
 
@@ -331,7 +331,7 @@ html[data-motion="reduced"] *::after {
   min-block-size: var(--row-height);
   padding: 0 10px;
   color: var(--arena-text);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   background: var(--arena-ink-2);
   border: 1px solid var(--arena-line);
@@ -346,7 +346,7 @@ html[data-motion="reduced"] *::after {
 
 .server-form small code {
   padding: 1px 4px;
-  font-size: 11px;
+  font-size: 12px;
   background: rgb(255 255 255 / 7%);
   border-radius: 3px;
 }

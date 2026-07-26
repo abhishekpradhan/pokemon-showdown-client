@@ -2,6 +2,7 @@ import { Link, useLocation, useNavigate } from '@tanstack/react-router';
 import { clsx } from 'clsx';
 import { Hash, MessageCircle, Swords, X } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
+import { nextRouteAfterClose } from '../rooms/registry';
 import { useArenaStore } from '../stores/arena-store';
 
 /**
@@ -74,8 +75,9 @@ export function SessionTabs() {
               className="session-tab-close"
               aria-label={`Close ${title}`}
               onClick={() => {
+                const next = nextRouteAfterClose(rooms, room.id);
                 leaveRoom(room.id);
-                if (active) void navigate({ to: '/' });
+                if (active) void navigate({ to: next });
               }}
             >
               <X size={12} />
