@@ -1154,7 +1154,7 @@
     padding-inline: 8px 5px;
   }
 
-  .battle-toolbar-state {
+  .battle-toolbar-state .battle-timer-chip {
     display: none;
   }
 
