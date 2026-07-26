@@ -23,6 +23,9 @@ export function TeamWorkspace() {
   const [teamText, setTeamText] = useState(() => exportTeam(activeTeam));
   const [selectedSetIndex, setSelectedSetIndex] = useState(0);
   const [teamToDelete, setTeamToDelete] = useState<string | undefined>();
+  // The import box is secondary once a team has sets; it opens itself for
+  // an empty editor, where pasting is the primary action.
+  const [importOpen, setImportOpen] = useState(false);
   const editingTeam = teams.find(team => team.id === editingTeamId);
   const previewSets = useMemo(() => importTeam(teamText), [teamText]);
   // Soft legality feedback on whatever is being edited. The server's team
@@ -210,7 +213,11 @@ export function TeamWorkspace() {
           )}
         </div>
 
-        <details className="import-editor" open>
+        <details
+          className="import-editor"
+          open={importOpen || !previewSets.length}
+          onToggle={event => setImportOpen(event.currentTarget.open)}
+        >
           <summary>Import / export text</summary>
           <textarea
             aria-label="Team import text"

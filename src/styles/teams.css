@@ -221,9 +221,10 @@
 
 .set-card.is-selected {
   color: var(--arena-text);
-  background: var(--arena-panel-strong);
+  /* Opaque mix — a translucent tint blended with the stage behind the card
+     and pushed the sublabel under AA contrast. */
+  background: color-mix(in srgb, var(--arena-accent) 6%, var(--arena-panel));
   border-color: var(--arena-accent);
-  box-shadow: 0 0 0 1px var(--arena-accent);
 }
 
 .set-card-heading {
@@ -268,15 +269,18 @@
 
 .set-card-moves i {
   overflow: hidden;
-  padding: 5px 9px;
-  font-size: 12px;
+  padding: 6px 10px;
+  color: var(--arena-muted);
+  font-size: 12.5px;
   font-style: normal;
   text-overflow: ellipsis;
   white-space: nowrap;
-  background: var(--arena-hover);
-  border: 1px solid var(--arena-hover-strong);
-  border-radius: 6px;
+  background: none;
+  border: 1px solid var(--arena-line);
+  border-radius: 7px;
 }
+
+.set-card.is-selected .set-card-moves i { color: var(--arena-soft); }
 
 .set-card-moves i.is-empty {
   color: var(--arena-faint);
@@ -315,23 +319,31 @@
 }
 
 .import-editor summary {
-  padding: 11px 0;
+  padding: 12px 0;
   color: var(--arena-muted);
   cursor: pointer;
-  font-size: 10.5px;
-  font-weight: 730;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  user-select: none;
 }
+
+.import-editor summary:hover { color: var(--arena-text); }
 
 .import-editor textarea,
 .replay-loader textarea {
   display: block;
   width: 100%;
-  min-height: 150px;
-  padding: 10px;
+  min-height: 170px;
+  padding: 12px;
   color: var(--arena-soft);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.55;
   background: var(--arena-ink-2);
   border: 1px solid var(--arena-line);
-  border-radius: 5px;
+  border-radius: 8px;
   resize: vertical;
   font: 10px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
 }

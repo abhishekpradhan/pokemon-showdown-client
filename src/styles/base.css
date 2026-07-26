@@ -1068,9 +1068,8 @@ textarea:focus-visible,
 .switch-root {
   position: relative;
   flex: none;
-  width: 42px;
-  height: 24px;
-  /* Unchecked track must contrast the white thumb in both themes. */
+  width: 40px;
+  height: 22px;
   background: var(--arena-track);
   border: 0;
   border-radius: 999px;
@@ -1082,28 +1081,28 @@ textarea:focus-visible,
 
 .switch-root[data-state="checked"] {
   background: var(--arena-accent);
-  border-color: var(--arena-accent);
 }
 
 
 
 .switch-thumb {
+  position: absolute;
+  top: 50%;
+  left: 3px;
   display: block;
-  width: 18px;
-  height: 18px;
-  margin-top: 3px;
-  /* Constant white; the soft shadow separates it from the accent track. */
+  width: 16px;
+  height: 16px;
   background: #fff;
   border-radius: 999px;
-  box-shadow: 0 1px 2px rgb(0 0 0 / 30%);
-  transform: translateX(3px);
-  transition: transform 150ms ease;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 25%);
+  transform: translateY(-50%);
+  transition: left 140ms ease;
 }
 
 
 
 .switch-root[data-state="checked"] .switch-thumb {
-  transform: translateX(21px);
+  left: 21px;
 }
 
 
