@@ -178,7 +178,13 @@
   padding: 8px 12px;
 }
 
-.field-hud.is-near { justify-content: flex-start; }
+.field-hud.is-near {
+  /* Explicit row: with no effects strip in flow, auto-placement would drop
+     this into the 1fr middle row and float the chip mid-field. */
+  grid-row: 3;
+  align-self: end;
+  justify-content: flex-start;
+}
 
 .field-player {
   display: inline-flex;
@@ -755,11 +761,29 @@
 }
 
 .target-button {
-  min-height: 38px;
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  min-height: 44px;
+  padding-inline: 12px;
   color: #dce6f3;
+  text-align: start;
   background: #1c2634;
   border-color: rgba(91, 156, 255, 0.22);
-  font-size: 10px;
+  font-size: 11px;
+}
+
+.target-button span { display: grid; line-height: 1.25; }
+.target-button strong { font-size: 12px; }
+.target-button small { color: var(--arena-faint); font-size: 10px; }
+
+.target-button[data-side='foe'] { border-color: rgba(255, 107, 107, 0.35); }
+.target-button[data-side='foe'] svg { color: #ff8b8b; }
+.target-button[data-side='ally'] svg { color: #7fd1a7; }
+
+.target-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .battle-side {
@@ -1286,3 +1310,62 @@
 }
 
 .battle-command.is-link { text-decoration: none; }
+
+/* ── Doubles positioning ─────────────────────────────────────────────────
+   Two active slots per side stagger across the stage. Singles keep the
+   classic diagonal. */
+
+.combatant[data-positions="2"] { inline-size: min(32%, 210px); }
+
+.combatant-far[data-positions="2"][data-position="0"] {
+  inset-block-start: 19%;
+  inset-inline-end: 34%;
+}
+
+.combatant-far[data-positions="2"][data-position="1"] {
+  inset-block-start: 23%;
+  inset-inline-end: 2%;
+}
+
+.combatant-near[data-positions="2"][data-position="0"] {
+  inset-block-end: 9%;
+  inset-inline-start: 2%;
+}
+
+.combatant-near[data-positions="2"][data-position="1"] {
+  inset-block-end: 19%;
+  inset-inline-start: 34%;
+}
+
+/* ── Field choreography ──────────────────────────────────────────────────
+   Transient, protocol-driven: an attacker lunges, a hit shakes, a faint
+   drops. State stays authoritative — this is emphasis, not simulation. */
+
+.combatant.is-attack .combatant-sprite { animation: lunge-near 420ms var(--arena-ease); }
+.combatant-far.is-attack .combatant-sprite { animation: lunge-far 420ms var(--arena-ease); }
+.combatant.is-hit .combatant-sprite { animation: hit-shake 460ms ease-out; }
+.combatant.is-faint .combatant-sprite { animation: faint-drop 600ms ease-in forwards; }
+
+@keyframes lunge-near {
+  30% { transform: translate(26px, -14px); }
+  100% { transform: translate(0, 0); }
+}
+
+@keyframes lunge-far {
+  30% { transform: translate(-26px, 14px); }
+  100% { transform: translate(0, 0); }
+}
+
+@keyframes hit-shake {
+  15%, 45%, 75% { transform: translateX(-7px); }
+  30%, 60%, 90% { transform: translateX(7px); }
+  20%, 50% { filter: brightness(1.9) saturate(0.4); }
+  100% { transform: translateX(0); }
+}
+
+@keyframes faint-drop {
+  100% { transform: translateY(26px); opacity: 0; }
+}
+
+/* No reduced-motion rules here: settings.css already flattens every
+   animation globally for both the OS preference and the in-app toggle. */

@@ -19,3 +19,5 @@ coverage/
 Thumbs.db
 npm-debug.log*
 .vercel
+# Local agent tooling
+.claude/

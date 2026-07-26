@@ -170,6 +170,13 @@ export function projectEngineBattle(battle: Battle, context: EngineProjectionCon
   const team = ours.team.map((pokemon, index) => projectPokemon(battle, pokemon, index + 1, exactOurs));
   const opponentTeam = theirs.team.map((pokemon, index) => projectPokemon(battle, pokemon, index + 1, false));
 
+  const actives = ours.active
+    .map((pokemon, index) => pokemon ? projectPokemon(battle, pokemon, index + 1, exactOurs) : null)
+    .filter((pokemon): pokemon is PokemonSet => pokemon !== null);
+  const opponentActives = theirs.active
+    .map((pokemon, index) => pokemon ? projectPokemon(battle, pokemon, index + 1, false) : null)
+    .filter((pokemon): pokemon is PokemonSet => pokemon !== null);
+
   const activePokemon = ours.active.find(Boolean);
   const opponentActive = theirs.active.find(Boolean);
 
@@ -199,6 +206,8 @@ export function projectEngineBattle(battle: Battle, context: EngineProjectionCon
     p2: { name: battle.p2.name || 'Player 2', rating: Number(battle.p2.rating) || 0 },
     active,
     opponentActive: opposing,
+    actives: actives.length ? actives : undefined,
+    opponentActives: opponentActives.length ? opponentActives : undefined,
     team,
     opponentTeam,
     weather: battle.field.weather ? String(battle.field.weather) : undefined,

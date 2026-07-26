@@ -22,4 +22,25 @@ describe('team-store compatibility helpers', () => {
     expect(validateTeamSets(importTeam('Pikachu\nAbility: Static')).ok).toBe(false);
     expect(validateTeamSets(importTeam('Pikachu\nAbility: Static\n- Thunderbolt')).ok).toBe(true);
   });
+
+  it('warns on duplicate species and EV totals over the cap, without blocking', () => {
+    const duplicates = validateTeamSets(importTeam(
+      'Pikachu\n- Thunderbolt\n\nPikachu\n- Surf'
+    ));
+    expect(duplicates.ok).toBe(true);
+    expect(duplicates.warnings.some(warning => warning.includes('Species Clause'))).toBe(true);
+
+    const overcapped = validateTeamSets([{ species: 'Pikachu', moves: ['Thunderbolt'], evs: { hp: 252, atk: 252, spe: 252 } }]);
+    expect(overcapped.ok).toBe(true);
+    expect(overcapped.warnings.some(warning => warning.includes('510'))).toBe(true);
+  });
+
+  it('flags unknown species and moves once the dex is loaded', async () => {
+    const { loadDex } = await import('../data/dex');
+    await loadDex();
+    const result = validateTeamSets([{ species: 'Fakemon', moves: ['Imaginary Beam'] }]);
+    expect(result.ok).toBe(true);
+    expect(result.warnings.some(warning => warning.includes('species not found'))).toBe(true);
+    expect(result.warnings.some(warning => warning.includes('Imaginary Beam'))).toBe(true);
+  });
 });

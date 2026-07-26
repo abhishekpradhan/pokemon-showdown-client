@@ -1,6 +1,7 @@
 import { Dex } from '@pkmn/dex';
 import { Generations, ID } from '@pkmn/data';
 import { Battle } from '@pkmn/client';
+import { projectEngineBattle } from './engine';
 import singlesLog from '../compat/__fixtures__/gen9ou-singles.log?raw';
 import doublesLog from '../compat/__fixtures__/gen9-doubles.log?raw';
 import playerLog from '../compat/__fixtures__/player-gen9ou.log?raw';
@@ -47,6 +48,22 @@ describe('@pkmn/client engine over fixtures', () => {
     expect(battle.p1.active.length).toBe(2);
     expect(battle.p2.active.length).toBe(2);
     expect(battle.gameType).toBe('doubles');
+
+    // Mid-battle (both sides full): the projection exposes every slot in
+    // position order, with the 1-based slot numbers the target picker maps
+    // protocol targets (+2 foe / -1 ally) onto.
+    const midBattle = new Battle(gens, null);
+    for (const line of doublesLog.split(/\r?\n/)) {
+      if (line === '|turn|3') break;
+      if (line) midBattle.add(line);
+    }
+    const view = projectEngineBattle(midBattle, {
+      roomId: 'battle-gen9doublesou-1', perspective: null,
+      result: { ended: false }, lastRequest: undefined, waiting: false,
+      format: 'gen9doublesou',
+    });
+    expect(view.actives?.map(pokemon => pokemon.slot)).toEqual([1, 2]);
+    expect(view.opponentActives?.map(pokemon => pokemon.slot)).toEqual([1, 2]);
   });
 
   it('maintains player-perspective battle state', () => {

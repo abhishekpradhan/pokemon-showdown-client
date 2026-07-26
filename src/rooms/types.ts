@@ -71,6 +71,8 @@ export type BattleRoom = RoomBase & {
   choicePending: boolean;
   lastRequest?: BattleRequest;
   timer: BattleTimer;
+  /** Drives transient field animation (lunge/shake/faint). */
+  lastEvent?: { kind: 'attack' | 'hit' | 'faint'; side: 'near' | 'far'; slot?: number; at: number };
 };
 
 export type Room = ChatRoom | PmRoom | BattleRoom;

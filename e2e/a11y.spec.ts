@@ -44,6 +44,11 @@ test('the battle console is accessible mid-battle', async ({ page }) => {
   await page.getByRole('button', { name: 'Find battle' }).click();
   await expect(page).toHaveURL(/\/battle\//);
   await expect(page.getByRole('button', { name: /Moonblast/ })).toBeVisible();
+  // Audit the settled UI: the combatant entrance fade briefly blends every
+  // nameplate toward the backdrop, and axe would measure that transient.
+  await page.waitForFunction(() =>
+    [...document.querySelectorAll('.combatant')].every(element => Number(getComputedStyle(element).opacity) >= 0.99)
+  );
 
   const results = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])

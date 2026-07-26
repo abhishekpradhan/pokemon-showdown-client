@@ -17,15 +17,15 @@ export const TYPE_COLORS: Record<TypeName, string> = {
   Electric: '#f4d23c',
   Grass: '#63bc5a',
   Ice: '#73cec0',
-  Fighting: '#ce4069',
+  Fighting: '#bd3158',
   Poison: '#ab6ac8',
   Ground: '#d97845',
   Flying: '#8fa8dd',
   Psychic: '#f97176',
   Bug: '#90c12c',
   Rock: '#c7b78b',
-  Ghost: '#5269ac',
-  Dragon: '#0b6dc3',
+  Ghost: '#4b60a0',
+  Dragon: '#0a63b2',
   Dark: '#5a5465',
   Steel: '#5a8ea1',
   Fairy: '#ec8fe6',
@@ -35,11 +35,11 @@ export const TYPE_COLORS: Record<TypeName, string> = {
 
 /** Text colour that meets contrast on the matching background above. */
 export const TYPE_INK: Record<TypeName, string> = {
-  Normal: '#12161a', Fire: '#2b1405', Water: '#f4f9ff', Electric: '#2e2503',
-  Grass: '#08240a', Ice: '#062521', Fighting: '#fff2f6', Poison: '#f9f1ff',
+  Normal: '#12161a', Fire: '#2b1405', Water: '#06131f', Electric: '#2e2503',
+  Grass: '#08240a', Ice: '#062521', Fighting: '#fff2f6', Poison: '#1d0429',
   Ground: '#2a1004', Flying: '#0d1830', Psychic: '#320c0e', Bug: '#132000',
   Rock: '#241d0c', Ghost: '#eef1ff', Dragon: '#e9f3ff', Dark: '#f2f0f6',
-  Steel: '#f0f8fb', Fairy: '#3a0a35', Stellar: '#04211f', '???': '#04211f',
+  Steel: '#04191d', Fairy: '#3a0a35', Stellar: '#04211f', '???': '#04211f',
 };
 
 export const ALL_TYPES = Object.keys(TYPE_COLORS) as TypeName[];

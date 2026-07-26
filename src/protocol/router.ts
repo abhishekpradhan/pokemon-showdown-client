@@ -379,6 +379,18 @@ const handleBattleLine = (roomId: string, line: PsLine, store: ArenaStoreApi) =>
       if (line.command === 'win') next = { ...next, result: { winner: line.args[0], ended: true } };
       if (line.command === 'tie') next = { ...next, result: { ended: true } };
 
+      // Field choreography: which side acted or got hit, for CSS animation.
+      if (line.command === 'move' || line.command === '-damage' || line.command === 'faint') {
+        const ident = /^(p[12])([a-z])?/.exec(line.args[0] || '');
+        if (ident) {
+          const ownSide = next.perspective ?? 'p1';
+          const side = ident[1] === ownSide ? 'near' : 'far';
+          const slot = ident[2] ? ident[2].charCodeAt(0) - 97 : 0;
+          const kind = line.command === 'move' ? 'attack' : line.command === 'faint' ? 'faint' : 'hit';
+          next = { ...next, lastEvent: { kind, side, slot, at: Date.now() } };
+        }
+      }
+
       if (request) {
         const perspective = request.side?.id === 'p1' || request.side?.id === 'p2' ?
           request.side.id :

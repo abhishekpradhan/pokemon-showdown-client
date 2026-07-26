@@ -5,7 +5,7 @@ import { SearchableSelect } from '../components/searchable-select';
 import { SetEditor } from '../components/set-editor';
 import { StatusCallout } from '../components/status-callout';
 import { TeamBench } from '../components/team-bench';
-import { exportTeam, importTeam, teamSummary, type StoredTeam } from '../compat/team-store';
+import { exportTeam, importTeam, teamSummary, validateTeamSets, type StoredTeam } from '../compat/team-store';
 import { useShallow } from 'zustand/react/shallow';
 import { useArenaStore } from '../stores/arena-store';
 import { getAbility, getItem, getMove } from '../data/dex';
@@ -26,6 +26,9 @@ export function TeamWorkspace() {
   const [teamToDelete, setTeamToDelete] = useState<string | undefined>();
   const editingTeam = teams.find(team => team.id === editingTeamId);
   const previewSets = useMemo(() => importTeam(teamText), [teamText]);
+  // Soft legality feedback on whatever is being edited. The server's team
+  // validator remains the authority — these never block anything.
+  const validation = useMemo(() => previewSets.length ? validateTeamSets(previewSets) : null, [previewSets]);
   const selectedSet = previewSets[selectedSetIndex] || previewSets[0];
   const summary = editingTeam ? teamSummary(editingTeam) : undefined;
   const formatOptions = formats.map(format => ({
@@ -222,6 +225,15 @@ export function TeamWorkspace() {
         <div className="editor-status" aria-live="polite">
           {teamNotice && <StatusCallout tone="success">{teamNotice}</StatusCallout>}
           {lastError && <StatusCallout tone="error">{lastError}</StatusCallout>}
+          {validation && !validation.ok && (
+            <StatusCallout tone="error">{validation.errors.join(' ')}</StatusCallout>
+          )}
+          {validation && validation.warnings.length > 0 && (
+            <StatusCallout tone="warning">
+              {validation.warnings.slice(0, 4).join(' ')}
+              {validation.warnings.length > 4 ? ` (+${validation.warnings.length - 4} more)` : ''}
+            </StatusCallout>
+          )}
         </div>
       </div>
 

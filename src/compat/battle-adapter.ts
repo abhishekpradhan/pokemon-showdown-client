@@ -80,6 +80,9 @@ export type ArenaBattle = {
   p2: { name: string; rating: number };
   active: PokemonSet;
   opponentActive: PokemonSet;
+  /** All active slots per side, in position order — doubles renders these. */
+  actives?: PokemonSet[];
+  opponentActives?: PokemonSet[];
   team: PokemonSet[];
   opponentTeam: PokemonSet[];
   weather?: string;
@@ -386,10 +389,15 @@ export function requestType(request?: BattleRequest | null): ArenaBattle['reques
 
 const canChooseTarget = (target?: string) => ['normal', 'any', 'adjacentAlly', 'adjacentAllyOrSelf', 'adjacentFoe'].includes(target || '');
 
+/**
+ * Slots a chosen-target move may point at, in PS protocol convention:
+ * positive numbers are foe slots, negative are your own side's slots.
+ * `normal` moves can hit an ally in doubles, which is why they list both.
+ */
 const defaultTargetOptions = (target?: string): number[] => {
-  if (target === 'adjacentAlly' || target === 'adjacentAllyOrSelf') return [-1, 1];
-  if (target === 'any') return [-2, -1, 1, 2];
-  if (target === 'normal' || target === 'adjacentFoe') return [-1, -2];
+  if (target === 'adjacentAlly' || target === 'adjacentAllyOrSelf') return [-1, -2];
+  if (target === 'any' || target === 'normal') return [1, 2, -1, -2];
+  if (target === 'adjacentFoe') return [1, 2];
   return [];
 };
 
@@ -444,11 +452,12 @@ export function normalizeBattleRequest(request: BattleRequest, previousBattle?: 
 export function buildMoveDeck(
   request: BattleRequest,
   defenderTypes: TypeName[] | undefined,
-  formatId?: string
+  formatId?: string,
+  activeIndex = 0
 ): BattleChoice[] {
   const generation = genFromFormat(formatId);
   const normalized = normalizeBattleRequest(request);
-  const activeRequest = normalized.active?.[0];
+  const activeRequest = normalized.active?.[activeIndex];
   const requestMoves = activeRequest?.moves || [];
 
   return requestMoves.map((move, index): BattleChoice => {
@@ -462,7 +471,7 @@ export function buildMoveDeck(
 
     return {
       slot: index + 1,
-      activeIndex: 0,
+      activeIndex,
       name,
       type,
       pp: `${move.pp ?? data?.pp ?? '-'}/${move.maxpp ?? data?.pp ?? '-'}`,

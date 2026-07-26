@@ -152,12 +152,16 @@ mistakes. When fixing a protocol bug, teach the mock to fail on it.
 
 ## Known gaps
 
-- No battle animations or sound; the field renders state, not choreography.
-- Doubles render true positions via the engine, but target selection is not
-  visually mapped to field positions.
-- The set editor constrains moves to learnsets but does not validate full
-  format legality (clauses, bans) — the server rejects illegal teams at
-  match time.
+- No sound. Field choreography is deliberately minimal: protocol-driven CSS
+  emphasis (attack lunge, hit shake, faint drop) rather than full move
+  animations, and it obeys both reduced-motion paths.
+- Team validation is structural plus dex-backed *warnings* (unknown
+  species/moves/abilities/items, EV totals, Species Clause duplicates). Full
+  format legality (clauses, bans, tier lists) stays with the server, which
+  rejects illegal teams at match time — the client never blocks a team the
+  local dex cannot prove illegal.
 - Tournaments are not implemented.
-- The battle view model renders one active slot per side prominently;
-  doubles show state correctly but the layout is singles-first.
+
+Closed in July 2026: doubles now render every active slot at its protocol
+position, and the target picker names the Pokémon standing in each slot
+(protocol convention: positive targets are foes, negative are allies).

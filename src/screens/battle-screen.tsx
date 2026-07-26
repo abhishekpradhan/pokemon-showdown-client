@@ -18,6 +18,7 @@ import {
   X,
 } from 'lucide-react';
 import { type FormEvent, useEffect, useState } from 'react';
+import { buildMoveDeck } from '../compat/battle-adapter';
 import { BattleField } from '../components/battle-field';
 import { BattleTimerChip } from '../components/battle-timer';
 import { ChatFeed } from '../components/chat-feed';
@@ -64,13 +65,47 @@ export function BattleScreen() {
 
   const decision = getBattleDecision(battle.id);
   const pendingTarget = decision.draft.pendingMove;
-  const targetOptions = pendingTarget ? battle.moves.find(move => move.slot === pendingTarget.slot)?.targetOptions || [-1, -2, 1, 2] : [];
+
+  // Doubles: the session collects one choice per active slot; the deck and
+  // the title track the slot currently being decided. (While a move waits on
+  // its target the cursor still points at the mover.)
+  const activeCount = battleRoom?.lastRequest?.active?.length ?? 1;
+  const choiceCursor = Math.min(decision.draft.choices.length, Math.max(0, activeCount - 1));
+  const activeDeck = choiceCursor > 0 && battleRoom?.lastRequest ?
+    buildMoveDeck(
+      battleRoom.lastRequest,
+      battle.opponentActive.terastallized ? [battle.opponentActive.terastallized] : battle.opponentActive.types,
+      battle.format,
+      choiceCursor
+    ) :
+    battle.moves;
+  const cursorName = battle.actives?.find(pokemon => pokemon.slot === choiceCursor + 1)?.name ?? battle.active.name;
+
+  const pendingMoveCard = pendingTarget ? activeDeck.find(move => move.slot === pendingTarget.slot) : undefined;
+  const targetOptions = pendingTarget ? pendingMoveCard?.targetOptions || [1, 2, -1, -2] : [];
+  /** Resolves a protocol target slot (+foe / −ally) to the Pokémon standing there. */
+  const describeTarget = (target: number) => {
+    const foe = target > 0;
+    const pool = foe ?
+      (battle.opponentActives?.length ? battle.opponentActives : [battle.opponentActive]) :
+      (battle.actives?.length ? battle.actives : [battle.active]);
+    const pokemon = pool.find(entry => entry.slot === Math.abs(target));
+    const self = !foe && Math.abs(target) - 1 === (pendingTarget?.activeIndex ?? choiceCursor);
+    return {
+      foe,
+      name: pokemon?.name,
+      // Empty or fainted slots are not legal targets; your own slot only is
+      // for adjacentAllyOrSelf moves.
+      disabled: !pokemon || pokemon.fainted || pokemon.hp <= 0 ||
+        (self && pendingMoveCard?.target !== 'adjacentAllyOrSelf'),
+    };
+  };
   const playerControls = decision.mode === 'player' && decision.requestType !== 'wait';
   const decisionTitle = battle.ended ?
     battle.winner ? `${battle.winner} won the battle` : 'Battle ended in a tie' :
     battle.waiting ? 'Waiting for opponent' :
-    pendingTarget ? 'Choose a target' :
-    playerControls ? `Choose ${battle.active.name}’s action` : 'Spectating battle';
+    pendingTarget ? `Choose ${pendingMoveCard?.name ?? 'a move'}’s target` :
+    playerControls ? `Choose ${cursorName}’s action` : 'Spectating battle';
 
   const downloadLog = () => {
     if (!battleRoom) return;
@@ -129,7 +164,7 @@ export function BattleScreen() {
           </div>
         </header>
 
-        <BattleField battle={battle} hardcore={hardcoreMode} />
+        <BattleField battle={battle} hardcore={hardcoreMode} lastEvent={battleRoom?.lastEvent} />
 
         <motion.div className="decision-dock" layout aria-label="Battle action deck">
           <div className="decision-heading">
@@ -146,19 +181,32 @@ export function BattleScreen() {
 
           {pendingTarget && (
             <div className="target-grid" aria-label="Move targets">
-              {targetOptions.map(target => (
-                <button type="button" className="target-button" key={target} onClick={() => submitBattleTarget(target, battle.id)}>
-                  <Crosshair size={15} aria-hidden />
-                  {target > 0 ? `Ally +${target}` : `Foe ${target}`}
-                </button>
-              ))}
+              {targetOptions.map(target => {
+                const described = describeTarget(target);
+                return (
+                  <button
+                    type="button"
+                    className="target-button"
+                    key={target}
+                    data-side={described.foe ? 'foe' : 'ally'}
+                    disabled={described.disabled}
+                    onClick={() => submitBattleTarget(target, battle.id)}
+                  >
+                    <Crosshair size={15} aria-hidden />
+                    <span>
+                      <strong>{described.name ?? `Slot ${Math.abs(target)}`}</strong>
+                      <small>{described.foe ? 'Opponent' : 'Your side'}</small>
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           )}
 
           <div className="decision-controls">
             <div className="move-deck">
               {playerControls && battle.requestType !== 'switch' && battle.requestType !== 'team' && !pendingTarget ? (
-                <MoveControls moves={battle.moves} onChoose={choice => submitBattleChoice(choice, battle.id)} />
+                <MoveControls moves={activeDeck} onChoose={choice => submitBattleChoice(choice, battle.id)} />
               ) : !pendingTarget && (
                 <div className="waiting-state" role="status" aria-live="polite">
                   <span className="waiting-pulse" />

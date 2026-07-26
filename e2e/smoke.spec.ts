@@ -57,10 +57,15 @@ test('search creates a mock battle room and sends exact battle choices', async (
   await expect(page.locator('.battle-room-title')).toContainText('MockRival');
   await expect(page.getByRole('button', { name: /Moonblast/i })).toBeVisible();
   await page.getByRole('button', { name: /Moonblast/i }).click();
-  await expect(page.getByRole('button', { name: /Foe -1/i })).toBeVisible();
-  await page.getByRole('button', { name: /Foe -1/i }).click();
+  // The target picker names the Pokémon standing in each slot; empty slots
+  // and the mover's own slot are disabled. Great Tusk (foe slot 1) is the
+  // only legal target here, and picking it sends the protocol's +1.
+  const target = page.getByRole('button', { name: /Great Tusk/i });
+  await expect(target).toBeEnabled();
+  await expect(page.locator('.target-button:disabled')).toHaveCount(3);
+  await target.click();
 
-  await expect.poll(async () => page.evaluate(() => (window as unknown as { __mockPsSent: string[] }).__mockPsSent.join('\n'))).toContain('battle-gen9ou-1|/choose move 1 -1|7');
+  await expect.poll(async () => page.evaluate(() => (window as unknown as { __mockPsSent: string[] }).__mockPsSent.join('\n'))).toContain('battle-gen9ou-1|/choose move 1 +1|7');
   await expect.poll(async () => page.evaluate(() => (window as unknown as { __mockPsSent: string[] }).__mockPsSent.join('\n'))).toContain('|/utm ');
   await expect.poll(async () => page.evaluate(() => (window as unknown as { __mockPsSent: string[] }).__mockPsSent.join('\n'))).toContain('|/search gen9ou');
 });

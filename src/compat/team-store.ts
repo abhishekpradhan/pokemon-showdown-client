@@ -1,4 +1,7 @@
 import type { PokemonSet } from './battle-adapter';
+// dex.ts wraps the lazily-loaded @pkmn chunk; importing it statically is
+// cheap and the checks below no-op until loadDex() has run somewhere.
+import { getAbility, getItem, getMove, getSpecies, isDexLoaded } from '../data/dex';
 import { toId } from './protocol-parsers';
 
 export type StatTable = Partial<Record<'hp' | 'atk' | 'def' | 'spa' | 'spd' | 'spe', number>>;
@@ -236,17 +239,47 @@ export function teamSummary(team: StoredTeam): TeamSummary {
   };
 }
 
+/** The in-game cap on total EVs; the PS validator enforces it for gen 3+. */
+const MAX_EV_TOTAL = 510;
+
 export function validateTeamSets(sets: TeamSet[]): TeamValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
 
   if (!sets.length) errors.push('Add at least one Pokemon.');
 
+  // Dex-backed checks are warnings, never errors: the server's team validator
+  // is the authority, and blocking a team that's legal in some format the
+  // local dex doesn't model (past gens, mods) would be worse than a nudge.
+  const dexReady = isDexLoaded();
+  const seenSpecies = new Map<string, string>();
+
   sets.forEach((set, index) => {
     const label = set.species || set.name || `Pokemon ${index + 1}`;
     if (!set.species.trim()) errors.push(`${label} is missing a species.`);
     if (!set.moves.filter(Boolean).length) errors.push(`${label} needs at least one move.`);
     if (set.moves.filter(Boolean).length > 4) warnings.push(`${label} has more than four moves; only legal moves will be accepted by the server.`);
+
+    const evTotal = Object.values(set.evs || {}).reduce((total, value) => total + (value || 0), 0);
+    if (evTotal > MAX_EV_TOTAL) warnings.push(`${label} has ${evTotal} EVs; the limit is ${MAX_EV_TOTAL}.`);
+
+    if (set.species.trim()) {
+      const speciesKey = toId(set.species);
+      const first = seenSpecies.get(speciesKey);
+      if (first) warnings.push(`${label} duplicates ${first}; Species Clause formats reject this.`);
+      else seenSpecies.set(speciesKey, label);
+    }
+
+    if (dexReady) {
+      if (set.species.trim() && !getSpecies(set.species)) {
+        warnings.push(`${label}: species not found in the Gen 9 Pokédex.`);
+      }
+      for (const move of set.moves.filter(Boolean)) {
+        if (!getMove(move)) warnings.push(`${label}: unknown move "${move}".`);
+      }
+      if (set.ability && !getAbility(set.ability)) warnings.push(`${label}: unknown ability "${set.ability}".`);
+      if (set.item && !getItem(set.item)) warnings.push(`${label}: unknown item "${set.item}".`);
+    }
   });
 
   if (sets.length > 6) warnings.push('Teams above six Pokemon may be rejected by standard formats.');

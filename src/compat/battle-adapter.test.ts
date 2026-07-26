@@ -83,6 +83,24 @@ describe('move deck', () => {
     expect(deck[1]).toMatchObject({ name: 'Close Combat', disabled: true });
   });
 
+  it('builds a doubles deck per active slot with protocol-convention targets', () => {
+    const doubles: BattleRequest = {
+      rqid: 3,
+      active: [
+        { moves: [{ move: 'Dazzling Gleam', id: 'dazzlinggleam', pp: 16, maxpp: 16, target: 'allAdjacentFoes' }] },
+        { moves: [{ move: 'Fake Out', id: 'fakeout', pp: 16, maxpp: 16, target: 'normal' }] },
+      ],
+      side: { name: 'Codex', pokemon: [] },
+    };
+    const slotA = buildMoveDeck(doubles, undefined, 'gen9vgc2024', 0);
+    const slotB = buildMoveDeck(doubles, undefined, 'gen9vgc2024', 1);
+    expect(slotA[0]).toMatchObject({ name: 'Dazzling Gleam', activeIndex: 0, requiresTarget: false });
+    expect(slotB[0]).toMatchObject({ name: 'Fake Out', activeIndex: 1, requiresTarget: true });
+    // PS convention: positive slots are foes, negative are allies — and a
+    // normal-target move may hit either in doubles.
+    expect(slotB[0].targetOptions).toEqual([1, 2, -1, -2]);
+  });
+
   it('marks effectiveness against the defender typing when the dex is ready', async () => {
     const { loadDex } = await import('../data/dex');
     await loadDex();

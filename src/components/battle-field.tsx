@@ -71,12 +71,18 @@ function SideConditions({ conditions, label, side }: {
   );
 }
 
-function Combatant({ battle, hideHealth = false, pokemon, side }: {
+function Combatant({ battle, hideHealth = false, pokemon, side, position = 0, positions = 1, event }: {
   battle: ArenaBattle;
   hideHealth?: boolean;
   pokemon: PokemonSet;
   side: 'near' | 'far';
+  /** Slot index and slot count on this side — doubles staggers positions. */
+  position?: number;
+  positions?: number;
+  event?: BattleEvent;
 }) {
+  const eventHere = event && event.side === side && (event.slot ?? 0) === position;
+  const eventClass = eventHere ? `is-${event.kind}` : '';
   const sprite = pokemonSprite(pokemon.species, {
     side,
     gen: genFromFormat(battle.format),
@@ -87,7 +93,9 @@ function Combatant({ battle, hideHealth = false, pokemon, side }: {
 
   return (
     <motion.div
-      className={clsx('combatant', `combatant-${side}`, pokemon.fainted && 'is-fainted')}
+      className={clsx('combatant', `combatant-${side}`, pokemon.fainted && 'is-fainted', eventClass)}
+      data-position={position}
+      data-positions={positions}
       initial={{ opacity: 0, y: side === 'near' ? 20 : -20 }}
       animate={{ opacity: pokemon.fainted ? 0.35 : 1, y: 0 }}
       transition={{ duration: 0.3 }}
@@ -119,7 +127,7 @@ function Combatant({ battle, hideHealth = false, pokemon, side }: {
           ))}
         </div>
       </div>
-      <div className="combatant-sprite">
+      <div className="combatant-sprite" key={eventHere ? event.at : 'idle'}>
         <img
           src={sprite.url}
           alt={`${pokemon.name}, ${pokemon.species}`}
@@ -152,10 +160,31 @@ function RosterPips({ team, hidden, label }: { team: PokemonSet[]; hidden: boole
   );
 }
 
-export function BattleField({ battle, hardcore = false }: { battle: ArenaBattle; hardcore?: boolean }) {
+export type BattleEvent = {
+  kind: 'attack' | 'hit' | 'faint';
+  side: 'near' | 'far';
+  slot?: number;
+  at: number;
+};
+
+export function BattleField({ battle, hardcore = false, lastEvent }: {
+  battle: ArenaBattle;
+  hardcore?: boolean;
+  lastEvent?: BattleEvent;
+}) {
   const nearPlayer = battle.playerSide === 'p2' ? battle.p2 : battle.p1;
   const farPlayer = battle.playerSide === 'p2' ? battle.p1 : battle.p2;
   const effects = [battle.weather, ...(battle.fieldConditions || [])].filter(Boolean) as string[];
+
+  // Positions come from the protocol slot, not the array index: a fainted
+  // slot leaves a gap, and the survivor must hold its ground. The slot count
+  // keeps the doubles stagger while one side is down to a single Pokémon.
+  const farSlots = battle.opponentActives?.length ? battle.opponentActives : [battle.opponentActive];
+  const nearSlots = battle.actives?.length ? battle.actives : [battle.active];
+  const farCount = battle.opponentActives?.length ?
+    Math.max(...battle.opponentActives.map(pokemon => pokemon.slot), battle.opponentActives.length) : 1;
+  const nearCount = battle.actives?.length ?
+    Math.max(...battle.actives.map(pokemon => pokemon.slot), battle.actives.length) : 1;
 
   return (
     <div className="battle-field" aria-label="Battle field" data-weather={battle.weather || 'clear'}>
@@ -172,8 +201,29 @@ export function BattleField({ battle, hardcore = false }: { battle: ArenaBattle;
       </header>
 
       <SideConditions conditions={battle.opponentSideConditions} label="Opponent's side conditions" side="far" />
-      <Combatant battle={battle} hideHealth={hardcore} pokemon={battle.opponentActive} side="far" />
-      <Combatant battle={battle} pokemon={battle.active} side="near" />
+      {farSlots.map(pokemon => (
+        <Combatant
+          key={`far-${pokemon.slot}`}
+          battle={battle}
+          hideHealth={hardcore}
+          pokemon={pokemon}
+          side="far"
+          position={farCount > 1 ? pokemon.slot - 1 : 0}
+          positions={farCount}
+          event={lastEvent}
+        />
+      ))}
+      {nearSlots.map(pokemon => (
+        <Combatant
+          key={`near-${pokemon.slot}`}
+          battle={battle}
+          pokemon={pokemon}
+          side="near"
+          position={nearCount > 1 ? pokemon.slot - 1 : 0}
+          positions={nearCount}
+          event={lastEvent}
+        />
+      ))}
       <SideConditions conditions={battle.sideConditions} label="Your side conditions" side="near" />
 
       {effects.length > 0 && (
