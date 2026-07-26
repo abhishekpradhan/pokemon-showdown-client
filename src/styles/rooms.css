@@ -381,29 +381,18 @@
 .chat-line.is-system { color: var(--arena-muted); font-size: 12px; }
 .chat-line.is-error { color: var(--arena-red-text); font-size: 12px; }
 
-/* Server HTML (polls, tour cards, leaderboards, room intros) is authored
-   against the official dark client — inline `color: #fff` styles abound. Pin
-   the strip as a dark island in both themes, the same pattern the battle
-   scenery uses: local token re-declarations, one scoped block. */
+/* Server HTML (polls, tour cards, leaderboards, room intros) rides the
+   theme's own surface. Bot content that wants a dark look ships its own
+   backgrounds and text-shadow outlines; content without colors inherits
+   ours — so both kinds stay readable in light and dark. */
 .chat-line.is-html {
-  --arena-text: #e8edf4;
-  --arena-soft: #ccd5e0;
-  --arena-accent: #8db3ff;
-  --arena-line: #3a4152;
-  --arena-line-strong: #4a5468;
-  --arena-panel: #232838;
-  --arena-panel-raised: #283040;
-  --arena-hover: #2c3344;
-  --arena-hover-strong: #333c50;
-
   display: block;
   padding: 6px 10px;
   overflow-x: auto;
   color: var(--arena-soft);
   font-size: 12px;
-  background: #1d2230;
+  background: var(--arena-panel-raised);
   border-inline-start: 2px solid var(--arena-line-strong);
-  color-scheme: dark;
 }
 .chat-line.is-html a { color: var(--arena-accent); }
 
