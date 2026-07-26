@@ -230,3 +230,21 @@ test('keeps source availability in settings', async ({ page }) => {
     'https://github.com/abhishekpradhan/pokemon-showdown-client'
   );
 });
+
+test('protocol log stays off the page and opens in a dialog', async ({ page }) => {
+  await page.goto('/settings');
+  // The log itself is never page furniture — only the switch and the entry point.
+  await expect(page.getByRole('region', { name: 'Protocol log' })).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'View log' }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByRole('heading', { name: 'Protocol log' })).toBeVisible();
+  await expect(dialog.getByRole('region', { name: 'Protocol log' })).toBeVisible();
+
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+
+  // Turning diagnostics off removes the entry point too.
+  await page.getByRole('switch', { name: 'Protocol diagnostics' }).click();
+  await expect(page.getByRole('button', { name: 'View log' })).toHaveCount(0);
+});

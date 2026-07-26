@@ -1,6 +1,8 @@
+import * as Dialog from '@radix-ui/react-dialog';
 import * as Switch from '@radix-ui/react-switch';
 import {
   Bell,
+  ClipboardCopy,
   ExternalLink,
   FileCode2,
   Monitor,
@@ -10,6 +12,7 @@ import {
   RefreshCw,
   Server,
   Sun,
+  X,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
@@ -36,6 +39,7 @@ export function SettingsScreen() {
     }))
   );
   const [serverInput, setServerInput] = useState('');
+  const [logCopied, setLogCopied] = useState(false);
   const isDefaultServer = server.host === getDefaultServerConfig().host;
   const { notificationsEnabled, setNotificationsEnabled, setTheme, theme } = useWorkspaceStore();
 
@@ -127,20 +131,53 @@ export function SettingsScreen() {
         <h2 id="diagnostics-settings"><FileCode2 size={15} aria-hidden /> Diagnostics</h2>
         <div className="setting-row">
           <span><strong>Protocol log</strong><small>Keep a redacted local log of server traffic for troubleshooting.</small></span>
-          <Switch.Root
-            className="switch-root"
-            checked={protocolLogEnabled}
-            onCheckedChange={toggleProtocolLog}
-            aria-label="Protocol diagnostics"
-          >
-            <Switch.Thumb className="switch-thumb" />
-          </Switch.Root>
+          <div className="setting-actions">
+            {protocolLogEnabled && (
+              <Dialog.Root onOpenChange={() => setLogCopied(false)}>
+                <Dialog.Trigger asChild>
+                  <button type="button" className="secondary-action">View log</button>
+                </Dialog.Trigger>
+                <Dialog.Portal>
+                  <Dialog.Overlay className="dialog-overlay" />
+                  <Dialog.Content className="account-dialog protocol-dialog">
+                    <div className="dialog-heading">
+                      <div>
+                        <Dialog.Title>Protocol log</Dialog.Title>
+                        <Dialog.Description>
+                          Newest first · redacted · the latest {rawProtocolLog.length} of up to 240 frames.
+                        </Dialog.Description>
+                      </div>
+                      <Dialog.Close className="icon-button" aria-label="Close protocol log"><X size={17} /></Dialog.Close>
+                    </div>
+                    <pre className="protocol-log" aria-label="Protocol log" role="region" tabIndex={0}>
+                      {rawProtocolLog.join('\n') || 'No protocol messages yet.'}
+                    </pre>
+                    <div className="button-row">
+                      <button
+                        type="button"
+                        className="secondary-action"
+                        onClick={() => {
+                          void navigator.clipboard.writeText(rawProtocolLog.join('\n'));
+                          setLogCopied(true);
+                        }}
+                      >
+                        <ClipboardCopy size={13} aria-hidden /> {logCopied ? 'Copied' : 'Copy log'}
+                      </button>
+                    </div>
+                  </Dialog.Content>
+                </Dialog.Portal>
+              </Dialog.Root>
+            )}
+            <Switch.Root
+              className="switch-root"
+              checked={protocolLogEnabled}
+              onCheckedChange={toggleProtocolLog}
+              aria-label="Protocol diagnostics"
+            >
+              <Switch.Thumb className="switch-thumb" />
+            </Switch.Root>
+          </div>
         </div>
-        {protocolLogEnabled && (
-          <pre className="protocol-log" aria-label="Protocol log" role="region" tabIndex={0}>
-            {rawProtocolLog.slice(0, 80).join('\n') || 'No protocol messages yet.'}
-          </pre>
-        )}
       </section>
 
       <section className="settings-section" aria-labelledby="about-settings">

@@ -74,6 +74,7 @@
   display: flex;
   flex: none;
   gap: 8px;
+  align-items: center;
 }
 
 .setting-row .secondary-action,
@@ -221,9 +222,18 @@
   background: var(--arena-accent);
 }
 
+.account-dialog.protocol-dialog {
+  inline-size: min(780px, calc(100vw - 28px));
+}
+
+.protocol-dialog .button-row {
+  justify-content: flex-end;
+  margin-block-start: 12px;
+}
+
 .protocol-log {
   overflow: auto;
-  max-height: 300px;
+  max-height: min(58vh, 520px);
   min-width: 0;
   word-break: break-all;
   margin: 4px 0 8px;
@@ -336,17 +346,8 @@
     display: none;
   }
 
-  .settings-section {
-    margin-inline: 10px;
-  }
-
   .setting-row {
-    grid-template-columns: 30px minmax(0, 1fr);
-  }
-
-  .setting-row > :last-child {
-    grid-column: 2;
-    justify-self: start;
+    flex-wrap: wrap;
   }
 }
 
