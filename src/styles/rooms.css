@@ -386,9 +386,12 @@
    backgrounds and text-shadow outlines; content without colors inherits
    ours — so both kinds stay readable in light and dark. */
 .chat-line.is-html {
+  /* Relative + clipping: restored server overlay layouts (absolute layers,
+     negative margins) anchor here and cannot escape the block. */
+  position: relative;
   display: block;
   padding: 6px 10px;
-  overflow-x: auto;
+  overflow: auto;
   color: var(--arena-soft);
   font-size: 12px;
   background: var(--arena-panel-raised);
