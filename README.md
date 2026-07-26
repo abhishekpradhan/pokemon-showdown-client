@@ -5,6 +5,8 @@
 
 A modern, standalone battle client for [Pokémon Showdown][ps] servers.
 
+**Live at [showdown-arena.vercel.app](https://showdown-arena.vercel.app).**
+
 It speaks the Showdown wire protocol, so it connects to the public server — or
 any PS-compatible one — and plays real, rated battles. It is not a server: it
 talks to one.

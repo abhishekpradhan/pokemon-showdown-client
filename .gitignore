@@ -21,3 +21,4 @@ npm-debug.log*
 .vercel
 # Local agent tooling
 .claude/
+.env*
