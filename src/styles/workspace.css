@@ -175,18 +175,3 @@
   color: var(--arena-faint);
 }
 
-.select-option {
-  color: var(--arena-soft);
-}
-
-.select-option:hover,
-.select-option:focus-visible,
-.select-option.is-active,
-.select-option.is-selected {
-  background: rgba(91, 156, 255, 0.11);
-}
-
-.select-option small,
-.select-empty {
-  color: var(--arena-faint);
-}

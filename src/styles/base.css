@@ -362,9 +362,21 @@ textarea:focus-visible,
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 12px;
+  padding: 11px 14px;
   color: var(--arena-faint);
   border-bottom: 1px solid var(--arena-line);
+  transition: border-color var(--arena-fast) ease;
+}
+
+/* The row carries focus, not the input — a 2px outline ring inside the
+   popover read as a broken double border. */
+.select-search:focus-within {
+  color: var(--arena-muted);
+  border-bottom-color: var(--arena-accent);
+}
+
+.select-search input:focus-visible {
+  outline: none;
 }
 
 
@@ -382,7 +394,7 @@ textarea:focus-visible,
 
 .select-options {
   overflow: auto;
-  padding: 8px;
+  padding: 6px;
 }
 
 
@@ -401,10 +413,11 @@ textarea:focus-visible,
 
 
 .select-section > span {
-  padding: 6px 8px 2px;
+  padding: 10px 10px 4px;
   color: var(--arena-faint);
-  font-size: 12px;
-  font-weight: 800;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
 }
 
@@ -416,24 +429,32 @@ textarea:focus-visible,
   justify-content: space-between;
   gap: 12px;
   width: 100%;
-  min-height: 48px;
-  padding: 9px 10px;
-  color: var(--arena-dark-text);
+  min-height: 44px;
+  padding: 8px 10px;
+  color: var(--arena-soft);
   background: transparent;
   border: 0;
-  border-radius: 7px;
+  border-radius: 8px;
   cursor: pointer;
   text-align: left;
+  transition: background var(--arena-fast) ease;
 }
 
 
 
 .select-option:hover,
 .select-option:focus-visible,
-.select-option.is-selected {
-  background: rgb(91 156 255 / 12%);
+.select-option.is-active {
+  background: var(--arena-hover-strong);
   outline: 0;
 }
+
+.select-option.is-selected {
+  color: var(--arena-text);
+  background: rgb(91 156 255 / 14%);
+}
+
+.select-option.is-selected svg { color: var(--arena-accent-text); }
 
 
 
@@ -806,7 +827,9 @@ textarea:focus-visible,
 .decision-dock {
   position: relative;
   z-index: 2;
-  margin: -28px clamp(10px, 2.2vw, 24px) 0;
+  /* The dock no longer overlaps the field above it — the old -28px overlay
+     swallowed the near player chip's bottom half. */
+  margin: 10px clamp(10px, 2.2vw, 24px) 0;
   padding: 14px;
   color: var(--arena-text);
   background: var(--arena-panel);
@@ -1044,11 +1067,12 @@ textarea:focus-visible,
 
 .switch-root {
   position: relative;
-  width: 48px;
-  height: 28px;
+  flex: none;
+  width: 42px;
+  height: 24px;
   /* Unchecked track must contrast the white thumb in both themes. */
   background: var(--arena-track);
-  border: 1px solid transparent;
+  border: 0;
   border-radius: 999px;
   cursor: pointer;
   transition: background var(--arena-fast) ease;
@@ -1065,20 +1089,21 @@ textarea:focus-visible,
 
 .switch-thumb {
   display: block;
-  width: 24px;
-  height: 24px;
-  /* Constant white with a shadow — the standard toggle thumb in any theme. */
+  width: 18px;
+  height: 18px;
+  margin-top: 3px;
+  /* Constant white; the soft shadow separates it from the accent track. */
   background: #fff;
   border-radius: 999px;
-  box-shadow: 0 1px 3px rgb(0 0 0 / 35%);
-  transform: translateX(2px);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 30%);
+  transform: translateX(3px);
   transition: transform 150ms ease;
 }
 
 
 
 .switch-root[data-state="checked"] .switch-thumb {
-  transform: translateX(22px);
+  transform: translateX(21px);
 }
 
 
@@ -1319,4 +1344,17 @@ textarea:focus-visible,
   inline-size: 1px;
   block-size: 1px;
   white-space: nowrap;
+}
+
+
+/* Number inputs: no native spinners — the EV grid reads as text fields. */
+input[type="number"] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
 }

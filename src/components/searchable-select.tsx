@@ -1,5 +1,5 @@
 import { Check, ChevronDown, Search } from 'lucide-react';
-import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { type KeyboardEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { clsx } from 'clsx';
 
 export type SearchableSelectOption = {
@@ -35,7 +35,9 @@ export function SearchableSelect({
 
   // Flip the list above the trigger when the viewport below cannot fit it —
   // opening downward off-screen forced the page to grow under the list.
-  useEffect(() => {
+  // Layout effect: the direction must be settled before the first paint, or
+  // the list visibly jumps from below to above on open.
+  useLayoutEffect(() => {
     if (!open) return;
     const rect = triggerRef.current?.getBoundingClientRect();
     if (rect) setOpenUp(window.innerHeight - rect.bottom < 360 && rect.top > 360);
