@@ -478,10 +478,8 @@
 
 .room-directory-surface {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
   gap: 12px;
-  block-size: 100%;
-  min-block-size: 0;
+  align-content: start;
 }
 
 .directory-heading {
@@ -497,19 +495,10 @@
   align-items: center;
 }
 
-.directory-columns {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
-  gap: 12px;
-  min-block-size: 0;
-}
-
 .directory-chat {
-  overflow-y: auto;
   display: grid;
   gap: 14px;
   align-content: start;
-  padding-inline-end: 4px;
 }
 
 .directory-grid {
@@ -609,6 +598,5 @@
 }
 
 @media (max-width: 900px) {
-  .directory-columns { grid-template-columns: 1fr; }
   .directory-battles { max-block-size: 300px; }
 }

@@ -46,6 +46,13 @@ describe('sanitizeChatHtml', () => {
     expect(outlined).not.toMatch(/color:/);
     expect(outlined).not.toContain('text-shadow');
 
+    // text-shadow INHERITS: a wrapper-level outline must go even when the
+    // extreme color lives on children, or token text gets a dark halo.
+    const inherited = sanitizeChatHtml(
+      '<div style="text-shadow:1px 0 0 #000"><h2 style="color:#fff">Welcome!</h2><p>subtitle</p></div>'
+    );
+    expect(inherited).not.toContain('text-shadow');
+
     const ghostButton = sanitizeChatHtml('<button style="color:#fff;border:1px solid #fff" value="/rules">Rules!</button>');
     expect(ghostButton).not.toMatch(/color:\s*(#fff|rgb\(255)/);
 
@@ -60,7 +67,7 @@ describe('sanitizeChatHtml', () => {
     expect(imageOnly).not.toMatch(/color:\s*(#fff|rgb\(255)/);
   });
 
-  it('keeps a wrapper color that backgrounded descendants inherit', () => {
+  it('keeps a wrapper color justified by contrasting descendant backgrounds', () => {
     // Tournament leaderboards declare white on the wrapper and solid navy on
     // alternating rows; stripping at the top strands those rows dark-on-dark.
     const out = sanitizeChatHtml(
@@ -73,13 +80,36 @@ describe('sanitizeChatHtml', () => {
     expect(out).toContain('text-shadow');
   });
 
-  it('flattens overlay layouts that depend on unreliable image geometry', () => {
+  it('drops a wrapper color whose only backed descendants do not contrast', () => {
+    // The Cafe pattern: white wrapper text everywhere, and the only solid
+    // background inside is a LIGHT button — it cannot justify white, so the
+    // wrapper ghosts. Strip it; the button text goes token-colored too.
     const out = sanitizeChatHtml(
-      '<div style="height:200px"></div>' +
-      '<div style="position:absolute;margin-top:-200px">READ THE ROOM RULES!</div>'
+      '<div style="color:#fff"><h2>The Café</h2><p>This month\'s theme:</p>' +
+      '<button style="background:#eee" value="/suggest">Suggest</button></div>'
     );
-    expect(out).toContain('position: static');
-    expect(out).not.toContain('-200px');
+    expect(out).not.toMatch(/color:\s*(#fff|rgb\(255)/);
+
+    // `background: none` resolves to a keyword in CSSOM — it is not a
+    // surface and must not justify white links (the Cafe nav row).
+    const bgNone = sanitizeChatHtml('<a href="https://x.com" style="background: none; color: white">Our website</a>');
+    expect(bgNone).not.toMatch(/color:\s*white/);
+  });
+
+  it('trusts layout geometry like the official client, except fixed', () => {
+    // Server HTML is vetted upstream; positioned layouts (NU's pill grid,
+    // Help's bubble cluster) depend on absolute offsets and negative
+    // margins surviving. Only position:fixed (escapes the block) is
+    // neutralized.
+    const out = sanitizeChatHtml(
+      '<div style="position:relative"><div style="position:absolute;margin-top:-40px;top:10px">pill</div></div>'
+    );
+    expect(out).toContain('position:absolute');
+    expect(out).toContain('-40px');
+
+    const fixed = sanitizeChatHtml('<div style="position:fixed;top:0">overlay</div>');
+    expect(fixed).toContain('position: static');
+    expect(fixed).not.toContain('fixed');
   });
 
   it('normalizes font[color] the same way', () => {

@@ -86,33 +86,30 @@ export function RoomsScreen() {
         </div>
       </header>
 
-      <div className="directory-columns">
-        <div className="directory-chat">
-          {chatSections.map(([section, sectionRooms]) => (
-            <section key={section} aria-label={section}>
-              <div className="directory-section-label">{section}</div>
-              <div className="directory-grid">
-                {sectionRooms.map(room => (
-                  <button
-                    type="button"
-                    className="directory-card"
-                    key={room.id}
-                    onClick={() => chooseRoom(room.id)}
-                    title={room.desc}
-                  >
-                    <span className="directory-card-title"><Hash size={13} aria-hidden /> {room.title}</span>
-                    <small>{room.desc || 'Chat room'}</small>
-                    <i>{room.userCount.toLocaleString()} online</i>
-                  </button>
-                ))}
-              </div>
-            </section>
-          ))}
-          {!chatSections.length && (
-            <p className="pane-empty">{connection === 'connected' ? 'No chat rooms match.' : 'Connect to load rooms.'}</p>
-          )}
-        </div>
-
+      <div className="directory-chat">
+        {chatSections.map(([section, sectionRooms]) => (
+          <section key={section} aria-label={section}>
+            <div className="directory-section-label">{section}</div>
+            <div className="directory-grid">
+              {sectionRooms.map(room => (
+                <button
+                  type="button"
+                  className="directory-card"
+                  key={room.id}
+                  onClick={() => chooseRoom(room.id)}
+                  title={room.desc}
+                >
+                  <span className="directory-card-title"><Hash size={13} aria-hidden /> {room.title}</span>
+                  <small>{room.desc || 'Chat room'}</small>
+                  <i>{room.userCount.toLocaleString()} online</i>
+                </button>
+              ))}
+            </div>
+          </section>
+        ))}
+        {!chatSections.length && (
+          <p className="pane-empty">{connection === 'connected' ? 'No chat rooms match.' : 'Connect to load rooms.'}</p>
+        )}
       </div>
     </section>
   );
