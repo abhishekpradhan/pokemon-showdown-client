@@ -96,41 +96,38 @@ export function HomeScreen() {
             </p>
           </div>
 
-          <div className="match-control-deck">
           {searchState === 'idle' ? (
-              <div className="match-control-grid" key="setup">
-                <label className="control-field">
-                  <span>Format</span>
-                  <FormatSelector value={selectedFormat} formats={formats} onValueChange={setSelectedFormat} />
-                </label>
-                <label className="control-field">
-                  <span>Battle team</span>
-                  <SearchableSelect
-                    ariaLabel="Select active team"
-                    emptyLabel="No saved teams"
-                    options={teamOptions}
-                    placeholder={requiresTeam ? 'Choose team' : 'Preset team'}
-                    value={activeTeamId}
-                    onValueChange={selectTeam}
-                  />
-                </label>
-                <button className="queue-action" type="button" onClick={startSearch} disabled={!canSearch}>
-                  <Radio size={18} aria-hidden />
-                  Find battle
-                </button>
-              </div>
-            ) : (
-              <div className="searching-deck" key="searching" role="status" aria-live="polite">
-                <span className="searching-radar" aria-hidden><i /><i /><i /></span>
-                <span>
-                  <strong>Searching {selected?.name || selectedFormat}</strong>
-                  <small>Keep this workspace open. The battle will take focus when matched.</small>
-                </span>
-                <button className="queue-cancel" type="button" onClick={cancelSearch}>Cancel</button>
-              </div>
-            )}
-            <div className="queue-line" data-state={searchState}><span /></div>
-          </div>
+            <div className="queue-controls" key="setup">
+              <label className="control-field">
+                <span>Format</span>
+                <FormatSelector value={selectedFormat} formats={formats} onValueChange={setSelectedFormat} />
+              </label>
+              <label className="control-field">
+                <span>Battle team</span>
+                <SearchableSelect
+                  ariaLabel="Select active team"
+                  emptyLabel="No saved teams"
+                  options={teamOptions}
+                  placeholder={requiresTeam ? 'Choose team' : 'Preset team'}
+                  value={activeTeamId}
+                  onValueChange={selectTeam}
+                />
+              </label>
+              <button className="queue-action" type="button" onClick={startSearch} disabled={!canSearch}>
+                <Radio size={17} aria-hidden />
+                Find battle
+              </button>
+            </div>
+          ) : (
+            <div className="searching-deck" key="searching" role="status" aria-live="polite">
+              <span className="searching-radar" aria-hidden><i /><i /><i /></span>
+              <span>
+                <strong>Searching {selected?.name || selectedFormat}</strong>
+                <small>Keep this workspace open. The battle will take focus when matched.</small>
+              </span>
+              <button className="queue-cancel" type="button" onClick={cancelSearch}>Cancel</button>
+            </div>
+          )}
         </section>
 
         <section className="live-now" aria-label="Live battles">

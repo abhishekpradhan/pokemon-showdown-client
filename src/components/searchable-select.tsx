@@ -28,19 +28,24 @@ export function SearchableSelect({
 }) {
   const [open, setOpen] = useState(false);
   const [openUp, setOpenUp] = useState(false);
+  const [maxListHeight, setMaxListHeight] = useState<number | undefined>();
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
-  // Flip the list above the trigger when the viewport below cannot fit it —
-  // opening downward off-screen forced the page to grow under the list.
-  // Layout effect: the direction must be settled before the first paint, or
-  // the list visibly jumps from below to above on open.
+  // The list opens toward whichever side has more room and never asks for
+  // more height than that side can give — flipping without capping height
+  // let it clip under the topbar. Layout effect: settled before first paint.
   useLayoutEffect(() => {
     if (!open) return;
     const rect = triggerRef.current?.getBoundingClientRect();
-    if (rect) setOpenUp(window.innerHeight - rect.bottom < 360 && rect.top > 360);
+    if (!rect) return;
+    const below = window.innerHeight - rect.bottom - 16;
+    const above = rect.top - 72; // keep clear of the topbar
+    const up = below < 340 && above > below;
+    setOpenUp(up);
+    setMaxListHeight(Math.max(180, Math.min(420, up ? above : below)));
   }, [open]);
   const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const selected = options.find(option => option.value === value);
@@ -148,7 +153,7 @@ export function SearchableSelect({
       </button>
 
       {open && (
-        <div className={openUp ? "select-popover is-up" : "select-popover"} role="listbox" aria-label={ariaLabel} tabIndex={-1}>
+        <div className={openUp ? "select-popover is-up" : "select-popover"} style={maxListHeight ? { maxHeight: maxListHeight } : undefined} role="listbox" aria-label={ariaLabel} tabIndex={-1}>
           <label className="select-search">
             <Search size={15} aria-hidden />
             <input

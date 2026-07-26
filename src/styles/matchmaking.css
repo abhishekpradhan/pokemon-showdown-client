@@ -18,14 +18,12 @@
 
 .match-stage {
   position: relative;
-  display: grid;
+  display: flex;
   flex: none;
-  grid-template-areas: "toolbar toolbar" "copy deck";
-  grid-template-columns: minmax(220px, 0.7fr) minmax(430px, 1.3fr);
-  gap: 10px 22px;
-  align-items: center;
+  flex-direction: column;
+  gap: 12px;
   min-width: 0;
-  padding: clamp(16px, 2vw, 24px);
+  padding: clamp(16px, 2vw, 26px);
   overflow: hidden;
   /* No bitmap collage: a calm accent glow over the theme surface. Both
      themes get the same composition from their own tokens. */
@@ -65,7 +63,6 @@
 }
 
 .match-stage-toolbar {
-  grid-area: toolbar;
   justify-content: space-between;
   gap: 14px;
 }
@@ -102,8 +99,7 @@
 }
 
 .match-stage-copy {
-  grid-area: copy;
-  max-width: 610px;
+  max-width: 640px;
 }
 
 .match-stage-copy h1 {
@@ -122,19 +118,19 @@
   font-size: clamp(13px, 1.2vw, 16px);
 }
 
-.match-control-deck {
-  grid-area: deck;
-  padding: 12px;
-  background: var(--arena-panel);
-  border: 1px solid var(--arena-line);
-  border-radius: 9px;
-  box-shadow: var(--arena-shadow-sm);
+.queue-controls {
+  display: grid;
+  grid-template-columns: minmax(200px, 320px) minmax(200px, 320px) auto;
+  gap: 10px;
+  align-items: end;
+  max-width: 860px;
 }
 
-.match-control-grid {
-  display: grid;
-  grid-template-columns: minmax(170px, 0.85fr) minmax(190px, 1fr) auto;
-  gap: 9px;
+.queue-controls .format-trigger,
+.queue-controls .select-trigger {
+  min-height: 44px;
+  background: var(--arena-panel);
+  border-color: var(--arena-line);
 }
 
 .control-field {
@@ -152,17 +148,6 @@
   text-transform: uppercase;
 }
 
-.match-control-deck .format-trigger,
-.match-control-deck .select-trigger {
-  width: 100%;
-  min-height: 42px;
-  height: 42px;
-  color: var(--arena-text);
-  background: var(--arena-ink-2);
-  border-color: var(--arena-line);
-  box-shadow: none;
-}
-
 .queue-action,
 .queue-cancel {
   display: inline-flex;
@@ -170,15 +155,29 @@
   white-space: nowrap;
   justify-content: center;
   gap: 8px;
-  min-height: 42px;
-  padding: 0 18px;
-  color: var(--arena-text);
+  min-height: 44px;
+  padding: 0 20px;
+  font-size: 14px;
+  font-weight: 700;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background var(--arena-fast) ease, transform var(--arena-fast) ease;
+}
+
+.queue-action {
+  color: var(--arena-on-accent);
   background: var(--arena-accent);
   border: 1px solid var(--arena-accent);
-  border-radius: 7px;
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 760;
+}
+
+.queue-action:hover:not(:disabled) {
+  background: var(--arena-accent-strong);
+  transform: translateY(-1px);
+}
+
+.queue-action:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .queue-action {
@@ -194,29 +193,6 @@
   background: var(--arena-panel-raised);
   border-color: var(--arena-line);
   cursor: not-allowed;
-}
-
-.queue-line[data-state="idle"] { display: none; }
-
-.queue-line {
-  height: 2px;
-  margin-top: 10px;
-  overflow: hidden;
-  background: var(--arena-hover);
-}
-
-.queue-line span {
-  display: block;
-  width: 34%;
-  height: 100%;
-  background: var(--arena-cyan);
-  opacity: 0.45;
-}
-
-.queue-line[data-state="searching"] span {
-  width: 42%;
-  opacity: 1;
-  animation: queueScan 1.6s ease-in-out infinite alternate;
 }
 
 .searching-deck {
@@ -632,3 +608,12 @@ a.inspector-section-link:hover { text-decoration: underline; }
   font-size: 11.5px;
   font-weight: 650;
 }
+
+
+.queue-cancel {
+  color: var(--arena-soft);
+  background: var(--arena-panel);
+  border: 1px solid var(--arena-line-strong);
+}
+
+.queue-cancel:hover { border-color: var(--arena-red); color: var(--arena-red-text); }
