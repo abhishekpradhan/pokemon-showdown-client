@@ -28,6 +28,10 @@ test('battle cockpit visual baseline', async ({ page }) => {
   await page.getByRole('button', { name: 'Find battle' }).click();
   await expect(page).toHaveURL(/\/battle\/battle-gen9ou-1/);
   await expect(page.getByRole('button', { name: /Moonblast/ })).toBeVisible();
+  // Sprite images stream from the network; the shot must not race them.
+  await page.waitForFunction(() =>
+    [...document.images].every(image => image.complete && image.naturalWidth > 0)
+  );
   await expect(page).toHaveScreenshot('battle-cockpit.png', {
     animations: 'disabled',
     maxDiffPixelRatio: 0.04,
