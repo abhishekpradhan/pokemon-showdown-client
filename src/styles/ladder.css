@@ -23,7 +23,7 @@
 }
 
 .ladder-summary strong {
-  color: #dce4ed;
+  color: var(--arena-soft);
   font-size: 12px;
 }
 
@@ -79,7 +79,7 @@
   border-block-end: 1px solid var(--arena-line);
 }
 
-.ladder-table tbody tr:hover { background: rgb(255 255 255 / 3%); }
+.ladder-table tbody tr:hover { background: var(--arena-hover); }
 
 /* Numeric columns line up when digits are tabular. */
 .ladder-table tbody td {

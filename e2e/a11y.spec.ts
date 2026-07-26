@@ -62,3 +62,30 @@ test('the battle console is accessible mid-battle', async ({ page }) => {
   }));
   expect(summary, JSON.stringify(summary, null, 2)).toEqual([]);
 });
+
+test('light theme applies and passes the contrast audit', async ({ page }) => {
+  await page.emulateMedia({ colorScheme: 'light' });
+  await page.goto('/settings');
+  // System default resolves to the emulated OS scheme…
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+
+  // …and pinning Dark/Light in Settings overrides it.
+  await page.getByRole('button', { name: 'Dark' }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await page.getByRole('button', { name: 'Light' }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+
+  for (const route of ['/', '/rooms', '/teambuilder']) {
+    await page.goto(route);
+    await expect(page.locator('#workspace')).toBeVisible();
+    const results = await new AxeBuilder({ page })
+      .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+      .analyze();
+    const summary = results.violations.map(violation => ({
+      id: violation.id,
+      route,
+      nodes: violation.nodes.slice(0, 4).map(node => node.html.slice(0, 120)),
+    }));
+    expect(summary, JSON.stringify(summary, null, 2)).toEqual([]);
+  }
+});

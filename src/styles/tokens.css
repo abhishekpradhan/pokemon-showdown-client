@@ -29,6 +29,12 @@
   /* Accents. */
   --arena-accent: #5b9cff;
   --arena-accent-strong: #3f84f0;
+  /* Accent as *text* on tinted chips — lighter than the accent in dark,
+     darker in light, so 10%-tint badges clear 4.5:1. */
+  --arena-accent-text: #9cc0ff;
+  /* Text sitting ON an accent-filled control: dark ink on the bright dark-
+     theme accent, white on the deeper light-theme accent. */
+  --arena-on-accent: #0e1524;
   --arena-cyan: #5b9cff;
   --arena-red: #f05a5a;
   /* Red text needs to be lighter than the red used for fills and borders to
@@ -58,28 +64,66 @@
   --arena-shadow: 0 12px 32px rgb(0 0 0 / 38%);
   --arena-shadow-sm: 0 4px 14px rgb(0 0 0 / 28%);
 
+  /* Interaction surfaces derived from the text colour, so they invert with
+     the theme. */
+  --arena-hover: rgb(226 232 240 / 5%);
+  --arena-hover-strong: rgb(226 232 240 / 9%);
+
+  /* Inverted chrome: tooltips, the skip link, cream accent cards. */
+  --arena-inverse: #fffdf7;
+  --arena-inverse-text: #1d1d1b;
+
   /* Motion. Reduced-motion collapses these to zero (see base.css). */
   --arena-fast: 120ms;
   --arena-base: 200ms;
   --arena-slow: 320ms;
   --arena-ease: cubic-bezier(0.2, 0.8, 0.3, 1);
 
-  /* Density scale, driven by the Settings toggle via [data-density]. */
-  --density-gap: 12px;
-  --density-pad: 14px;
   --row-height: 38px;
 }
 
-:root[data-density="compact"] {
-  --density-gap: 8px;
-  --density-pad: 10px;
-  --row-height: 32px;
-}
+/**
+ * Light theme. Selected in Settings (light / dark / system); app-root stamps
+ * [data-theme] on <html>. The battle field itself stays scenery-dark in both
+ * themes — these tokens restyle the chrome around it.
+ */
+:root[data-theme="light"] {
+  color-scheme: light;
 
-:root[data-density="comfortable"] {
-  --density-gap: 16px;
-  --density-pad: 18px;
-  --row-height: 44px;
+  --arena-ink: #eef1f6;
+  --arena-ink-2: #e7ebf2;
+  --arena-panel: #ffffff;
+  --arena-panel-strong: #f5f7fb;
+  --arena-panel-raised: #eceff5;
+  --arena-line: rgb(18 23 34 / 12%);
+  --arena-line-strong: rgb(18 23 34 / 24%);
+
+  --arena-text: #10151e;
+  --arena-soft: #2c3442;
+  --arena-muted: #5a6474;
+  --arena-faint: #5f6979;
+  --arena-dark-text: #111722;
+
+  /* Accents darken a step so white-on-accent and accent-on-panel both hold. */
+  --arena-accent: #2f6fd6;
+  --arena-accent-strong: #2861bd;
+  --arena-accent-text: #2456a8;
+  --arena-on-accent: #ffffff;
+  --arena-cyan: #2f6fd6;
+  --arena-red: #d43d3d;
+  --arena-red-text: #b52f2f;
+  --arena-green: #1f9e66;
+  --arena-gold: #a97d1e;
+  --arena-purple: #7c5cd6;
+
+  --arena-hover: rgb(18 23 34 / 5%);
+  --arena-hover-strong: rgb(18 23 34 / 9%);
+
+  --arena-inverse: #1b212c;
+  --arena-inverse-text: #f4f7fb;
+
+  --arena-shadow: 0 12px 32px rgb(15 23 42 / 16%);
+  --arena-shadow-sm: 0 4px 14px rgb(15 23 42 / 10%);
 }
 
 /* Raises border and text contrast for the Settings accessibility toggle. */
@@ -88,4 +132,11 @@
   --arena-line-strong: rgb(226 232 240 / 48%);
   --arena-muted: #b6c1cf;
   --arena-faint: #96a2b1;
+}
+
+:root[data-theme="light"][data-contrast="high"] {
+  --arena-line: rgb(18 23 34 / 34%);
+  --arena-line-strong: rgb(18 23 34 / 52%);
+  --arena-muted: #414b5c;
+  --arena-faint: #4c5668;
 }

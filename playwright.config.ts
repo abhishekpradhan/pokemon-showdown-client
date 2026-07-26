@@ -14,6 +14,9 @@ export default defineConfig({
   use: {
     baseURL: 'http://127.0.0.1:5173',
     trace: 'on-first-retry',
+    // The default theme follows the OS; pin dark so screenshots and contrast
+    // audits are deterministic. Light theme has its own explicit spec.
+    colorScheme: 'dark',
   },
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },

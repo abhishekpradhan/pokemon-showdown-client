@@ -41,7 +41,7 @@
 }
 
 .replay-empty strong {
-  color: #bcc6d2;
+  color: var(--arena-soft);
   font-size: 12px;
 }
 
@@ -51,7 +51,7 @@
   align-items: center;
   gap: 5px;
   padding: 8px 12px;
-  background: #151a22;
+  background: var(--arena-ink-2);
   border-top: 1px solid var(--arena-line);
 }
 
@@ -60,9 +60,9 @@
   place-items: center;
   width: 32px;
   height: 32px;
-  color: #9ca7b5;
-  background: #1c222c;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--arena-muted);
+  background: var(--arena-panel-strong);
+  border: 1px solid var(--arena-line);
   border-radius: 5px;
   cursor: pointer;
 }
@@ -73,8 +73,8 @@
 }
 
 .replay-transport .transport-play {
-  color: #fff;
-  background: #397de0;
+  color: var(--arena-text);
+  background: var(--arena-accent);
 }
 
 .replay-transport input {
@@ -134,7 +134,7 @@
 
 .replay-event-list li {
   position: relative;
-  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  border-left: 1px solid var(--arena-line);
 }
 
 .replay-event-list li::before {
@@ -144,7 +144,7 @@
   left: -3px;
   width: 5px;
   height: 5px;
-  background: #4b5665;
+  background: var(--arena-panel-raised);
   border-radius: 50%;
 }
 
@@ -158,7 +158,7 @@
   gap: 5px;
   width: 100%;
   padding: 9px 7px 9px 10px;
-  color: #8995a5;
+  color: var(--arena-muted);
   text-align: left;
   background: transparent;
   border: 0;
@@ -166,12 +166,12 @@
 }
 
 .replay-event-list button:hover {
-  color: #dbe3ed;
-  background: rgba(255, 255, 255, 0.035);
+  color: var(--arena-soft);
+  background: var(--arena-hover);
 }
 
 .replay-event-list span {
-  color: #6f9fe6;
+  color: var(--arena-accent-text);
   font-size: 12px;
 }
 

@@ -15,7 +15,7 @@
   min-height: 0;
   padding: 0;
   overflow: hidden;
-  background: #10151c;
+  background: var(--arena-ink-2);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 9px;
   box-shadow: none;
@@ -26,7 +26,7 @@
   min-height: 44px;
   height: 44px;
   padding: 0 8px 0 12px;
-  background: #151a22;
+  background: var(--arena-ink-2);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
@@ -95,7 +95,7 @@
   align-items: center;
   gap: 5px;
   padding: 4px 6px;
-  color: #8b96a5;
+  color: var(--arena-faint);
   background: rgba(255, 255, 255, 0.04);
   border-radius: 4px;
   font-size: 10.5px;
@@ -106,13 +106,13 @@
   width: 32px;
   min-height: 32px;
   height: 32px;
-  color: #929dab;
+  color: var(--arena-muted);
   background: transparent;
   border-color: transparent;
 }
 
 .battle-toolbar .icon-button:hover {
-  color: #fff;
+  color: var(--arena-text);
   background: rgba(255, 255, 255, 0.06);
 }
 
@@ -342,7 +342,7 @@
 }
 
 .status-chip {
-  color: #0d1015;
+  color: var(--arena-ink);
   background: var(--status-color);
 }
 
@@ -420,8 +420,8 @@
   min-height: 0;
   margin: 0;
   padding: 10px 11px 11px;
-  color: #e9eef5;
-  background: #151a22;
+  color: var(--arena-text);
+  background: var(--arena-ink-2);
   border: 0;
   border-top: 1px solid rgba(255, 255, 255, 0.09);
   border-radius: 0;
@@ -461,7 +461,7 @@
 
 .decision-mode {
   padding: 4px 6px;
-  color: #8fbcff;
+  color: var(--arena-accent);
   background: rgba(91, 156, 255, 0.1);
   border-radius: 4px;
   font-size: 12px;
@@ -520,7 +520,7 @@
 .gimmick-toggle:hover { background: rgb(91 156 255 / 22%); }
 
 .gimmick-toggle.is-armed {
-  color: #08121f;
+  color: var(--arena-ink);
   background: var(--arena-accent);
   border-color: var(--arena-accent);
   box-shadow: 0 0 14px rgb(91 156 255 / 45%);
@@ -606,7 +606,7 @@
 
 .move-effect[data-effect="super"] { color: #06210f; background: var(--hp-high); }
 .move-effect[data-effect="resisted"] { color: #2a1206; background: var(--arena-gold); }
-.move-effect[data-effect="immune"] { color: #f4f7fb; background: var(--arena-red); }
+.move-effect[data-effect="immune"] { color: var(--arena-text); background: var(--arena-red); }
 
 .move-type-badge {
   justify-self: start;
@@ -676,7 +676,7 @@
 .bench-slot:disabled { cursor: default; }
 
 .bench-slot.is-active {
-  color: #fff;
+  color: var(--arena-text);
   background: rgb(91 156 255 / 12%);
   border-color: rgb(91 156 255 / 46%);
 }
@@ -722,7 +722,7 @@
   grid-column: 1 / -1;
   justify-self: start;
   padding: 1px 5px;
-  color: #0d1015;
+  color: var(--arena-ink);
   font-size: 12px;
   font-style: normal;
   font-weight: 800;
@@ -741,7 +741,7 @@
   min-height: 70px;
   padding: 0 12px;
   color: var(--arena-faint);
-  background: #191f28;
+  background: var(--arena-panel);
   border: 1px dashed rgba(255, 255, 255, 0.1);
   border-radius: 6px;
   font-size: 12px;
@@ -766,9 +766,9 @@
   align-items: center;
   min-height: 44px;
   padding-inline: 12px;
-  color: #dce6f3;
+  color: var(--arena-soft);
   text-align: start;
-  background: #1c2634;
+  background: var(--arena-panel-strong);
   border-color: rgba(91, 156, 255, 0.22);
   font-size: 12px;
 }
@@ -796,7 +796,7 @@
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   padding: 5px;
-  background: #151a22;
+  background: var(--arena-ink-2);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
@@ -864,7 +864,7 @@
 
 .battle-log-list li {
   padding: 8px 4px;
-  color: #aeb8c6;
+  color: var(--arena-muted);
   background: transparent;
   border: 0;
   border-top: 1px solid rgba(255, 255, 255, 0.05);
@@ -905,13 +905,13 @@
 
 .battle-chat-panel .chat-entry {
   margin-top: 8px;
-  color: #8995a5;
-  background: #1a202a;
+  color: var(--arena-muted);
+  background: var(--arena-panel-strong);
   border-color: rgba(255, 255, 255, 0.1);
 }
 
 .battle-chat-panel .chat-entry input {
-  color: #e9eef5;
+  color: var(--arena-text);
 }
 
 .battle-info-panel {
@@ -963,7 +963,7 @@
   grid-template-columns: 1fr auto;
   gap: 6px;
   padding: 8px;
-  background: #151a22;
+  background: var(--arena-ink-2);
   border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
@@ -977,7 +977,7 @@
   width: auto;
   margin: 0;
   padding: 0 10px;
-  color: #aeb8c6;
+  color: var(--arena-muted);
   background: #1d242e;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 5px;

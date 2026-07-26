@@ -57,8 +57,7 @@
   .new-team-button,
   .stage-actions .primary-action,
   .stage-heading .primary-action,
-  .segmented-control button,
-  .density-toggle button {
-    min-block-size: 40px !important;
+  .segmented-control button {
+    min-block-size: 44px !important;
   }
 }

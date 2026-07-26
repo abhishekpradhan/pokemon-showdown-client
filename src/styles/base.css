@@ -69,8 +69,8 @@ textarea:focus-visible,
   left: 10px;
   z-index: 100;
   padding: 10px 12px;
-  color: #111;
-  background: #fffdf7;
+  color: var(--arena-inverse-text);
+  background: var(--arena-inverse);
   border: 0;
   border-radius: var(--arena-radius);
   cursor: pointer;
@@ -117,7 +117,7 @@ textarea:focus-visible,
 
 
 .connection-pill {
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--arena-line);
   border-radius: 999px;
   text-transform: capitalize;
 }
@@ -209,9 +209,9 @@ textarea:focus-visible,
   align-items: center;
   justify-content: center;
   min-height: 44px;
-  color: #fff;
-  background: rgba(255, 255, 255, 0.09);
-  border-color: rgba(255, 255, 255, 0.13);
+  color: var(--arena-text);
+  background: var(--arena-line);
+  border-color: var(--arena-line);
   cursor: pointer;
 }
 
@@ -233,7 +233,7 @@ textarea:focus-visible,
   min-width: 18px;
   height: 18px;
   padding: 0 5px;
-  color: #fff;
+  color: var(--arena-text);
   background: var(--arena-red);
   border-radius: 999px;
   font-size: 12px;
@@ -333,7 +333,7 @@ textarea:focus-visible,
   grid-template-rows: auto minmax(0, 1fr);
   overflow: hidden;
   color: var(--arena-dark-text);
-  background: #fffdf7;
+  background: var(--arena-inverse);
   border: 1px solid rgba(31, 30, 27, 0.14);
   border-radius: 10px;
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28);
@@ -442,15 +442,15 @@ textarea:focus-visible,
 
 .format-trigger,
 .secondary-action {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.13);
-  border-color: rgba(255, 255, 255, 0.2);
+  color: var(--arena-text);
+  background: var(--arena-line);
+  border-color: var(--arena-line-strong);
 }
 
 
 
 .primary-action {
-  color: #08121f;
+  color: var(--arena-on-accent);
   font-weight: 700;
   background: var(--arena-accent);
   border-color: var(--arena-accent);
@@ -475,7 +475,7 @@ textarea:focus-visible,
 
 .danger-action,
 .forfeit-button {
-  color: #fff;
+  color: var(--arena-text);
   background: #9f2f2f;
   border-color: var(--arena-faint);
   font-weight: 800;
@@ -577,9 +577,9 @@ textarea:focus-visible,
   padding: 14px;
   overflow: hidden;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.025)),
+    linear-gradient(180deg, var(--arena-line), var(--arena-hover)),
     rgba(11, 12, 13, 0.58);
-  border: 1px solid rgba(255, 255, 255, 0.13);
+  border: 1px solid var(--arena-line);
   border-radius: 12px;
   box-shadow: 0 28px 92px rgba(0, 0, 0, 0.24);
   backdrop-filter: blur(16px);
@@ -619,7 +619,7 @@ textarea:focus-visible,
   position: relative;
   min-height: clamp(340px, 48svh, 500px);
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--arena-line);
   border-radius: 10px;
   background: #29251f;
 }
@@ -630,7 +630,7 @@ textarea:focus-visible,
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(0, 0, 0, 0.22)),
+    linear-gradient(180deg, var(--arena-hover), rgba(0, 0, 0, 0.22)),
     url("https://play.pokemonshowdown.com/fx/bg-gen4.png") center / cover;
   transform: scale(1.02);
 }
@@ -655,7 +655,7 @@ textarea:focus-visible,
   top: 16px;
   display: flex;
   justify-content: space-between;
-  color: #fff;
+  color: var(--arena-text);
 }
 
 
@@ -664,7 +664,7 @@ textarea:focus-visible,
 .field-hud span {
   padding: 7px 11px;
   background: rgba(15, 16, 17, 0.58);
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  border: 1px solid var(--arena-line-strong);
   border-radius: 999px;
   backdrop-filter: blur(12px);
   box-shadow: 0 8px 26px rgba(0, 0, 0, 0.16);
@@ -717,7 +717,7 @@ textarea:focus-visible,
   padding: 10px 11px;
   color: #f8f4ea;
   background: rgba(15, 16, 17, 0.66);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid var(--arena-line-strong);
   border-radius: 8px;
   box-shadow: 0 16px 46px rgba(0, 0, 0, 0.2);
   backdrop-filter: blur(14px);
@@ -757,7 +757,7 @@ textarea:focus-visible,
   height: 6px;
   margin-top: 8px;
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.18);
+  background: var(--arena-line-strong);
   border-radius: 999px;
 }
 
@@ -832,8 +832,8 @@ textarea:focus-visible,
   justify-content: center;
   gap: 7px;
   min-height: 48px;
-  color: #1d1d1b;
-  background: #fffdf7;
+  color: var(--arena-inverse-text);
+  background: var(--arena-inverse);
   border: 1px solid rgba(80, 72, 60, 0.18);
   border-radius: var(--arena-radius);
   cursor: pointer;
@@ -865,7 +865,7 @@ textarea:focus-visible,
   min-width: 0;
   min-height: 76px;
   padding: 7px;
-  color: #1d1d1b;
+  color: var(--arena-inverse-text);
   background: rgba(245, 238, 226, 0.82);
   border: 1px solid rgba(170, 154, 129, 0.34);
   border-radius: 7px;
@@ -925,7 +925,7 @@ textarea:focus-visible,
   top: 6px;
   right: 6px;
   padding: 1px 4px;
-  color: #fff;
+  color: var(--arena-text);
   background: #9f2f2f;
   border-radius: 4px;
   font-style: normal;
@@ -949,8 +949,8 @@ textarea:focus-visible,
 .battle-log-list li {
   padding: 8px 10px;
   color: rgba(255, 253, 247, 0.84);
-  background: rgba(255, 255, 255, 0.07);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: var(--arena-hover);
+  border: 1px solid var(--arena-hover);
   border-radius: 6px;
 }
 
@@ -1001,7 +1001,7 @@ textarea:focus-visible,
   justify-content: center;
   inline-size: 38px;
   block-size: 38px;
-  color: #08121f;
+  color: var(--arena-ink);
   background: var(--arena-accent);
   border: none;
   border-radius: var(--arena-radius-sm);
@@ -1047,8 +1047,10 @@ textarea:focus-visible,
   display: block;
   width: 24px;
   height: 24px;
+  /* Constant white with a shadow — the standard toggle thumb in any theme. */
   background: #fff;
   border-radius: 999px;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 35%);
   transform: translateX(2px);
   transition: transform 150ms ease;
 }
@@ -1105,7 +1107,7 @@ textarea:focus-visible,
   color: var(--arena-soft);
   font-size: 12px;
   line-height: 1.45;
-  background: rgb(255 255 255 / 4%);
+  background: var(--arena-hover);
   border: 1px solid var(--arena-line);
   border-radius: var(--arena-radius);
 }
@@ -1176,7 +1178,7 @@ textarea:focus-visible,
   min-height: 42px;
   padding: 0 11px;
   color: var(--arena-dark-text);
-  background: #fff;
+  background: var(--arena-text);
   border: 1px solid #d8d0c4;
   border-radius: 7px;
 }
@@ -1186,8 +1188,8 @@ textarea:focus-visible,
 .tooltip {
   z-index: 80;
   padding: 6px 8px;
-  color: #1d1d1b;
-  background: #fffdf7;
+  color: var(--arena-inverse-text);
+  background: var(--arena-inverse);
   border-radius: 6px;
   font-size: 12px;
 }
@@ -1195,7 +1197,7 @@ textarea:focus-visible,
 
 
 .tooltip-arrow {
-  fill: #fffdf7;
+  fill: var(--arena-inverse);
 }
 
 

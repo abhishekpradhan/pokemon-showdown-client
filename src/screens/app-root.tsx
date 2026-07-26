@@ -24,7 +24,7 @@ export function AppRoot() {
   const { acceptChallenge, activeRoomId, challenges, clearNotifications, connect, connection, disconnect, lastError, login, loginPending, logout, named, needsPassword, notifications, reconnect, rejectChallenge, rooms, username } = useArenaStore(
     useShallow(state => ({ acceptChallenge: state.acceptChallenge, activeRoomId: state.activeRoomId, challenges: state.challenges, clearNotifications: state.clearNotifications, rejectChallenge: state.rejectChallenge, connect: state.connect, connection: state.connection, disconnect: state.disconnect, lastError: state.lastError, login: state.login, loginPending: state.loginPending, logout: state.logout, named: state.named, needsPassword: state.needsPassword, notifications: state.notifications, reconnect: state.reconnect, rooms: state.rooms, username: state.username }))
   );
-  const { contrast, density, motion, notificationsEnabled } = useWorkspaceStore();
+  const { contrast, motion, notificationsEnabled, theme } = useWorkspaceStore();
   const [nameInput, setNameInput] = useState(named ? username : '');
   const [passwordInput, setPasswordInput] = useState('');
   const [accountOpen, setAccountOpen] = useState(false);
@@ -67,10 +67,22 @@ export function AppRoot() {
   }, [accountOpen, loginPending, named]);
 
   useEffect(() => {
-    document.documentElement.dataset.density = density;
     document.documentElement.dataset.motion = motion;
     document.documentElement.dataset.contrast = contrast;
-  }, [contrast, density, motion]);
+  }, [contrast, motion]);
+
+  // Resolve the theme preference to a concrete data-theme, tracking the OS
+  // when set to "system".
+  useEffect(() => {
+    const media = window.matchMedia('(prefers-color-scheme: light)');
+    const apply = () => {
+      const resolved = theme === 'system' ? (media.matches ? 'light' : 'dark') : theme;
+      document.documentElement.dataset.theme = resolved;
+    };
+    apply();
+    media.addEventListener('change', apply);
+    return () => media.removeEventListener('change', apply);
+  }, [theme]);
 
   useEffect(() => {
     if (!activeRoomId?.startsWith('battle-') || rooms[activeRoomId]?.type !== 'battle') return;

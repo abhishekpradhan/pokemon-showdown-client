@@ -5,10 +5,12 @@ import {
   Contrast,
   ExternalLink,
   FileCode2,
-  Gauge,
+  Monitor,
+  Moon,
   RadioTower,
   RefreshCw,
   Server,
+  Sun,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
@@ -33,13 +35,13 @@ export function SettingsScreen() {
   const isDefaultServer = server.host === getDefaultServerConfig().host;
   const {
     contrast,
-    density,
     motion,
     notificationsEnabled,
     setContrast,
-    setDensity,
     setMotion,
     setNotificationsEnabled,
+    setTheme,
+    theme,
   } = useWorkspaceStore();
 
   return (
@@ -58,11 +60,18 @@ export function SettingsScreen() {
             <small>Saved in this browser</small>
           </div>
           <div className="setting-row">
-            <span className="setting-icon"><Gauge size={16} aria-hidden /></span>
-            <span><strong>Interface density</strong><small>Control spacing across lists and inspectors.</small></span>
-            <div className="setting-segmented" aria-label="Interface density">
-              <button type="button" className={density === 'compact' ? 'is-active' : ''} onClick={() => setDensity('compact')}>Compact</button>
-              <button type="button" className={density === 'comfortable' ? 'is-active' : ''} onClick={() => setDensity('comfortable')}>Comfortable</button>
+            <span className="setting-icon"><Sun size={16} aria-hidden /></span>
+            <span><strong>Theme</strong><small>Match the system, or pin light or dark.</small></span>
+            <div className="setting-segmented" aria-label="Theme">
+              <button type="button" className={theme === 'light' ? 'is-active' : ''} onClick={() => setTheme('light')}>
+                <Sun size={13} aria-hidden /> Light
+              </button>
+              <button type="button" className={theme === 'dark' ? 'is-active' : ''} onClick={() => setTheme('dark')}>
+                <Moon size={13} aria-hidden /> Dark
+              </button>
+              <button type="button" className={theme === 'system' ? 'is-active' : ''} onClick={() => setTheme('system')}>
+                <Monitor size={13} aria-hidden /> System
+              </button>
             </div>
           </div>
           <div className="setting-row">
@@ -191,7 +200,7 @@ export function SettingsScreen() {
           <div><dt>Port</dt><dd>{server.port}</dd></div>
           <div><dt>Path</dt><dd>{server.prefix}</dd></div>
         </dl>
-        <pre className="protocol-log" aria-label="Protocol log">
+        <pre className="protocol-log" aria-label="Protocol log" role="region" tabIndex={0}>
           {protocolLogEnabled ? rawProtocolLog.slice(0, 80).join('\n') || 'No protocol messages yet.' : 'Enable protocol diagnostics to inspect redacted traffic.'}
         </pre>
       </aside>

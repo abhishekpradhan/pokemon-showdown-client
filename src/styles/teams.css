@@ -15,7 +15,7 @@
   width: 100%;
   min-height: 61px;
   padding: 7px;
-  color: #abb6c4;
+  color: var(--arena-muted);
   text-align: left;
   background: transparent;
   border: 1px solid transparent;
@@ -24,13 +24,13 @@
 }
 
 .team-library-row:hover {
-  color: #eef3f8;
-  background: rgba(255, 255, 255, 0.035);
+  color: var(--arena-text);
+  background: var(--arena-hover);
 }
 
 .team-library-row.is-active {
-  color: #fff;
-  background: #1b222d;
+  color: var(--arena-text);
+  background: var(--arena-panel-strong);
   border-color: rgba(91, 156, 255, 0.25);
 }
 
@@ -80,7 +80,7 @@
   position: absolute;
   right: 7px;
   bottom: 6px;
-  color: #7daaf0;
+  color: var(--arena-accent-text);
   font-style: normal;
   font-size: 12px;
 }
@@ -92,9 +92,9 @@
   gap: 7px;
   min-height: 38px;
   margin: 8px;
-  color: #aeb8c5;
-  background: #191f28;
-  border: 1px dashed rgba(255, 255, 255, 0.13);
+  color: var(--arena-muted);
+  background: var(--arena-panel);
+  border: 1px dashed var(--arena-line);
   border-radius: 6px;
   cursor: pointer;
   font-size: 10.5px;
@@ -102,7 +102,7 @@
 }
 
 .new-team-button:hover {
-  color: #fff;
+  color: var(--arena-text);
   border-color: rgba(91, 156, 255, 0.46);
 }
 
@@ -137,9 +137,9 @@
 .inspector-control .select-trigger {
   width: 100%;
   min-height: 39px;
-  color: #e8edf4;
-  background: #191f28;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--arena-text);
+  background: var(--arena-panel);
+  border: 1px solid var(--arena-line);
   border-radius: 6px;
 }
 
@@ -184,18 +184,18 @@
   gap: 10px;
   min-height: 67px;
   padding: 7px 10px;
-  color: #aeb8c5;
+  color: var(--arena-muted);
   text-align: left;
-  background: #171d26;
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: var(--arena-panel);
+  border: 1px solid var(--arena-hover);
   border-radius: 7px;
   cursor: pointer;
 }
 
 .set-row:hover,
 .set-row.is-active {
-  color: #f1f5f9;
-  background: #1b222d;
+  color: var(--arena-text);
+  background: var(--arena-panel-strong);
   border-color: rgba(91, 156, 255, 0.25);
 }
 
@@ -233,8 +233,8 @@
 .set-moves i {
   padding: 4px 6px;
   overflow: hidden;
-  color: #929ead;
-  background: rgba(255, 255, 255, 0.035);
+  color: var(--arena-muted);
+  background: var(--arena-hover);
   border-radius: 3px;
   font-style: normal;
   font-size: 12px;
@@ -248,14 +248,14 @@
   min-height: 180px;
   padding: 24px;
   color: var(--arena-faint);
-  border: 1px dashed rgba(255, 255, 255, 0.1);
+  border: 1px dashed var(--arena-line);
   border-radius: 7px;
   text-align: center;
 }
 
 .set-empty strong {
   margin-top: 10px;
-  color: #c0c9d4;
+  color: var(--arena-soft);
   font-size: 12px;
 }
 
@@ -267,14 +267,14 @@
 .import-editor {
   margin: 0 16px;
   padding: 0 12px 12px;
-  background: #171d26;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--arena-panel);
+  border: 1px solid var(--arena-line);
   border-radius: 7px;
 }
 
 .import-editor summary {
   padding: 11px 0;
-  color: #9ca7b5;
+  color: var(--arena-muted);
   cursor: pointer;
   font-size: 10.5px;
   font-weight: 730;
@@ -286,9 +286,9 @@
   width: 100%;
   min-height: 150px;
   padding: 10px;
-  color: #d8e0e9;
-  background: #10151c;
-  border: 1px solid rgba(255, 255, 255, 0.09);
+  color: var(--arena-soft);
+  background: var(--arena-ink-2);
+  border: 1px solid var(--arena-line);
   border-radius: 5px;
   resize: vertical;
   font: 10px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -347,7 +347,7 @@
   grid-template-columns: 64px minmax(0, 1fr);
   gap: 9px;
   padding: 9px 2px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.055);
+  border-bottom: 1px solid var(--arena-hover);
   font-size: 10.5px;
 }
 
@@ -360,7 +360,7 @@
 .inspector-facts dd {
   margin: 0;
   overflow-wrap: anywhere;
-  color: #c0cad6;
+  color: var(--arena-soft);
 }
 
 .set-move-list {
@@ -373,8 +373,8 @@
 
 .set-move-list li {
   padding: 7px 8px;
-  color: #b8c2cf;
-  background: rgba(255, 255, 255, 0.035);
+  color: var(--arena-soft);
+  background: var(--arena-hover);
   border-radius: 4px;
   font-size: 10.5px;
 }
@@ -388,7 +388,7 @@
 .stat-grid span {
   display: grid;
   padding: 7px;
-  background: rgba(255, 255, 255, 0.035);
+  background: var(--arena-hover);
   border-radius: 4px;
 }
 
