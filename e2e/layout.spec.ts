@@ -141,3 +141,19 @@ test('a joined chat room renders as a full surface with tabs', async ({ page }) 
   await expect(page.getByText('Something went wrong')).toHaveCount(0);
   await expect(page.locator('.chat-line').first()).toBeVisible();
 });
+
+test('server HTML renders sanitized with working poll buttons', async ({ page }) => {
+  await page.goto('/room/lobby');
+
+  // The bot's /raw leaderboard renders as a real table, not literal markup.
+  const leaderboard = page.locator('.chat-line.is-html table');
+  await expect(leaderboard.first()).toBeVisible();
+  await expect(leaderboard.getByRole('cell', { name: 'gen 9 is trash man' })).toBeVisible();
+  await expect(page.locator('.chat-line', { hasText: '<div' })).toHaveCount(0);
+
+  // Poll buttons survive sanitization and send their command; the server's
+  // uhtmlchange then rewrites the named block in place.
+  await page.getByRole('button', { name: '1. Spheal Ordeal' }).click();
+  await expect(page.getByText('Poll: thanks for voting!')).toBeVisible();
+  await expect(page.getByRole('button', { name: '1. Spheal Ordeal' })).toHaveCount(0);
+});

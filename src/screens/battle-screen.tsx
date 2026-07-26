@@ -279,7 +279,11 @@ export function BattleScreen() {
           {inspectorTab === 'chat' && (
             <section className="battle-chat-panel" aria-label="Battle chat">
               <div className="chat-feed">
-                <ChatFeed messages={battleRoom?.chat ?? []} selfName={username} />
+                <ChatFeed
+                  messages={battleRoom?.chat ?? []}
+                  selfName={username}
+                  onCommand={command => sendBattleChat(command, battle.id)}
+                />
               </div>
               <form className="chat-entry" onSubmit={submitChat}>
                 <MessageSquare size={16} aria-hidden />
@@ -307,7 +311,7 @@ export function BattleScreen() {
               <label className="switch-row">
                 <span>
                   <strong>Hardcore display</strong>
-                  <small>Hide inferred battle information.</small>
+                  <small>Hide exact numbers and type intel; the HP gauge stays.</small>
                 </span>
                 <Switch.Root
                   className="switch-root"

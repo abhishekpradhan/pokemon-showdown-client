@@ -21,6 +21,8 @@ export type ChatMessage = {
   message: string;
   timestamp?: number;
   kind?: 'chat' | 'pm' | 'system' | 'error' | 'announce' | 'me' | 'html';
+  /** Named |uhtml| blocks (polls, tour cards) update in place by this key. */
+  uhtmlName?: string;
 };
 
 export type RoomBase = {

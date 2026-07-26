@@ -39,29 +39,61 @@ export type ArenaStoreApi = {
   setState: (partial: Partial<ArenaState> | ((state: ArenaState) => Partial<ArenaState>)) => void;
 };
 
+/**
+ * Chat messages beginning with `/` are display directives, not literal text
+ * (PROTOCOL.md): bots and the server deliver HTML, announcements and log
+ * lines through them. Interpret the ones with rendering semantics; anything
+ * unrecognized stays visible as plain text.
+ */
+export const displayCommand = (
+  base: { user: string; timestamp?: number },
+  text: string
+): ChatMessage => {
+  if (text.startsWith('//')) return { ...base, message: text.slice(1) };
+  if (text.startsWith('/me ')) return { ...base, kind: 'me', message: text.slice(4) };
+  if (text.startsWith('/announce ')) return { ...base, kind: 'announce', message: text.slice(10) };
+  if (text.startsWith('/log ')) return { ...base, kind: 'system', user: 'system', message: text.slice(5) };
+  if (text.startsWith('/error ')) return { ...base, kind: 'error', user: 'error', message: text.slice(7) };
+  if (text.startsWith('/text ')) return { ...base, kind: 'system', user: 'system', message: text.slice(6) };
+  if (text.startsWith('/raw ') || text.startsWith('/html ')) {
+    return { ...base, kind: 'html', message: text.slice(text.indexOf(' ') + 1) };
+  }
+  if (text.startsWith('/uhtml ') || text.startsWith('/uhtmlchange ')) {
+    // `/uhtml NAME,HTML` — names are scoped per sender to avoid collisions
+    // with room-level |uhtml| blocks.
+    const payload = text.slice(text.indexOf(' ') + 1);
+    const comma = payload.indexOf(',');
+    if (comma !== -1) {
+      return {
+        ...base,
+        kind: 'html',
+        uhtmlName: `${base.user}#${payload.slice(0, comma)}`,
+        message: payload.slice(comma + 1),
+      };
+    }
+  }
+  if (text.startsWith('/nonotify ')) return displayCommand(base, text.slice(10));
+  return { ...base, message: text };
+};
+
 /** Chat-ish lines that can appear in any room. */
 const parseChatLine = (line: PsLine): ChatMessage | null => {
   switch (line.command) {
   case 'c':
-  case 'chat': {
-    const message = line.args.slice(1).join('|');
-    if (message.startsWith('/me ')) return { kind: 'me', user: line.args[0] || '', message: message.slice(4) };
-    if (message.startsWith('/announce ')) return { kind: 'announce', user: line.args[0] || '', message: message.slice(10) };
-    return { user: line.args[0] || 'system', message };
-  }
-  case 'c:': {
-    const message = line.args.slice(2).join('|');
-    const base = { timestamp: (Number(line.args[0]) || 0) * 1000 || undefined, user: line.args[1] || 'system' };
-    if (message.startsWith('/me ')) return { ...base, kind: 'me', message: message.slice(4) };
-    if (message.startsWith('/announce ')) return { ...base, kind: 'announce', message: message.slice(10) };
-    return { ...base, message };
-  }
+  case 'chat':
+    return displayCommand({ user: line.args[0] || 'system' }, line.args.slice(1).join('|'));
+  case 'c:':
+    return displayCommand(
+      { timestamp: (Number(line.args[0]) || 0) * 1000 || undefined, user: line.args[1] || 'system' },
+      line.args.slice(2).join('|')
+    );
   case 'raw':
   case 'html':
     return { kind: 'html', user: '', message: line.args.join('|') };
   case 'uhtml':
-    // args[0] is the uhtml name; the rest is markup.
-    return { kind: 'html', user: '', message: line.args.slice(1).join('|') };
+  case 'uhtmlchange':
+    // args[0] names the block; uhtmlchange rewrites it in place.
+    return { kind: 'html', user: '', uhtmlName: line.args[0] || undefined, message: line.args.slice(1).join('|') };
   case 'error':
     return { kind: 'error', user: 'error', message: line.args.join('|') };
   case '-message':
@@ -201,12 +233,12 @@ const handleGlobal = (line: PsLine, store: ArenaStoreApi): boolean => {
     setState(current => {
       const existing = current.rooms[pmRoomId] || newPmRoom(pmRoomId, partner.replace(/^[^A-Za-z0-9]/, ''));
       const focused = current.activeRoomId === pmRoomId;
-      const chatMessage: ChatMessage = {
-        kind: 'pm',
-        user: from.replace(/^[^A-Za-z0-9]/, ''),
-        message,
-        timestamp: Date.now(),
-      };
+      // Bots PM HTML and announcements through the same slash directives.
+      const parsed = displayCommand(
+        { user: from.replace(/^[^A-Za-z0-9]/, ''), timestamp: Date.now() },
+        message
+      );
+      const chatMessage: ChatMessage = { ...parsed, kind: parsed.kind ?? 'pm' };
       return {
         rooms: upsert(current.rooms, appendChat(existing, chatMessage, focused) as Room),
       };

@@ -216,4 +216,40 @@ describe('arena store protocol integration', () => {
     });
     vi.unstubAllGlobals();
   });
+
+  it('interprets chat display directives: /raw html, /log, and // literals', () => {
+    const store = useArenaStore.getState();
+    store.handleFrame(parsePsFrame('>lobby\n|init|chat\n|title|Lobby'));
+    store.handleFrame(parsePsFrame(
+      '>lobby\n|c:|1735689600|*Scrappie|/raw <div class="infobox"><table><tr><td>gen 9 is trash man</td></tr></table></div>'
+    ));
+    store.handleFrame(parsePsFrame('>lobby\n|c|%staff|/log Tournament created.'));
+    store.handleFrame(parsePsFrame('>lobby\n|c|alice|//me is literal text'));
+
+    const chat = useArenaStore.getState().rooms.lobby.chat;
+    expect(chat[0]).toMatchObject({ kind: 'html', user: '*Scrappie' });
+    expect(chat[0].message).toContain('<table>');
+    expect(chat[1]).toMatchObject({ kind: 'system', user: 'system', message: 'Tournament created.' });
+    expect(chat[2]).toMatchObject({ user: 'alice', message: '/me is literal text' });
+    expect(chat[2].kind).toBeUndefined();
+  });
+
+  it('updates named uhtml blocks in place and removes them when emptied', () => {
+    const store = useArenaStore.getState();
+    store.handleFrame(parsePsFrame('>lobby\n|init|chat\n|title|Lobby'));
+    store.handleFrame(parsePsFrame('>lobby\n|uhtml|poll1|<div class="infobox">Poll: round 1</div>'));
+    store.handleFrame(parsePsFrame('>lobby\n|c|bob|between'));
+    store.handleFrame(parsePsFrame('>lobby\n|uhtmlchange|poll1|<div class="infobox">Poll: results</div>'));
+
+    let chat = useArenaStore.getState().rooms.lobby.chat;
+    expect(chat).toHaveLength(2);
+    expect(chat[0]).toMatchObject({ kind: 'html', uhtmlName: 'poll1' });
+    expect(chat[0].message).toContain('Poll: results');
+    expect(chat[1]).toMatchObject({ user: 'bob', message: 'between' });
+
+    store.handleFrame(parsePsFrame('>lobby\n|uhtmlchange|poll1|'));
+    chat = useArenaStore.getState().rooms.lobby.chat;
+    expect(chat).toHaveLength(1);
+    expect(chat[0]).toMatchObject({ user: 'bob' });
+  });
 });

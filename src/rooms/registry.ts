@@ -86,11 +86,25 @@ export const updateBattleRoom = (
   return { ...rooms, [id]: update(room) };
 };
 
-export const appendChat = (room: Room, message: ChatMessage, focused: boolean): Room => ({
-  ...room,
-  chat: [...room.chat, message].slice(-CHAT_LIMIT),
-  unread: focused ? 0 : room.unread + 1,
-} as Room);
+export const appendChat = (room: Room, message: ChatMessage, focused: boolean): Room => {
+  // Named uhtml blocks (polls, tour cards) update the existing entry in place;
+  // an empty update removes the block. Updates never bump unread.
+  if (message.uhtmlName) {
+    const index = room.chat.findIndex(entry => entry.uhtmlName === message.uhtmlName);
+    if (index !== -1) {
+      const chat = room.chat.slice();
+      if (message.message.trim()) chat[index] = { ...chat[index], message: message.message };
+      else chat.splice(index, 1);
+      return { ...room, chat } as Room;
+    }
+    if (!message.message.trim()) return room;
+  }
+  return {
+    ...room,
+    chat: [...room.chat, message].slice(-CHAT_LIMIT),
+    unread: focused ? 0 : room.unread + 1,
+  } as Room;
+};
 
 export const appendLog = (room: Room, line: string): Room => ({
   ...room,

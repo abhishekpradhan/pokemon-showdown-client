@@ -381,15 +381,104 @@
 .chat-line.is-system { color: var(--arena-muted); font-size: 12px; }
 .chat-line.is-error { color: var(--arena-red-text); font-size: 12px; }
 
+/* Server HTML (polls, tour cards, leaderboards, room intros) is authored
+   against the official dark client — inline `color: #fff` styles abound. Pin
+   the strip as a dark island in both themes, the same pattern the battle
+   scenery uses: local token re-declarations, one scoped block. */
 .chat-line.is-html {
+  --arena-text: #e8edf4;
+  --arena-soft: #ccd5e0;
+  --arena-accent: #8db3ff;
+  --arena-line: #3a4152;
+  --arena-line-strong: #4a5468;
+  --arena-panel: #232838;
+  --arena-panel-raised: #283040;
+  --arena-hover: #2c3344;
+  --arena-hover-strong: #333c50;
+
   display: block;
   padding: 6px 10px;
+  overflow-x: auto;
   color: var(--arena-soft);
   font-size: 12px;
-  background: var(--arena-hover);
+  background: #1d2230;
   border-inline-start: 2px solid var(--arena-line-strong);
+  color-scheme: dark;
 }
 .chat-line.is-html a { color: var(--arena-accent); }
+
+.chat-line.is-html .infobox {
+  padding: 8px 10px;
+  background: var(--arena-panel-raised);
+  border: 1px solid var(--arena-line);
+  border-radius: 8px;
+}
+
+/* Server intros lay out with floats and rely on the official client's
+   clearfix; without one the container collapses to a sliver. */
+.chat-line.is-html > div::after,
+.chat-line.is-html .infobox::after {
+  content: '';
+  display: block;
+  clear: both;
+}
+
+.chat-line.is-html table {
+  border-collapse: collapse;
+  font-size: 11.5px;
+}
+
+.chat-line.is-html th,
+.chat-line.is-html td {
+  padding: 3px 8px;
+  border: 1px solid var(--arena-line);
+}
+
+.chat-line.is-html img {
+  max-width: 100%;
+  height: auto;
+  vertical-align: middle;
+}
+
+.chat-line.is-html button {
+  margin: 2px 3px 2px 0;
+  padding: 3px 10px;
+  color: var(--arena-soft);
+  background: var(--arena-panel);
+  border: 1px solid var(--arena-line-strong);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.chat-line.is-html button:hover {
+  color: var(--arena-text);
+  background: var(--arena-hover-strong);
+  border-color: var(--arena-accent);
+}
+
+.chat-line.is-html h1,
+.chat-line.is-html h2,
+.chat-line.is-html h3,
+.chat-line.is-html h4 {
+  margin: 4px 0;
+  font-size: 13px;
+}
+
+.chat-spoiler {
+  padding: 0 4px;
+  color: transparent;
+  background: var(--arena-ink-2);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.chat-spoiler:hover,
+.chat-spoiler:focus-visible {
+  color: var(--arena-text);
+  background: var(--arena-hover);
+}
 
 .chat-empty { color: var(--arena-faint); font-size: 12px; }
 

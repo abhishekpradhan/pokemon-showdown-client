@@ -16,16 +16,18 @@ function HealthBar({ pokemon, hidden }: { pokemon: PokemonSet; hidden: boolean }
       <div
         className="hp-track"
         role="progressbar"
-        aria-valuenow={hidden ? undefined : Math.round(percent)}
+        aria-valuenow={Math.round(percent)}
         aria-valuemin={0}
         aria-valuemax={100}
         aria-label={`${pokemon.name} HP`}
       >
-        <i className="hp-fill" data-tone={tone} style={{ width: `${hidden ? 100 : percent}%` }} />
+        <i className="hp-fill" data-tone={tone} style={{ width: `${percent}%` }} />
       </div>
-      <span className="hp-readout">
-        {hidden ? '???' : exact || `${Math.round(percent)}%`}
-      </span>
+      {/* Hardcore keeps the gauge — a cartridge shows the bar — and drops
+          only the numeric readout. */}
+      {!hidden && (
+        <span className="hp-readout">{exact || `${Math.round(percent)}%`}</span>
+      )}
     </div>
   );
 }
@@ -107,7 +109,8 @@ function Combatant({ battle, hideHealth = false, pokemon, side, position = 0, po
           {pokemon.volatiles?.map(volatile => (
             <span className="volatile-chip" key={volatile}>{volatile}</span>
           ))}
-          {!hideHealth && status && (
+          {/* Status is on-cartridge information: never hidden. */}
+          {status && (
             <span className="status-chip" style={{ '--status-color': status.color } as React.CSSProperties} title={status.label}>
               {pokemon.status}
             </span>

@@ -125,7 +125,11 @@ export function RoomScreen() {
       </header>
 
       <div className="room-surface-feed" ref={feedRef}>
-        <ChatFeed messages={room.chat} selfName={username} />
+        <ChatFeed
+          messages={room.chat}
+          selfName={username}
+          onCommand={command => sendRoomMessage(room.id, command)}
+        />
       </div>
 
       <form className="chat-entry room-surface-entry" onSubmit={submit}>
