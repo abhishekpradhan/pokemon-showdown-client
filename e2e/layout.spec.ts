@@ -118,6 +118,9 @@ test.describe('touch targets', () => {
         for (const el of document.querySelectorAll(selector)) {
           const rect = el.getBoundingClientRect();
           if (rect.width === 0 && rect.height === 0) continue;
+          // WCAG 2.5.8 excepts targets inside a sentence or block of text —
+          // inline prose links (the Legal section) are not tap controls.
+          if (el.tagName === 'A' && el.closest('p')) continue;
           if (rect.height < MIN) {
             const cls = (el.className || '').toString().split(' ')[0];
             bad.push(`${el.tagName.toLowerCase()}.${cls} ${Math.round(rect.width)}x${Math.round(rect.height)}`);
