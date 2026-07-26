@@ -415,6 +415,24 @@
   clear: both;
 }
 
+/* Official companion classes server HTML assumes (client.css parity). */
+.chat-line.is-html .infobox-limited {
+  max-height: 200px;
+  overflow: auto;
+}
+
+.chat-line.is-html .broadcast-blue,
+.chat-line.is-html .broadcast-red,
+.chat-line.is-html .broadcast-green {
+  padding: 6px 10px;
+  color: #fff;
+  border-radius: 6px;
+}
+
+.chat-line.is-html .broadcast-blue { background: #6688aa; }
+.chat-line.is-html .broadcast-red { background: #aa5544; }
+.chat-line.is-html .broadcast-green { background: #559955; }
+
 .chat-line.is-html table {
   border-collapse: collapse;
   font-size: 11.5px;

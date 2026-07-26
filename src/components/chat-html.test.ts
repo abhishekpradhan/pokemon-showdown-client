@@ -128,9 +128,41 @@ describe('sanitizeChatHtml', () => {
     expect(out).toContain('value="/poll vote 1"');
   });
 
+  it('normalizes image URLs the way the official tagPolicy does', () => {
+    // Protocol-relative and data:image sources are common in PS content;
+    // removing them takes layout-critical banner heights with them (the
+    // collapsed-intro bug). They normalize instead.
+    const protoRelative = sanitizeChatHtml('<img src="//play.pokemonshowdown.com/fx/banner.png" width="500">');
+    expect(protoRelative).toContain('src="https://play.pokemonshowdown.com/fx/banner.png"');
+
+    const httpUpgrade = sanitizeChatHtml('<img src="http://example.com/a.png">');
+    expect(httpUpgrade).toContain('src="https://example.com/a.png"');
+
+    const dataImage = sanitizeChatHtml('<img src="data:image/png;base64,iVBORw0KGgo=">');
+    expect(dataImage).toContain('src="data:image/png;base64');
+
+    const rejected = sanitizeChatHtml('<img src="data:text/html;base64,PHNjcmlwdD4=">');
+    expect(rejected).not.toContain('<img');
+
+    const styleProtoRelative = sanitizeChatHtml('<div style="background-image: url(//play.pokemonshowdown.com/fx/bg.png)">x</div>');
+    expect(styleProtoRelative).toContain('url(https://play.pokemonshowdown.com/fx/bg.png)');
+
+    // The Lobby banner: an empty div whose whole existence is a QUOTED https
+    // background url plus a height. Regex backtracking must not reject the
+    // quote and kill the style (that collapsed the intro to a sliver).
+    const quoted = sanitizeChatHtml(
+      '<div style="background-image:url(\'https://i.postimg.cc/rpGfkSZ2/sunset.jpg\');height:200px"></div>'
+    );
+    expect(quoted).toContain('sunset.jpg');
+    expect(quoted).toContain('height:200px');
+
+    const quotedEvil = sanitizeChatHtml('<div style="background-image:url(\'javascript:alert(1)\')">x</div>');
+    expect(quotedEvil).not.toContain('style=');
+  });
+
   it('restricts href/src to https without harming presentational attributes', () => {
     const out = sanitizeChatHtml(
-      '<a href="ftp://example.com">dead</a><img src="data:image/png;base64,AA" alt="gone">' +
+      '<a href="ftp://example.com">dead</a><img src="ftp://example.com/x.png" alt="gone">' +
       '<table><tr><td align="right" bgcolor="#334">259</td></tr></table>'
     );
     expect(out).not.toContain('href=');

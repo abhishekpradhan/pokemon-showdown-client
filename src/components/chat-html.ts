@@ -52,8 +52,14 @@ DOMPurify.addHook('afterSanitizeAttributes', node => {
   // sender (polls, /join buttons).
   if (node.tagName === 'BUTTON') node.setAttribute('type', 'button');
   if (node.tagName === 'IMG') {
+    // PS content uses https, protocol-relative (//play.pokemonshowdown.com/…)
+    // and data:image sources; the official tagPolicy accepts all three, and
+    // banners removed here take their layout height with them (the
+    // collapsed-intro bug). Normalize instead of removing.
     const src = node.getAttribute('src') || '';
-    if (!/^https?:\/\//i.test(src)) {
+    if (/^\/\//.test(src)) node.setAttribute('src', `https:${src}`);
+    else if (/^http:\/\//i.test(src)) node.setAttribute('src', src.replace(/^http:/i, 'https:'));
+    else if (!/^https:\/\//i.test(src) && !/^data:image\//i.test(src)) {
       node.remove();
       return;
     }
@@ -64,13 +70,18 @@ DOMPurify.addHook('afterSanitizeAttributes', node => {
   // escapes the block) is neutralized.
   const style = node.getAttribute('style');
   if (style) {
+    const normalized = style.replace(/url\s*\(\s*(['"]?)\/\//gi, 'url($1https://');
+    // NOTE: the quote must live INSIDE the lookahead — as an optional match
+    // outside it, the regex engine backtracks it to empty and the lookahead
+    // rejects quoted https URLs (url('https://…') killed the Lobby banner).
     if (
-      /expression\s*\(|@import|behavior\s*:/i.test(style) ||
-      /url\s*\(\s*['"]?(?!https:\/\/)/i.test(style)
+      /expression\s*\(|@import|behavior\s*:/i.test(normalized) ||
+      /url\s*\(\s*(?!['"]?https:\/\/)/i.test(normalized)
     ) {
       node.removeAttribute('style');
-    } else if (/position\s*:\s*fixed/i.test(style)) {
-      node.setAttribute('style', style.replace(/position\s*:\s*fixed/gi, 'position: static'));
+    } else {
+      const flattened = normalized.replace(/position\s*:\s*fixed/gi, 'position: static');
+      if (flattened !== style) node.setAttribute('style', flattened);
     }
   }
 });
