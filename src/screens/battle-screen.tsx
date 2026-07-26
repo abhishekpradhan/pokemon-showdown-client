@@ -2,7 +2,6 @@ import { useParams } from '@tanstack/react-router';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as Switch from '@radix-ui/react-switch';
 import {
-  CloudSun,
   Download,
   Film,
   Crosshair,
@@ -161,8 +160,6 @@ export function BattleScreen() {
           </div>
           <div className="battle-toolbar-state">
             {battleRoom && <BattleTimerChip timer={battleRoom.timer} />}
-            {battle.weather && <span><CloudSun size={13} aria-hidden /> {battle.weather}</span>}
-            <span>{decision.mode}</span>
           </div>
           <div className="toolbar-actions">
             <button type="button" className="icon-button mobile-inspector-button" aria-label="Open battle log" onClick={() => openInspector('log')}>

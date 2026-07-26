@@ -415,16 +415,19 @@
 }
 
 .field-effects {
+  /* Battle state lives on the stage: weather and terrain sit as quiet chips
+     at the bottom-centre, clear of combatants, banner and both scrims. */
   position: absolute;
-  inset-block-start: 50%;
+  inset-block-end: 52px;
   inset-inline-start: 50%;
   z-index: 3;
   display: flex;
   flex-wrap: wrap;
   gap: 5px;
   justify-content: center;
-  max-inline-size: 60%;
-  translate: -50% -50%;
+  max-inline-size: 70%;
+  translate: -50% 0;
+  pointer-events: none;
 }
 
 .field-effects span {
