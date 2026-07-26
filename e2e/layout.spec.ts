@@ -64,6 +64,27 @@ for (const route of ROUTES) {
   });
 }
 
+test.describe('wide desktop', () => {
+  test.use({ viewport: { width: 1920, height: 1080 } });
+
+  for (const route of ROUTES) {
+    test(`${route.name} fills the width beside the rail`, async ({ page }) => {
+      await page.goto(route.path);
+      await expect(page.locator('#workspace')).toBeVisible();
+
+      // Regression: .arena-main once targeted grid column 3 of a two-column
+      // shell (a leftover from the removed session sidebar), so the empty 1fr
+      // column swallowed the middle of every wide screen and the app rendered
+      // right-anchored. Mobile viewports never showed it.
+      const rail = await page.locator('.primary-rail').boundingBox();
+      const main = await page.locator('.arena-main').boundingBox();
+      expect(main, 'arena-main must render').toBeTruthy();
+      expect(main!.x, 'content must start beside the rail').toBeLessThanOrEqual(rail!.x + rail!.width + 2);
+      expect(main!.x + main!.width, 'content must reach the right edge').toBeGreaterThanOrEqual(1920 - 4);
+    });
+  }
+});
+
 test('every surface keeps its primary heading', async ({ page }) => {
   for (const route of ROUTES) {
     await page.goto(route.path);

@@ -85,13 +85,6 @@ textarea:focus-visible,
 
 
 
-.arena-app {
-  display: grid;
-  grid-template-columns: 248px minmax(0, 1fr);
-  min-height: 100svh;
-}
-
-
 
 .nav-link,
 .icon-row,
@@ -1255,9 +1248,6 @@ textarea:focus-visible,
 }
 
 @media (max-width: 1120px) {
-  .arena-app {
-      grid-template-columns: 82px minmax(0, 1fr);
-    }
   .brand-lockup span,
     .nav-link span,
     .icon-row span,

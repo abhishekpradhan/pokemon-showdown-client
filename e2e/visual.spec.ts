@@ -10,6 +10,9 @@ test('matchmaking cockpit visual baseline', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Ready when you are.' })).toBeVisible();
   await expect(page.getByText('Online', { exact: true })).toBeVisible();
+  // The mock joins Lobby immediately after connecting; wait for the session
+  // tab so fast and slow runs screenshot the same steady state.
+  await expect(page.getByRole('button', { name: 'Lobby', exact: true })).toBeVisible();
   await expect(page).toHaveScreenshot('matchmaking-cockpit.png', {
     animations: 'disabled',
     maxDiffPixelRatio: 0.04,
