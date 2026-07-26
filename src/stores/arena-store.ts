@@ -46,7 +46,7 @@ import {
   type TeamValidationResult,
 } from '../compat/team-store';
 import { createEngineBattle, feedLine, onEngineReady, projectEngineBattle } from '../battle/engine';
-import { routeFrame } from '../protocol/router';
+import { battleEventFromLine, routeFrame } from '../protocol/router';
 import {
   appendChat,
   appendLog,
@@ -945,9 +945,21 @@ onEngineReady(() => {
       rooms = updateBattleRoom(rooms, room.id, item => {
         const engine = createEngineBattle(toId(current.username));
         if (!engine) return item;
-        for (const raw of item.rawLog) feedLine(engine, raw);
+        // Replayed history still announces its most recent action — a battle
+        // joined before the engine chunk resolved must not open on a silent
+        // field.
+        let lastEvent = item.lastEvent;
+        for (const raw of item.rawLog) {
+          feedLine(engine, raw);
+          const parts = raw.split('|');
+          if (parts.length > 1) {
+            const event = battleEventFromLine(parts[1], parts.slice(2), item.perspective, lastEvent);
+            if (event) lastEvent = event;
+          }
+        }
         return {
           ...item,
+          lastEvent,
           engine,
           battle: projectEngineBattle(engine, {
             roomId: item.id,

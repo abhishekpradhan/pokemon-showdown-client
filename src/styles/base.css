@@ -226,15 +226,18 @@ textarea:focus-visible,
 
 .notification-button span {
   position: absolute;
-  top: -5px;
-  right: -4px;
+  top: -4px;
+  right: -3px;
   display: grid;
   place-items: center;
-  min-width: 18px;
-  height: 18px;
+  min-width: 17px;
+  height: 17px;
   padding: 0 5px;
-  color: var(--arena-text);
+  /* Constant white on red in both themes; ringed with the bar surface so it
+     reads as a badge, not a floating blob. */
+  color: #fff;
   background: var(--arena-red);
+  box-shadow: 0 0 0 2px var(--arena-ink);
   border-radius: 999px;
   font-size: 12px;
 }
@@ -413,7 +416,7 @@ textarea:focus-visible,
 .select-option:hover,
 .select-option:focus-visible,
 .select-option.is-selected {
-  background: rgba(188, 49, 43, 0.1);
+  background: rgb(91 156 255 / 12%);
   outline: 0;
 }
 

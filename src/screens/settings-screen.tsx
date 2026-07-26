@@ -2,7 +2,6 @@ import * as Switch from '@radix-ui/react-switch';
 import {
   Bell,
   CircleGauge,
-  Contrast,
   ExternalLink,
   FileCode2,
   Monitor,
@@ -34,10 +33,8 @@ export function SettingsScreen() {
   const [serverInput, setServerInput] = useState('');
   const isDefaultServer = server.host === getDefaultServerConfig().host;
   const {
-    contrast,
     motion,
     notificationsEnabled,
-    setContrast,
     setMotion,
     setNotificationsEnabled,
     setTheme,
@@ -73,18 +70,6 @@ export function SettingsScreen() {
                 <Monitor size={13} aria-hidden /> System
               </button>
             </div>
-          </div>
-          <div className="setting-row">
-            <span className="setting-icon"><Contrast size={16} aria-hidden /></span>
-            <span><strong>High contrast</strong><small>Increase dividers and supporting text contrast.</small></span>
-            <Switch.Root
-              className="switch-root"
-              checked={contrast === 'high'}
-              onCheckedChange={checked => setContrast(checked ? 'high' : 'standard')}
-              aria-label="High contrast"
-            >
-              <Switch.Thumb className="switch-thumb" />
-            </Switch.Root>
           </div>
           <div className="setting-row">
             <span className="setting-icon"><CircleGauge size={16} aria-hidden /></span>

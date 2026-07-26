@@ -46,7 +46,6 @@ export default defineConfig({
           if (id.includes('@pkmn')) return;
           if (id.includes('@tanstack')) return 'router';
           if (id.includes('@radix-ui')) return 'primitives';
-          if (id.includes('/motion') || id.includes('framer-motion')) return 'motion';
           if (id.includes('/react-dom/') || id.includes('/react/')) return 'react';
         },
       },

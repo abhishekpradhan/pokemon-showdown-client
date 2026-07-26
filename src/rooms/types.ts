@@ -71,8 +71,15 @@ export type BattleRoom = RoomBase & {
   choicePending: boolean;
   lastRequest?: BattleRequest;
   timer: BattleTimer;
-  /** Drives transient field animation (lunge/shake/faint). */
-  lastEvent?: { kind: 'attack' | 'hit' | 'faint'; side: 'near' | 'far'; slot?: number; at: number };
+  /** Drives transient field animation (lunge/shake/faint) and the action
+   * banner — `label` is the human line ("Vespiquen used Toxic!"). */
+  lastEvent?: {
+    kind: 'attack' | 'hit' | 'faint' | 'note';
+    side: 'near' | 'far';
+    slot?: number;
+    at: number;
+    label?: string;
+  };
 };
 
 export type Room = ChatRoom | PmRoom | BattleRoom;

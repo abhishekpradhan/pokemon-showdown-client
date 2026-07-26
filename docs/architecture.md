@@ -150,6 +150,19 @@ green suite, and the live smoke test agreed, because it only checked that
 The lesson generalises: a mock encodes your assumptions, so it confirms your
 mistakes. When fixing a protocol bug, teach the mock to fail on it.
 
+## Motion
+
+There is no JS animation library. Framer-motion drove entrance fades until a
+frozen animation left entire surfaces stuck at 26% opacity — rAF-driven
+animation halts in throttled tabs, and anything readability-critical must not
+depend on an animation loop ticking. All motion is CSS: transitions for state
+(HP width, faint dimming), keyframes for choreography (lunge, shake, the
+action banner), all flattened by both reduced-motion paths.
+
+The action banner is how battles read: |move|, |faint|, and outcome notes
+(super-effective, crit, miss) each announce on the field itself; plain damage
+lines shake the target but never clear an in-flight announcement.
+
 ## Theming
 
 Every surface colour flows from semantic tokens in `tokens.css`; the light
@@ -160,6 +173,14 @@ both: accent-as-text on tinted chips, text on accent-filled controls, and
 inverse chrome (tooltips, the skip link). The battle field stays scenery-dark
 in both themes by design. Hardcoded colours in stylesheets are a regression:
 the light-theme axe audit in `a11y.spec.ts` is what catches them.
+
+## Colour-blindness
+
+No state is encoded by hue alone: stat stages are signed (+1/−2) as text,
+status and type chips carry their names, readiness rows pair icons with
+labels, and HP always shows a number next to the bar. The light and dark axe
+audits keep every pair above AA contrast, which also preserves lightness
+separation for the common dichromacies.
 
 ## Known gaps
 

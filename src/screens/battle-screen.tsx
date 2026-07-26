@@ -1,7 +1,6 @@
 import { Link, useParams } from '@tanstack/react-router';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as Switch from '@radix-ui/react-switch';
-import { motion } from 'motion/react';
 import {
   CloudSun,
   Download,
@@ -166,7 +165,7 @@ export function BattleScreen() {
 
         <BattleField battle={battle} hardcore={hardcoreMode} lastEvent={battleRoom?.lastEvent} />
 
-        <motion.div className="decision-dock" layout aria-label="Battle action deck">
+        <div className="decision-dock" aria-label="Battle action deck">
           <div className="decision-heading">
             <div>
               <span className="eyebrow">Action deck · Turn {battle.turn}</span>
@@ -221,7 +220,7 @@ export function BattleScreen() {
               </div>
             )}
           </div>
-        </motion.div>
+        </div>
       </div>
 
       <aside className={`battle-side ${inspectorOpen ? 'is-open' : ''}`} aria-label="Battle inspector">

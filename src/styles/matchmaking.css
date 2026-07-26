@@ -8,6 +8,14 @@
 }
 
 .match-stage {
+  /* Scenery, like the battle field: the artwork stays dark in both themes
+     and text on it pins the dark-theme scale. */
+  --arena-text: #f4f7fb;
+  --arena-soft: #d9e0e9;
+  --arena-muted: #9aa5b4;
+  --arena-faint: #94a0b1;
+
+  color: var(--arena-text);
   position: relative;
   display: flex;
   flex-direction: column;
@@ -108,8 +116,10 @@
 
 .match-control-deck {
   padding: 12px;
-  background: var(--arena-panel);
-  border: 1px solid var(--arena-line);
+  /* Dark glass over the artwork in both themes — a theme-white card here
+     read as a hole punched in the scenery. */
+  background: rgb(13 17 24 / 86%);
+  border: 1px solid rgb(255 255 255 / 12%);
   border-radius: 9px;
   box-shadow: 0 24px 62px rgba(0, 0, 0, 0.34);
   backdrop-filter: blur(18px);
@@ -141,9 +151,10 @@
   width: 100%;
   min-height: 42px;
   height: 42px;
-  color: var(--arena-text);
-  background: var(--arena-panel-strong);
-  border-color: var(--arena-line);
+  /* Fields on the dark glass deck stay dark glass in both themes. */
+  color: #f4f7fb;
+  background: rgb(255 255 255 / 8%);
+  border-color: rgb(255 255 255 / 16%);
   box-shadow: none;
 }
 

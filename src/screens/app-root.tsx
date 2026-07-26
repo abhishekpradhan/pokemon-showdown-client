@@ -6,6 +6,9 @@ import {
   Bot,
   ChevronDown,
   CircleDot,
+  MonitorCog,
+  Moon,
+  Sun,
   X,
 } from 'lucide-react';
 import { clsx } from 'clsx';
@@ -24,7 +27,7 @@ export function AppRoot() {
   const { acceptChallenge, activeRoomId, challenges, clearNotifications, connect, connection, disconnect, lastError, login, loginPending, logout, named, needsPassword, notifications, reconnect, rejectChallenge, rooms, username } = useArenaStore(
     useShallow(state => ({ acceptChallenge: state.acceptChallenge, activeRoomId: state.activeRoomId, challenges: state.challenges, clearNotifications: state.clearNotifications, rejectChallenge: state.rejectChallenge, connect: state.connect, connection: state.connection, disconnect: state.disconnect, lastError: state.lastError, login: state.login, loginPending: state.loginPending, logout: state.logout, named: state.named, needsPassword: state.needsPassword, notifications: state.notifications, reconnect: state.reconnect, rooms: state.rooms, username: state.username }))
   );
-  const { contrast, motion, notificationsEnabled, theme } = useWorkspaceStore();
+  const { motion, notificationsEnabled, setTheme, theme } = useWorkspaceStore();
   const [nameInput, setNameInput] = useState(named ? username : '');
   const [passwordInput, setPasswordInput] = useState('');
   const [accountOpen, setAccountOpen] = useState(false);
@@ -68,8 +71,7 @@ export function AppRoot() {
 
   useEffect(() => {
     document.documentElement.dataset.motion = motion;
-    document.documentElement.dataset.contrast = contrast;
-  }, [contrast, motion]);
+  }, [motion]);
 
   // Resolve the theme preference to a concrete data-theme, tracking the OS
   // when set to "system".
@@ -152,6 +154,17 @@ export function AppRoot() {
             </div>
             <CommandBar />
             <div className="topbar-actions">
+              <button
+                type="button"
+                className="theme-toggle"
+                aria-label={`Theme: ${theme}. Switch theme`}
+                title={`Theme: ${theme}`}
+                onClick={() => setTheme(theme === 'system' ? 'light' : theme === 'light' ? 'dark' : 'system')}
+              >
+                {theme === 'light' ? <Sun size={16} aria-hidden /> :
+                  theme === 'dark' ? <Moon size={16} aria-hidden /> :
+                  <MonitorCog size={16} aria-hidden />}
+              </button>
               <div className="notification-wrap">
                 <button
                   className={clsx('notification-button', notificationsOpen && 'is-active')}

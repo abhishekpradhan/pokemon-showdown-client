@@ -126,17 +126,3 @@
   --arena-shadow-sm: 0 4px 14px rgb(15 23 42 / 10%);
 }
 
-/* Raises border and text contrast for the Settings accessibility toggle. */
-:root[data-contrast="high"] {
-  --arena-line: rgb(226 232 240 / 32%);
-  --arena-line-strong: rgb(226 232 240 / 48%);
-  --arena-muted: #b6c1cf;
-  --arena-faint: #96a2b1;
-}
-
-:root[data-theme="light"][data-contrast="high"] {
-  --arena-line: rgb(18 23 34 / 34%);
-  --arena-line-strong: rgb(18 23 34 / 52%);
-  --arena-muted: #414b5c;
-  --arena-faint: #4c5668;
-}

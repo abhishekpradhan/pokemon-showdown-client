@@ -1,4 +1,3 @@
-import { motion } from 'motion/react';
 import { clsx } from 'clsx';
 import { BOOST_LABELS, type ArenaBattle, type BoostId, type PokemonSet, type SideCondition } from '../compat/battle-adapter';
 import { genFromFormat } from '../data/dex';
@@ -22,13 +21,7 @@ function HealthBar({ pokemon, hidden }: { pokemon: PokemonSet; hidden: boolean }
         aria-valuemax={100}
         aria-label={`${pokemon.name} HP`}
       >
-        <motion.i
-          className="hp-fill"
-          data-tone={tone}
-          initial={false}
-          animate={{ width: `${hidden ? 100 : percent}%` }}
-          transition={{ type: 'spring', stiffness: 220, damping: 30 }}
-        />
+        <i className="hp-fill" data-tone={tone} style={{ width: `${hidden ? 100 : percent}%` }} />
       </div>
       <span className="hp-readout">
         {hidden ? '???' : exact || `${Math.round(percent)}%`}
@@ -92,13 +85,10 @@ function Combatant({ battle, hideHealth = false, pokemon, side, position = 0, po
   const status = pokemon.status ? STATUS_LABELS[pokemon.status] : null;
 
   return (
-    <motion.div
+    <div
       className={clsx('combatant', `combatant-${side}`, pokemon.fainted && 'is-fainted', eventClass)}
       data-position={position}
       data-positions={positions}
-      initial={{ opacity: 0, y: side === 'near' ? 20 : -20 }}
-      animate={{ opacity: pokemon.fainted ? 0.35 : 1, y: 0 }}
-      transition={{ duration: 0.3 }}
     >
       <div className="combatant-nameplate">
         <div className="nameplate-row">
@@ -137,7 +127,7 @@ function Combatant({ battle, hideHealth = false, pokemon, side, position = 0, po
           loading="eager"
         />
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -161,10 +151,11 @@ function RosterPips({ team, hidden, label }: { team: PokemonSet[]; hidden: boole
 }
 
 export type BattleEvent = {
-  kind: 'attack' | 'hit' | 'faint';
+  kind: 'attack' | 'hit' | 'faint' | 'note';
   side: 'near' | 'far';
   slot?: number;
   at: number;
+  label?: string;
 };
 
 export function BattleField({ battle, hardcore = false, lastEvent }: {
@@ -199,6 +190,12 @@ export function BattleField({ battle, hardcore = false, lastEvent }: {
         </span>
         <strong className="field-turn">Turn {battle.turn || '—'}</strong>
       </header>
+
+      {lastEvent?.label && (
+        <p className="field-announce" key={lastEvent.at} role="status">
+          {lastEvent.label}
+        </p>
+      )}
 
       <SideConditions conditions={battle.opponentSideConditions} label="Opponent's side conditions" side="far" />
       {farSlots.map(pokemon => (

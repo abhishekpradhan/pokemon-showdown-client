@@ -109,4 +109,8 @@ test('spectating renders a true spectator view', async ({ page }) => {
   // No action deck for a watcher: no move buttons, no team bench switches.
   await expect(page.locator('.move-choice')).toHaveCount(0);
   await expect(page.getByText(/spectating/i).first()).toBeVisible();
+
+  // Actions announce themselves on the field. The mock's turn ends on a
+  // super-effective note, which is the label the banner settles on.
+  await expect(page.locator('.field-announce')).toHaveText("It's super effective!");
 });

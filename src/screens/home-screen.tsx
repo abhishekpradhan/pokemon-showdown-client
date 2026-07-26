@@ -1,6 +1,5 @@
 import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
-import { AnimatePresence, motion } from 'motion/react';
 import {
   ArrowUpRight,
   Check,
@@ -65,12 +64,7 @@ export function HomeScreen() {
 
   return (
     <section className="match-workspace" aria-label="Matchmaking">
-      <motion.section
-        className={`match-stage is-${searchState}`}
-        initial={{ opacity: 0, scale: 0.992 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.28, ease: 'easeOut' }}
-      >
+      <section className={`match-stage is-${searchState}`}>
         <div className="match-stage-toolbar">
           <span className={`live-label is-${connection}`}>
             <Signal size={13} aria-hidden />
@@ -92,16 +86,8 @@ export function HomeScreen() {
         </div>
 
         <div className="match-control-deck">
-          <AnimatePresence mode="wait" initial={false}>
-            {searchState === 'idle' ? (
-              <motion.div
-                className="match-control-grid"
-                key="setup"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.18 }}
-              >
+          {searchState === 'idle' ? (
+              <div className="match-control-grid" key="setup">
                 <label className="control-field">
                   <span>Format</span>
                   <FormatSelector value={selectedFormat} formats={formats} onValueChange={setSelectedFormat} />
@@ -121,30 +107,20 @@ export function HomeScreen() {
                   <Radio size={18} aria-hidden />
                   Find battle
                 </button>
-              </motion.div>
+              </div>
             ) : (
-              <motion.div
-                className="searching-deck"
-                key="searching"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.18 }}
-                role="status"
-                aria-live="polite"
-              >
+              <div className="searching-deck" key="searching" role="status" aria-live="polite">
                 <span className="searching-radar" aria-hidden><i /><i /><i /></span>
                 <span>
                   <strong>Searching {selected?.name || selectedFormat}</strong>
                   <small>Keep this workspace open. The battle will take focus when matched.</small>
                 </span>
                 <button className="queue-cancel" type="button" onClick={cancelSearch}>Cancel</button>
-              </motion.div>
+              </div>
             )}
-          </AnimatePresence>
           <div className="queue-line" data-state={searchState}><span /></div>
         </div>
-      </motion.section>
+      </section>
 
       <aside className="match-inspector" aria-label="Queue readiness">
         <div className="inspector-heading">

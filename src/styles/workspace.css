@@ -189,7 +189,7 @@
 }
 
 .select-option {
-  color: #d9e1eb;
+  color: var(--arena-soft);
 }
 
 .select-option:hover,

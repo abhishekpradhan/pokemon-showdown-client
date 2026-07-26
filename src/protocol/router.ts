@@ -25,7 +25,7 @@ import {
   updateBattleRoom,
   upsert,
 } from '../rooms/registry';
-import type { ChatMessage, Room } from '../rooms/types';
+import type { BattleRoom, ChatMessage, Room } from '../rooms/types';
 import type { ArenaState } from '../stores/arena-store';
 
 /**
@@ -379,17 +379,12 @@ const handleBattleLine = (roomId: string, line: PsLine, store: ArenaStoreApi) =>
       if (line.command === 'win') next = { ...next, result: { winner: line.args[0], ended: true } };
       if (line.command === 'tie') next = { ...next, result: { ended: true } };
 
-      // Field choreography: which side acted or got hit, for CSS animation.
-      if (line.command === 'move' || line.command === '-damage' || line.command === 'faint') {
-        const ident = /^(p[12])([a-z])?/.exec(line.args[0] || '');
-        if (ident) {
-          const ownSide = next.perspective ?? 'p1';
-          const side = ident[1] === ownSide ? 'near' : 'far';
-          const slot = ident[2] ? ident[2].charCodeAt(0) - 97 : 0;
-          const kind = line.command === 'move' ? 'attack' : line.command === 'faint' ? 'faint' : 'hit';
-          next = { ...next, lastEvent: { kind, side, slot, at: Date.now() } };
-        }
-      }
+      // Field choreography and the action banner: which side acted or got
+      // hit (for CSS animation), plus the human-readable line the field
+      // announces. Without this, a move resolving is invisible outside the
+      // log panel — HP just quietly changes.
+      const event = battleEventFromLine(line.command, line.args, next.perspective, next.lastEvent);
+      if (event) next = { ...next, lastEvent: event };
 
       if (request) {
         const perspective = request.side?.id === 'p1' || request.side?.id === 'p2' ?
@@ -463,6 +458,40 @@ const handleBattleLine = (roomId: string, line: PsLine, store: ArenaStoreApi) =>
 };
 
 // ── Entry point ─────────────────────────────────────────────────────────────
+
+type FieldEvent = NonNullable<BattleRoom['lastEvent']>;
+
+/** Outcome notes arrive as their own lines right after the damage they describe. */
+const NOTE_LINES: Record<string, string> = {
+  '-supereffective': "It's super effective!",
+  '-resisted': 'Not very effective…',
+  '-crit': 'A critical hit!',
+  '-immune': 'It had no effect.',
+  '-miss': 'The attack missed!',
+};
+
+export function battleEventFromLine(
+  command: string,
+  args: string[],
+  perspective: 'p1' | 'p2' | null | undefined,
+  previous?: FieldEvent
+): FieldEvent | undefined {
+  if (NOTE_LINES[command] && previous) {
+    return { ...previous, kind: 'note', at: Date.now(), label: NOTE_LINES[command] };
+  }
+  if (command !== 'move' && command !== '-damage' && command !== 'faint') return undefined;
+  const ident = /^(p[12])([a-z])?: ?(.*)$/.exec(args[0] || '');
+  if (!ident) return undefined;
+  const ownSide = perspective ?? 'p1';
+  const side = ident[1] === ownSide ? 'near' : 'far';
+  const slot = ident[2] ? ident[2].charCodeAt(0) - 97 : 0;
+  const kind = command === 'move' ? 'attack' : command === 'faint' ? 'faint' : 'hit';
+  // A hit is part of the action already announced — it must not clear the
+  // banner mid-sequence, only move the shake to the target.
+  const label = command === 'move' ? `${ident[3]} used ${args[1]}!` :
+    command === 'faint' ? `${ident[3]} fainted!` : previous?.label;
+  return { kind, side, slot, at: Date.now(), label };
+}
 
 export function routeFrame(frame: PsFrame, store: ArenaStoreApi) {
   const roomId = frame.roomId || 'lobby';
