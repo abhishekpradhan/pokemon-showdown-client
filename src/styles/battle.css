@@ -971,19 +971,24 @@
 }
 
 .battle-info-panel .switch-row {
-  margin-top: 14px;
-  color: #dfe6ee;
-  background: var(--arena-hover);
+  padding: 12px 2px;
+  border-bottom: 1px solid var(--arena-hover);
 }
 
 .battle-info-panel .switch-row > span {
   display: grid;
+  gap: 2px;
+}
+
+.battle-info-panel .switch-row strong {
+  color: var(--arena-soft);
+  font-size: 12px;
+  font-weight: 650;
 }
 
 .battle-info-panel .switch-row small {
-  margin-top: 3px;
   color: var(--arena-faint);
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .battle-inspector-actions {
