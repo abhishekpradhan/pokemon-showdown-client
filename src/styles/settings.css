@@ -226,6 +226,24 @@
   inline-size: min(780px, calc(100vw - 28px));
 }
 
+.setting-legal {
+  display: grid;
+  gap: 8px;
+  padding: 10px 0 12px;
+}
+
+.setting-legal p {
+  margin: 0;
+  color: var(--arena-faint);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.setting-legal a {
+  color: var(--arena-accent-text);
+  text-decoration: underline;
+}
+
 .protocol-dialog .button-row {
   justify-content: flex-end;
   margin-block-start: 12px;

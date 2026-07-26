@@ -10,6 +10,7 @@ import {
   Paintbrush,
   RadioTower,
   RefreshCw,
+  Scale,
   Server,
   Sun,
   X,
@@ -184,8 +185,8 @@ export function SettingsScreen() {
         <h2 id="about-settings"><ExternalLink size={15} aria-hidden /> About</h2>
         <div className="setting-row">
           <span>
-            <strong>Showdown Arena {__APP_VERSION__}</strong>
-            <small>AGPL-3.0 · this fork keeps its source and license visible for deployed copies.</small>
+            <strong>Showdown Arena</strong>
+            <small>An independent, open-source client for Pokémon Showdown.</small>
           </span>
           <div className="setting-actions">
             <a className="secondary-action" href="https://github.com/abhishekpradhan/pokemon-showdown-client">
@@ -195,6 +196,31 @@ export function SettingsScreen() {
               License <ExternalLink size={13} aria-hidden />
             </a>
           </div>
+        </div>
+      </section>
+
+      <section className="settings-section" aria-labelledby="legal-settings">
+        <h2 id="legal-settings"><Scale size={15} aria-hidden /> Legal</h2>
+        <div className="setting-legal">
+          <p>
+            Showdown Arena is not affiliated with or endorsed by Smogon, Nintendo,
+            Creatures, or GAME FREAK. Pokémon and Pokémon character names are
+            trademarks of Nintendo.
+          </p>
+          <p>
+            This site runs no game servers and hosts no game data. Battles, chat,
+            accounts, and ladder standings live on the Pokémon Showdown server you
+            connect to, under that server&apos;s{' '}
+            <a href="https://pokemonshowdown.com/rules">rules</a> and moderation —
+            room content comes from its community, not from this site. Your
+            settings and teams exist only in this browser.
+          </p>
+          <p>
+            The software is provided as-is, without warranty of any kind, under
+            the{' '}
+            <a href="https://www.gnu.org/licenses/agpl-3.0.html">AGPL-3.0-or-later</a>{' '}
+            license.
+          </p>
         </div>
       </section>
     </section>
