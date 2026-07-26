@@ -70,13 +70,30 @@ production share one code path.
 The handshake itself:
 
 1. Server sends `|challstr|`.
-2. Client asks the login server to sign the name — `act=getassertion` for an
-   unregistered name, `act=login` with a password for a registered one.
+2. Client obtains an assertion for the name (see below).
 3. Client sends `/trn <name>,0,<assertion>`.
 4. Server confirms with `|updateuser|`.
 
 Step 2 is not optional. A `/trn` without an assertion is rejected with
 *"Your authentication token was invalid."*
+
+### Signing in
+
+Registered accounts use **OAuth2**, the flow Showdown's login server provides
+for third-party clients ([OAUTH.md][oauth]): the password is only ever typed
+on play.pokemonshowdown.com. Authorizing redirects back to `/oauth.html` with
+an assertion for the current `challstr` plus a two-week token, which is kept
+in `localStorage` and exchanged for fresh assertions on later connects
+(`oauth/api/getassertion`), rotating past its half-life
+(`oauth/api/refreshtoken`). This client never sees, stores, or transmits a
+Showdown password.
+
+Set `VITE_PS_OAUTH_CLIENT_ID` to enable it — [request a client ID][clientid]
+for your deployment's origin. Without one, unregistered (guest) names still
+work through `act=getassertion`, which needs no credentials.
+
+[oauth]: https://github.com/smogon/pokemon-showdown-loginserver/blob/master/OAUTH.md
+[clientid]: https://forms.gle/VAoSjqHn4zwem7tp9
 
 ## Layout
 

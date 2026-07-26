@@ -8,6 +8,10 @@ import { createEngineBattle, feedLine, projectEngineBattle } from '../battle/eng
 import { describeBattleLine } from '../compat/battle-text';
 import type { PsFrame, PsLine } from '../compat/protocol-client';
 import {
+  assertionFromToken, clearOAuthToken, oauthConfigured, refreshOAuthToken,
+  saveOAuthToken, storedOAuthToken,
+} from '../compat/ps-oauth';
+import {
   parseChatRoomList,
   parseFormats,
   parseQueryResponse,
@@ -123,15 +127,55 @@ const parseTimerLine = (text: string) => {
   };
 };
 
+/** Tokens last two weeks; rotate once past the half-life. */
+const OAUTH_REFRESH_AFTER = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * Silent re-login from a stored OAuth token. Tokens last two weeks; past the
+ * half-life we rotate before using, so an active user never gets logged out.
+ */
+const resumeOAuthSession = async (challstr: string, store: ArenaStoreApi) => {
+  if (!oauthConfigured()) return;
+  const stored = storedOAuthToken();
+  if (!stored) return;
+  try {
+    let token = stored.token;
+    if (Date.now() - stored.issuedAt > OAUTH_REFRESH_AFTER) {
+      const rotated = await refreshOAuthToken(token);
+      if (rotated) {
+        token = rotated;
+        saveOAuthToken(token, stored.user);
+      }
+    }
+    const result = await assertionFromToken(challstr, token);
+    if (!result) {
+      clearOAuthToken();
+      store.setState({ oauthLinked: false });
+      return;
+    }
+    const name = result.user || stored.user;
+    if (!name) return;
+    store.setState({ loginPending: true, oauthLinked: true });
+    store.getState().protocol.send(`/trn ${name},0,${result.assertion}`);
+  } catch {
+    // Offline or the login server is down; the user can still sign in later.
+  }
+};
+
 // ── Global (roomless) commands ──────────────────────────────────────────────
 
 const handleGlobal = (line: PsLine, store: ArenaStoreApi): boolean => {
   const { setState, getState } = store;
 
   switch (line.command) {
-  case 'challstr':
-    setState({ challstr: line.args.join('|') });
+  case 'challstr': {
+    const challstr = line.args.join('|');
+    setState({ challstr });
+    // A stored OAuth token means this browser is already authorized: mint an
+    // assertion and sign in without prompting.
+    void resumeOAuthSession(challstr, store);
     return true;
+  }
 
   case 'updateuser': {
     const rawName = line.args[0] || '';

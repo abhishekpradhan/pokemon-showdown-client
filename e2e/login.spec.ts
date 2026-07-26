@@ -26,7 +26,7 @@ test('signs a guest name with an assertion from the login server', async ({ page
 
   await page.getByRole('button', { name: /Unnamed guest/i }).click();
   await page.getByRole('textbox', { name: 'Username' }).fill('CodexTester');
-  await page.getByRole('button', { name: /Choose name/i }).click();
+  await page.getByRole('button', { name: /Use guest name/i }).click();
 
   await expect(page.getByRole('button', { name: 'CodexTester', exact: true })).toBeVisible();
 
@@ -45,7 +45,7 @@ test('never sends an unsigned /trn', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: /Unnamed guest/i }).click();
   await page.getByRole('textbox', { name: 'Username' }).fill('CodexTester');
-  await page.getByRole('button', { name: /Choose name/i }).click();
+  await page.getByRole('button', { name: /Use guest name/i }).click();
   await expect(page.getByRole('button', { name: 'CodexTester', exact: true })).toBeVisible();
 
   const sent = await sentMessages(page);
@@ -53,21 +53,26 @@ test('never sends an unsigned /trn', async ({ page }) => {
   expect(unsigned).toEqual([]);
 });
 
-test('asks for a password when the name is registered', async ({ page }) => {
+test('never collects a Showdown password; registered names go through OAuth', async ({ page }) => {
   await page.goto('/');
-
   await page.getByRole('button', { name: /Unnamed guest/i }).click();
-  await page.getByRole('textbox', { name: 'Username' }).fill('RegisteredName');
-  await page.getByRole('button', { name: /Choose name/i }).click();
-
-  // A bare `;` means "registered" — it must read as a next step, not a failure.
   const dialog = page.getByRole('dialog');
-  await expect(dialog.getByText(/registered account/i)).toBeVisible();
-  await expect(dialog.getByRole('textbox', { name: 'Password' }))
-    .toHaveAttribute('placeholder', /registered/i);
 
-  // The dialog stays open on the password step, and nothing is sent until the
-  // login server actually hands back an assertion.
+  // The password field is gone for good: this client must never be a place
+  // where someone types their Showdown password.
+  await expect(dialog.getByRole('textbox', { name: 'Password' })).toHaveCount(0);
+  await expect(dialog.locator('input[type="password"]')).toHaveCount(0);
+
+  // OAuth is the registered-account path, and it explains itself when the
+  // deployment has no client ID configured.
+  const oauth = dialog.getByRole('button', { name: /Sign in with Pok/i });
+  await expect(oauth).toBeVisible();
+  await expect(oauth).toBeDisabled();
+  await expect(dialog.getByText(/OAuth client ID/i)).toBeVisible();
+
+  // A registered name refused by the login server must not send a bare /trn.
+  await page.getByRole('textbox', { name: 'Username' }).fill('RegisteredName');
+  await page.getByRole('button', { name: /Use guest name/i }).click();
   await expect(dialog).toBeVisible();
   const sent = await sentMessages(page);
   expect(sent.some(message => message.includes('/trn '))).toBe(false);
@@ -77,7 +82,7 @@ test('strips the group symbol from the display name', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: /Unnamed guest/i }).click();
   await page.getByRole('textbox', { name: 'Username' }).fill('CodexTester');
-  await page.getByRole('button', { name: /Choose name/i }).click();
+  await page.getByRole('button', { name: /Use guest name/i }).click();
 
   // The server sends "|updateuser| CodexTester|1|0" — the leading space is the
   // group symbol, not part of the name.
@@ -94,7 +99,7 @@ test('spectating renders a true spectator view', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: /Unnamed guest/i }).click();
   await page.getByRole('textbox', { name: 'Username' }).fill('CodexTester');
-  await page.getByRole('button', { name: /Choose name/i }).click();
+  await page.getByRole('button', { name: /Use guest name/i }).click();
   await expect(page.getByRole('button', { name: 'CodexTester', exact: true })).toBeVisible();
 
   await page.goto('/battle/battle-gen9uu-spectate1');

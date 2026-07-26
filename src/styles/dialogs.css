@@ -80,6 +80,22 @@
 
 /* ── Account form ─────────────────────────────────────────────────────── */
 
+.account-oauth {
+  display: grid;
+  gap: 8px;
+  padding-block-end: 14px;
+  margin-block-end: 14px;
+  border-block-end: 1px solid var(--arena-line);
+}
+
+.account-oauth .primary-action {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+}
+
 .account-form label {
   display: grid;
   gap: 6px;

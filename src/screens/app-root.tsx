@@ -7,6 +7,7 @@ import {
   CircleDot,
   MonitorCog,
   Moon,
+  ShieldCheck,
   Sun,
   X,
 } from 'lucide-react';
@@ -23,12 +24,11 @@ import { navItems } from '../navigation';
 export function AppRoot() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { acceptChallenge, challenges, connect, connection, disconnect, lastError, login, loginPending, logout, named, needsPassword, reconnect, rejectChallenge, rooms, username } = useArenaStore(
-    useShallow(state => ({ acceptChallenge: state.acceptChallenge, challenges: state.challenges, rejectChallenge: state.rejectChallenge, connect: state.connect, connection: state.connection, disconnect: state.disconnect, lastError: state.lastError, login: state.login, loginPending: state.loginPending, logout: state.logout, named: state.named, needsPassword: state.needsPassword, reconnect: state.reconnect, rooms: state.rooms, username: state.username }))
+  const { acceptChallenge, challenges, chooseName, connect, connection, disconnect, lastError, loginPending, loginWithOAuth, logout, named, oauthAvailable, reconnect, rejectChallenge, rooms, username } = useArenaStore(
+    useShallow(state => ({ acceptChallenge: state.acceptChallenge, challenges: state.challenges, rejectChallenge: state.rejectChallenge, chooseName: state.chooseName, connect: state.connect, connection: state.connection, disconnect: state.disconnect, lastError: state.lastError, loginPending: state.loginPending, loginWithOAuth: state.loginWithOAuth, logout: state.logout, named: state.named, oauthAvailable: state.oauthAvailable, reconnect: state.reconnect, rooms: state.rooms, username: state.username }))
   );
   const { notificationsEnabled, setTheme, theme } = useWorkspaceStore();
   const [nameInput, setNameInput] = useState(named ? username : '');
-  const [passwordInput, setPasswordInput] = useState('');
   const [accountOpen, setAccountOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const submittedAccountRef = useRef(false);
@@ -58,8 +58,7 @@ export function AppRoot() {
   const submitName = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     submittedAccountRef.current = true;
-    void login({ name: nameInput, password: passwordInput || undefined });
-    setPasswordInput('');
+    void chooseName(nameInput);
   };
 
   useEffect(() => {
@@ -259,9 +258,25 @@ export function AppRoot() {
                         <X size={17} />
                       </Dialog.Close>
                     </div>
+                    <div className="account-oauth">
+                      <button
+                        className="primary-action"
+                        type="button"
+                        disabled={loginPending || !oauthAvailable || connection !== 'connected'}
+                        onClick={() => { submittedAccountRef.current = true; void loginWithOAuth(); }}
+                      >
+                        <ShieldCheck size={15} aria-hidden />
+                        {loginPending ? 'Signing in…' : 'Sign in with Pokémon Showdown'}
+                      </button>
+                      <p className="account-hint">
+                        {oauthAvailable ?
+                          'Opens Pokémon Showdown to authorize this client. Your password is never typed here, and this browser stays signed in for two weeks.' :
+                          'Registered-account sign-in needs an OAuth client ID (VITE_PS_OAUTH_CLIENT_ID). Until then, unregistered names below work immediately.'}
+                      </p>
+                    </div>
                     <form className="account-form" onSubmit={submitName}>
                       <label>
-                        <span>Username</span>
+                        <span>Guest name</span>
                         <input
                           aria-label="Username"
                           placeholder="Pick any unused name"
@@ -270,27 +285,16 @@ export function AppRoot() {
                           onChange={event => setNameInput(event.currentTarget.value)}
                         />
                       </label>
-                      <label className={clsx(needsPassword && 'needs-attention')}>
-                        <span>Password</span>
-                        <input
-                          aria-label="Password"
-                          placeholder={needsPassword ? 'Required — this name is registered' : 'Only for registered accounts'}
-                          type="password"
-                          autoComplete="current-password"
-                          value={passwordInput}
-                          onChange={event => setPasswordInput(event.currentTarget.value)}
-                        />
-                      </label>
                       <p className="account-hint">
-                        Unregistered names work immediately. Passwords are sent only to the
-                        Showdown login server to obtain a one-time assertion.
+                        Unregistered names work immediately and claim nothing — registered
+                        accounts must use the button above.
                       </p>
                       {connection !== 'connected' && <StatusCallout tone="error">Connect before choosing a name.</StatusCallout>}
                       {loginPending && <StatusCallout>Waiting for server confirmation.</StatusCallout>}
-                      {lastError && <StatusCallout tone={needsPassword ? 'warning' : 'error'}>{lastError}</StatusCallout>}
+                      {lastError && <StatusCallout tone="error">{lastError}</StatusCallout>}
                       <div className="button-row">
-                        <button className="primary-action" type="submit" disabled={loginPending || !nameInput.trim()}>
-                          {loginPending ? 'Submitting…' : passwordInput ? 'Log in' : 'Choose name'}
+                        <button className="secondary-action" type="submit" disabled={loginPending || !nameInput.trim()}>
+                          {loginPending ? 'Submitting…' : 'Use guest name'}
                         </button>
                         {named && (
                           <button className="secondary-action" type="button" onClick={() => void logout()}>

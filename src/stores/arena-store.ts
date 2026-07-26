@@ -48,6 +48,9 @@ import {
 import { createEngineBattle, feedLine, onEngineReady, projectEngineBattle } from '../battle/engine';
 import { battleEventFromLine, routeFrame } from '../protocol/router';
 import {
+  clearOAuthToken, oauthConfigured, requestOAuthGrant, saveOAuthToken, storedOAuthToken,
+} from '../compat/ps-oauth';
+import {
   appendChat,
   appendLog,
   newBattleRoom,
@@ -132,6 +135,10 @@ export type ArenaState = {
   setServer: (input: string) => boolean;
   resetServer: () => void;
   chooseName: (name: string) => Promise<void>;
+  /** OAuth2 sign-in: the password is only ever typed on play.pokemonshowdown.com. */
+  loginWithOAuth: () => Promise<void>;
+  oauthAvailable: boolean;
+  oauthLinked: boolean;
   login: (credentials: LoginCredentials) => Promise<void>;
   logout: () => Promise<void>;
   joinRoom: (roomId: string) => void;
@@ -290,6 +297,8 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
   connection: 'offline',
   loginPending: false,
   needsPassword: false,
+  oauthAvailable: oauthConfigured(),
+  oauthLinked: !!storedOAuthToken(),
   server: loadStoredServer(),
   protocol,
 
@@ -375,6 +384,32 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
       });
     }
   },
+  loginWithOAuth: async () => {
+    const { challstr, connection } = get();
+    if (connection !== 'connected') {
+      set({ lastError: 'Connect to the server before signing in.' });
+      return;
+    }
+    if (!challstr) {
+      set({ lastError: 'Still handshaking with the server. Try again in a moment.' });
+      return;
+    }
+    set({ loginPending: true, lastError: undefined, needsPassword: false });
+    scheduleLoginTimeout();
+    try {
+      const grant = await requestOAuthGrant(challstr);
+      saveOAuthToken(grant.token, grant.user);
+      set({ oauthLinked: true });
+      get().protocol.send(`/trn ${grant.user || get().username},0,${grant.assertion}`);
+    } catch (error) {
+      clearLoginTimeout();
+      set({
+        loginPending: false,
+        lastError: error instanceof Error ? error.message : 'Sign-in failed.',
+      });
+    }
+  },
+
   login: async ({ name, password }) => {
     const trimmed = name.trim();
     if (!trimmed) return;
@@ -404,7 +439,8 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
   logout: async () => {
     const { username, protocol: client } = get();
     client.send('/logout');
-    set({ named: false, username: 'Guest', needsPassword: false, lastError: undefined });
+    clearOAuthToken();
+    set({ named: false, username: 'Guest', needsPassword: false, oauthLinked: false, lastError: undefined });
     await logout(toId(username));
   },
 
