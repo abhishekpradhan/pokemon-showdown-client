@@ -16,7 +16,7 @@ textarea:focus-visible,
 
 .arena-app {
   display: grid;
-  grid-template-columns: 58px minmax(0, 1fr);
+  grid-template-columns: 68px minmax(0, 1fr);
   width: 100%;
   height: 100svh;
   min-height: 0;
@@ -42,38 +42,43 @@ textarea:focus-visible,
 .brand-mark {
   display: grid;
   place-items: center;
-  width: 42px;
-  height: 42px;
-  margin-bottom: 14px;
-  border-radius: 10px;
+  width: 40px;
+  height: 40px;
+  margin-bottom: 16px;
+  background: var(--arena-panel);
+  border: 1px solid var(--arena-line);
+  border-radius: 12px;
+  transition: border-color var(--arena-fast) ease;
 }
 
+.brand-mark:hover { border-color: var(--arena-line-strong); }
+
 .brand-mark img {
-  width: 30px;
-  height: 30px;
-  filter: saturate(0.82);
+  width: 26px;
+  height: 26px;
 }
 
 .primary-nav {
   display: grid;
-  gap: 4px;
+  gap: 6px;
   width: 100%;
+  padding-inline: 6px;
 }
 
 .primary-nav-link {
   position: relative;
   display: grid;
   place-items: center;
-  gap: 2px;
-  min-height: 49px;
-  padding: 5px 2px;
+  gap: 3px;
+  min-height: 52px;
+  padding: 7px 2px;
   color: var(--arena-faint);
-  border-radius: 7px;
-  transition: color 140ms ease, background 140ms ease, transform 140ms ease;
+  border-radius: 9px;
+  transition: color 140ms ease, background 140ms ease;
 }
 
 .primary-nav-link span {
-  font-size: 12px;
+  font-size: 10.5px;
   font-weight: 650;
   line-height: 1;
 }
@@ -672,23 +677,34 @@ textarea:focus-visible,
 
 /* ── Topbar theme toggle ─────────────────────────────────────────────────── */
 
-.theme-toggle {
+.theme-segment {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--arena-ink-2);
+  border: 1px solid var(--arena-line);
+  border-radius: 9px;
+}
+
+.theme-segment button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  min-height: 34px;
-  height: 34px;
-  color: var(--arena-muted);
+  width: 28px;
+  min-height: 26px;
+  height: 26px;
+  color: var(--arena-faint);
   background: transparent;
-  border: 1px solid transparent;
-  border-radius: 8px;
+  border: none;
+  border-radius: 6px;
   cursor: pointer;
   transition: color var(--arena-fast) ease, background var(--arena-fast) ease;
 }
 
-.theme-toggle:hover {
+.theme-segment button:hover { color: var(--arena-text); }
+
+.theme-segment button.is-selected {
   color: var(--arena-text);
-  background: var(--arena-hover);
-  border-color: var(--arena-line);
+  background: var(--arena-panel);
+  box-shadow: var(--arena-shadow-sm);
 }

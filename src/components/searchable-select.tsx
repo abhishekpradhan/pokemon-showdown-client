@@ -27,10 +27,19 @@ export function SearchableSelect({
   value?: string;
 }) {
   const [open, setOpen] = useState(false);
+  const [openUp, setOpenUp] = useState(false);
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+
+  // Flip the list above the trigger when the viewport below cannot fit it —
+  // opening downward off-screen forced the page to grow under the list.
+  useEffect(() => {
+    if (!open) return;
+    const rect = triggerRef.current?.getBoundingClientRect();
+    if (rect) setOpenUp(window.innerHeight - rect.bottom < 360 && rect.top > 360);
+  }, [open]);
   const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const selected = options.find(option => option.value === value);
   const visibleOptions = useMemo(() => {
@@ -137,7 +146,7 @@ export function SearchableSelect({
       </button>
 
       {open && (
-        <div className="select-popover" role="listbox" aria-label={ariaLabel} tabIndex={-1}>
+        <div className={openUp ? "select-popover is-up" : "select-popover"} role="listbox" aria-label={ariaLabel} tabIndex={-1}>
           <label className="select-search">
             <Search size={15} aria-hidden />
             <input

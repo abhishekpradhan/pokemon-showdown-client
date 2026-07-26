@@ -73,6 +73,10 @@
   --arena-inverse: #fffdf7;
   --arena-inverse-text: #1d1d1b;
 
+  /* Solid toggle-track colour — translucent lines wash out under a white
+     thumb. */
+  --arena-track: #3b4454;
+
   /* Motion. Reduced-motion collapses these to zero (see base.css). */
   --arena-fast: 120ms;
   --arena-base: 200ms;
@@ -121,6 +125,7 @@
 
   --arena-inverse: #1b212c;
   --arena-inverse-text: #f4f7fb;
+  --arena-track: #c3cbd7;
 
   --arena-shadow: 0 12px 32px rgb(15 23 42 / 16%);
   --arena-shadow-sm: 0 4px 14px rgb(15 23 42 / 10%);

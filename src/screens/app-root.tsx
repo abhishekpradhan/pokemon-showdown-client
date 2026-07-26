@@ -149,17 +149,25 @@ export function AppRoot() {
             </div>
             <CommandBar />
             <div className="topbar-actions">
-              <button
-                type="button"
-                className="theme-toggle"
-                aria-label={`Theme: ${theme}. Switch theme`}
-                title={`Theme: ${theme}`}
-                onClick={() => setTheme(theme === 'system' ? 'light' : theme === 'light' ? 'dark' : 'system')}
-              >
-                {theme === 'light' ? <Sun size={16} aria-hidden /> :
-                  theme === 'dark' ? <Moon size={16} aria-hidden /> :
-                  <MonitorCog size={16} aria-hidden />}
-              </button>
+              <div className="theme-segment" role="radiogroup" aria-label="Theme">
+                {([
+                  { value: 'light', label: 'Light theme', icon: Sun },
+                  { value: 'dark', label: 'Dark theme', icon: Moon },
+                  { value: 'system', label: 'Follow system theme', icon: MonitorCog },
+                ] as const).map(option => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={theme === option.value}
+                    aria-label={option.label}
+                    className={clsx(theme === option.value && 'is-selected')}
+                    onClick={() => setTheme(option.value)}
+                  >
+                    <option.icon size={14} aria-hidden />
+                  </button>
+                ))}
+              </div>
               <div className="notification-wrap">
                 <button
                   className={clsx('notification-button', notificationsOpen && 'is-active')}
