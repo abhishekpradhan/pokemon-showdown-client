@@ -1,5 +1,6 @@
 import { Check, ChevronDown, Search } from 'lucide-react';
-import { type KeyboardEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { type CSSProperties, type KeyboardEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { clsx } from 'clsx';
 
 export type SearchableSelectOption = {
@@ -27,25 +28,69 @@ export function SearchableSelect({
   value?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const [openUp, setOpenUp] = useState(false);
-  const [maxListHeight, setMaxListHeight] = useState<number | undefined>();
+  const [popStyle, setPopStyle] = useState<CSSProperties>();
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
+  const popRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
-  // The list opens toward whichever side has more room and never asks for
-  // more height than that side can give — flipping without capping height
-  // let it clip under the topbar. Layout effect: settled before first paint.
-  useLayoutEffect(() => {
-    if (!open) return;
+  // The list renders in a body portal with fixed coordinates: no ancestor's
+  // overflow can ever clip it (cards, panels and inspectors all did). It
+  // opens toward whichever side of the trigger has more room and caps its
+  // height to that side's actual space. Layout effect: settled pre-paint.
+  const updatePosition = () => {
     const rect = triggerRef.current?.getBoundingClientRect();
     if (!rect) return;
     const below = window.innerHeight - rect.bottom - 16;
     const above = rect.top - 72; // keep clear of the topbar
     const up = below < 340 && above > below;
-    setOpenUp(up);
-    setMaxListHeight(Math.max(180, Math.min(420, up ? above : below)));
+    const width = Math.min(Math.max(rect.width, 340), window.innerWidth - 24);
+    const left = Math.min(rect.left, window.innerWidth - width - 12);
+    setPopStyle({
+      position: 'fixed',
+      left,
+      width,
+      maxHeight: Math.max(180, Math.min(420, up ? above : below)),
+      ...(up ? { bottom: window.innerHeight - rect.top + 8, top: 'auto' } : { top: rect.bottom + 8, bottom: 'auto' }),
+    });
+  };
+
+  // Close only when focus SETTLES outside — transient null-focus hops (a
+  // portal input mounting, dev double-effects) must not dismiss the list.
+  const closeIfFocusLeft = () => {
+    requestAnimationFrame(() => {
+      const active = document.activeElement;
+      if (rootRef.current?.contains(active) || popRef.current?.contains(active)) return;
+      setOpen(false);
+    });
+  };
+
+  // Clicking anywhere outside closes, focus or not.
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (rootRef.current?.contains(target) || popRef.current?.contains(target)) return;
+      setOpen(false);
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, [open]);
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    updatePosition();
+    // Scrolls and resizes anywhere move the trigger — follow it rather than
+    // closing; unrelated container scrolls (a feed filling in) must not
+    // dismiss an open list.
+    const follow = () => requestAnimationFrame(updatePosition);
+    window.addEventListener('scroll', follow, true);
+    window.addEventListener('resize', follow);
+    return () => {
+      window.removeEventListener('scroll', follow, true);
+      window.removeEventListener('resize', follow);
+    };
   }, [open]);
   const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const selected = options.find(option => option.value === value);
@@ -128,9 +173,7 @@ export function SearchableSelect({
     <div
       className="searchable-select"
       ref={rootRef}
-      onBlur={event => {
-        if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
-      }}
+      onBlur={closeIfFocusLeft}
       onKeyDown={handleKeyDown}
     >
       <button
@@ -152,8 +195,17 @@ export function SearchableSelect({
         <ChevronDown size={16} aria-hidden />
       </button>
 
-      {open && (
-        <div className={openUp ? "select-popover is-up" : "select-popover"} style={maxListHeight ? { maxHeight: maxListHeight } : undefined} role="listbox" aria-label={ariaLabel} tabIndex={-1}>
+      {open && createPortal(
+        <div
+          className="select-popover"
+          ref={popRef}
+          style={popStyle}
+          role="listbox"
+          aria-label={ariaLabel}
+          tabIndex={-1}
+          onKeyDown={handleKeyDown}
+          onBlur={closeIfFocusLeft}
+        >
           <label className="select-search">
             <Search size={15} aria-hidden />
             <input
@@ -202,7 +254,8 @@ export function SearchableSelect({
               </div>
             )) : <p className="select-empty">{emptyLabel}</p>}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

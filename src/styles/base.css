@@ -324,12 +324,7 @@ textarea:focus-visible,
 
 
 .select-popover {
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 0;
-  z-index: 90;
-  width: min(420px, calc(100vw - 36px));
-  max-height: min(400px, calc(100svh - 160px));
+  z-index: 95;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   overflow: hidden;
@@ -338,22 +333,6 @@ textarea:focus-visible,
   border: 1px solid var(--arena-line-strong);
   border-radius: 10px;
   box-shadow: var(--arena-shadow);
-}
-
-/* Near the viewport bottom the list opens upward instead of forcing the
-   page to grow under it. */
-.select-popover.is-up {
-  top: auto;
-  bottom: calc(100% + 8px);
-}
-
-/* Inside a side column the list must stay inside the column: anchor to the
-   trigger's box and let long labels ellipsize. */
-.workspace-inspector .select-popover {
-  right: 0;
-  left: 0;
-  width: auto;
-  min-width: 0;
 }
 
 

@@ -24,7 +24,6 @@
   gap: 12px;
   min-width: 0;
   padding: clamp(16px, 2vw, 26px);
-  overflow: hidden;
   /* No bitmap collage: a calm accent glow over the theme surface. Both
      themes get the same composition from their own tokens. */
   background:
@@ -42,6 +41,7 @@
   position: absolute;
   inset: 0;
   z-index: -1;
+  border-radius: inherit;
   background:
     linear-gradient(var(--arena-line) 1px, transparent 1px) 0 0 / 100% 56px,
     linear-gradient(90deg, var(--arena-line) 1px, transparent 1px) 0 0 / 56px 100%;
