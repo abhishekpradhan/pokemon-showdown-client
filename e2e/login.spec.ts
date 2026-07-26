@@ -106,9 +106,15 @@ test('spectating renders a true spectator view', async ({ page }) => {
   const readouts = await page.locator('.hp-readout').allTextContents();
   for (const readout of readouts) expect(readout).not.toMatch(/\d+\/\d+/);
 
-  // No action deck for a watcher: no move buttons, no team bench switches.
+  // No action deck for a watcher: no move buttons, no team bench switches —
+  // and none of a player's controls either: no forfeit, no timer, no choice
+  // undo/reset. Watching is read-only.
   await expect(page.locator('.move-choice')).toHaveCount(0);
   await expect(page.getByText(/spectating/i).first()).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Forfeit' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /Timer/ })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Undo choice' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Reset choice draft' })).toHaveCount(0);
 
   // Actions announce themselves on the field. The mock's turn ends on a
   // super-effective note, which is the label the banner settles on.

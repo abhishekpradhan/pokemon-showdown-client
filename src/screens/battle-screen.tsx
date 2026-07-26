@@ -168,12 +168,16 @@ export function BattleScreen() {
             <button type="button" className="icon-button mobile-inspector-button" aria-label="Open battle chat" onClick={() => openInspector('chat')}>
               <MessageSquare size={17} />
             </button>
-            <button type="button" className="icon-button" aria-label="Undo choice" disabled={decision.noCancel} onClick={() => undoBattleChoice(battle.id)}>
-              <RotateCcw size={17} />
-            </button>
-            <button type="button" className="icon-button" aria-label="Reset choice draft" onClick={() => resetBattleChoiceSession(battle.id)}>
-              <X size={17} />
-            </button>
+            {decision.mode === 'player' && !battle.ended && (
+              <>
+                <button type="button" className="icon-button" aria-label="Undo choice" disabled={decision.noCancel} onClick={() => undoBattleChoice(battle.id)}>
+                  <RotateCcw size={17} />
+                </button>
+                <button type="button" className="icon-button" aria-label="Reset choice draft" onClick={() => resetBattleChoiceSession(battle.id)}>
+                  <X size={17} />
+                </button>
+              </>
+            )}
           </div>
         </header>
 
@@ -229,7 +233,9 @@ export function BattleScreen() {
             </div>
             {battle.team.length > 0 && (
               <div className="bench-deck">
-                <span className="deck-label">Your team</span>
+                <span className="deck-label">
+                  {decision.mode === 'player' ? 'Your team' : `${battle.playerSide === 'p2' ? battle.p2.name : battle.p1.name}’s team`}
+                </span>
                 <TeamBench team={battle.team} onSwitch={playerControls && !pendingTarget ? choice => submitBattleChoice(choice, battle.id) : undefined} />
               </div>
             )}
@@ -330,15 +336,15 @@ export function BattleScreen() {
                   replayStatus?.state === 'failed' ? 'Retry save' : 'Save replay'}
               </button>
             )
-          ) : (
+          ) : decision.mode === 'player' ? (
             <button className="battle-command" type="button" onClick={() => toggleBattleTimer(battle.id)}>
               <TimerReset size={15} aria-hidden /> Timer {battle.timerOn ? 'on' : 'off'}
             </button>
-          )}
+          ) : null}
           <button className="battle-command" type="button" onClick={downloadLog}>
             <Download size={15} aria-hidden /> Log
           </button>
-          <Dialog.Root open={forfeitOpen} onOpenChange={setForfeitOpen}>
+          {decision.mode === 'player' && !battle.ended && <Dialog.Root open={forfeitOpen} onOpenChange={setForfeitOpen}>
             <Dialog.Trigger className="forfeit-button">
               <Flag size={15} aria-hidden /> Forfeit
             </Dialog.Trigger>
@@ -361,7 +367,7 @@ export function BattleScreen() {
                 </div>
               </Dialog.Content>
             </Dialog.Portal>
-          </Dialog.Root>
+          </Dialog.Root>}
         </footer>
       </aside>
     </section>
