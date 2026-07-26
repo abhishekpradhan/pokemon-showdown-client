@@ -18,10 +18,12 @@
 
 .match-stage {
   position: relative;
-  display: flex;
+  display: grid;
   flex: none;
-  flex-direction: column;
-  gap: 14px;
+  grid-template-areas: "toolbar toolbar" "copy deck";
+  grid-template-columns: minmax(220px, 0.7fr) minmax(430px, 1.3fr);
+  gap: 10px 22px;
+  align-items: center;
   min-width: 0;
   padding: clamp(16px, 2vw, 24px);
   overflow: hidden;
@@ -63,6 +65,7 @@
 }
 
 .match-stage-toolbar {
+  grid-area: toolbar;
   justify-content: space-between;
   gap: 14px;
 }
@@ -99,9 +102,8 @@
 }
 
 .match-stage-copy {
+  grid-area: copy;
   max-width: 610px;
-  margin-top: auto;
-  padding: 48px 0 clamp(28px, 5vh, 54px);
 }
 
 .match-stage-copy h1 {
@@ -121,6 +123,7 @@
 }
 
 .match-control-deck {
+  grid-area: deck;
   padding: 12px;
   background: var(--arena-panel);
   border: 1px solid var(--arena-line);
@@ -164,6 +167,7 @@
 .queue-cancel {
   display: inline-flex;
   align-items: center;
+  white-space: nowrap;
   justify-content: center;
   gap: 8px;
   min-height: 42px;
@@ -191,6 +195,8 @@
   border-color: var(--arena-line);
   cursor: not-allowed;
 }
+
+.queue-line[data-state="idle"] { display: none; }
 
 .queue-line {
   height: 2px;

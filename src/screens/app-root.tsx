@@ -130,12 +130,15 @@ export function AppRoot() {
               );
             })}
           </nav>
-          {/* role is required for aria-label to be permitted on a generic element. */}
-          <i
-            className={clsx('rail-connection-dot', `is-${connection}`)}
-            role="img"
-            aria-label={`Server ${connection}`}
-          />
+          <Link
+            to="/settings"
+            className={clsx('rail-status', `is-${connection}`)}
+            aria-label={`Server ${connection} — connection settings`}
+            title={`Server ${connection}`}
+          >
+            <i aria-hidden />
+            <span>{connection === 'connected' ? 'Live' : connection === 'offline' || connection === 'error' ? 'Off' : 'Wait'}</span>
+          </Link>
         </aside>
 
         <div className="arena-main">

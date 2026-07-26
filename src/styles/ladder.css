@@ -113,3 +113,23 @@
 .ladder-table thead th:not(:nth-child(2)) {
   white-space: nowrap;
 }
+
+/* Loading: shimmering row skeletons instead of a bare sentence. */
+.ladder-skeleton {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+}
+
+.ladder-skeleton span {
+  display: block;
+  block-size: 34px;
+  background: var(--arena-hover-strong);
+  border-radius: 7px;
+  animation: ladder-shimmer 1.1s ease-in-out infinite;
+}
+
+@keyframes ladder-shimmer {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 1; }
+}

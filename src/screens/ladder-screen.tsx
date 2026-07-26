@@ -110,7 +110,14 @@ export function LadderScreen() {
         {/* A real table: ARIA table roles on divs kept producing structural
             violations, and this data is genuinely tabular. */}
         <div className="ladder-table-scroll" tabIndex={0} role="region" aria-label="Standings, scrollable">
-          <table className="ladder-table">
+          {loading && (
+            <div className="ladder-skeleton" aria-hidden>
+              {Array.from({ length: 12 }, (_, index) => (
+                <span key={index} style={{ animationDelay: `${index * 60}ms` }} />
+              ))}
+            </div>
+          )}
+          {!loading && <table className="ladder-table">
             <caption className="visually-hidden">
               {`${selected?.name || selectedFormat} standings, top ${rows.length}`}
             </caption>
@@ -134,12 +141,12 @@ export function LadderScreen() {
                 </tr>
               ))}
             </tbody>
-          </table>
-          {!rows.length && (
+          </table>}
+          {!loading && !rows.length && (
             <div className="table-empty">
               <TrendingUp size={22} aria-hidden />
-              <strong>{loading ? 'Loading standings…' : 'No standings available.'}</strong>
-              <span>{loading ? 'Fetching the public ladder.' : 'This format may not have a ranked ladder yet.'}</span>
+              <strong>No standings available.</strong>
+              <span>This format may not have a ranked ladder yet.</span>
             </div>
           )}
         </div>

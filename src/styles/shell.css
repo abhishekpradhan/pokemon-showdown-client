@@ -107,22 +107,44 @@ textarea:focus-visible,
   background: var(--arena-cyan);
 }
 
-.rail-connection-dot {
-  width: 10px;
-  height: 10px;
+.rail-status {
+  display: grid;
+  gap: 3px;
+  justify-items: center;
   margin-top: auto;
+  padding: 6px 4px;
+  color: var(--arena-faint);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-decoration: none;
+  text-transform: uppercase;
+  border-radius: 7px;
+  transition: background var(--arena-fast) ease, color var(--arena-fast) ease;
+}
+
+.rail-status:hover {
+  color: var(--arena-text);
+  background: var(--arena-hover);
+}
+
+.rail-status i {
+  width: 8px;
+  height: 8px;
   background: var(--arena-red);
-  border: 2px solid var(--arena-ink);
   border-radius: 50%;
 }
 
-.rail-connection-dot.is-connected {
+.rail-status.is-connected i {
   background: var(--arena-green);
-  box-shadow: 0 0 0 4px rgba(72, 199, 142, 0.08);
+  box-shadow: 0 0 0 3px rgb(72 199 142 / 14%);
 }
 
-.rail-connection-dot.is-connecting,
-.rail-connection-dot.is-reconnecting {
+.rail-status.is-connecting i {
+  background: var(--arena-gold);
+}
+
+.rail-status.is-reconnecting i {
   background: var(--arena-gold);
   animation: pulse 1.2s ease-in-out infinite;
 }
@@ -492,7 +514,7 @@ textarea:focus-visible,
   }
 
   .brand-mark,
-  .rail-connection-dot {
+  .rail-status {
     display: none;
   }
 
