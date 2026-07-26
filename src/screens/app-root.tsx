@@ -91,7 +91,9 @@ export function AppRoot() {
   const handledBattlesRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     const battleIds = Object.values(rooms)
-      .filter(room => room.type === 'battle' && room.connected)
+      // Server battle rooms only — the demo fixture room must never steal
+      // focus (it exists at boot under test fixtures).
+      .filter(room => room.type === 'battle' && room.connected && room.id.startsWith('battle-'))
       .map(room => room.id);
     const fresh = battleIds.filter(id => !handledBattlesRef.current.has(id));
     for (const id of battleIds) handledBattlesRef.current.add(id);
