@@ -60,6 +60,28 @@ describe('sanitizeChatHtml', () => {
     expect(imageOnly).not.toMatch(/color:\s*(#fff|rgb\(255)/);
   });
 
+  it('keeps a wrapper color that backgrounded descendants inherit', () => {
+    // Tournament leaderboards declare white on the wrapper and solid navy on
+    // alternating rows; stripping at the top strands those rows dark-on-dark.
+    const out = sanitizeChatHtml(
+      '<div style="color:#fff;text-shadow:1px 0 0 #000"><table>' +
+      '<tr style="background:rgb(35,35,100)"><td>gen 9 is trash man</td></tr>' +
+      '<tr style="background:rgb(80,80,110)"><td>Bekama</td></tr>' +
+      '</table></div>'
+    );
+    expect(out).toMatch(/color:\s*(#fff|rgb\(255)/);
+    expect(out).toContain('text-shadow');
+  });
+
+  it('flattens overlay layouts that depend on unreliable image geometry', () => {
+    const out = sanitizeChatHtml(
+      '<div style="height:200px"></div>' +
+      '<div style="position:absolute;margin-top:-200px">READ THE ROOM RULES!</div>'
+    );
+    expect(out).toContain('position: static');
+    expect(out).not.toContain('-200px');
+  });
+
   it('normalizes font[color] the same way', () => {
     const stranded = sanitizeChatHtml('<font color="white">x</font>');
     expect(stranded).not.toContain('color');

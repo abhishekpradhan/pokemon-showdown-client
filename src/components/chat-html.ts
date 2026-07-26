@@ -57,11 +57,24 @@ DOMPurify.addHook('afterSanitizeAttributes', node => {
   // Inline styles may fetch https images (same reach as <img src>), but no
   // other scheme, and no CSS escape hatches.
   const style = node.getAttribute('style');
-  if (style && (
-    /expression\s*\(|@import|behavior\s*:/i.test(style) ||
-    /url\s*\(\s*['"]?(?!https:\/\/)/i.test(style)
-  )) {
-    node.removeAttribute('style');
+  if (style) {
+    if (
+      /expression\s*\(|@import|behavior\s*:/i.test(style) ||
+      /url\s*\(\s*['"]?(?!https:\/\/)/i.test(style)
+    ) {
+      node.removeAttribute('style');
+    } else {
+      // Server layouts overlay decorative layers with absolute positioning
+      // and negative margins, sized by images we cannot guarantee will load
+      // (hotlink blocks) — a missing layer collapses the whole block to a
+      // sliver. Force everything to flow; backgrounds that do load paint
+      // inside flowed boxes.
+      const next = style
+        .replace(/position\s*:\s*(?:absolute|fixed|sticky)/gi, 'position: static')
+        .replace(/(margin[^:;]*:[^;]*)/gi, declaration =>
+          declaration.replace(/-\d+(?:\.\d+)?(?:px|em|rem|%)/g, '0'));
+      if (next !== style) node.setAttribute('style', next);
+    }
   }
 });
 
@@ -87,17 +100,29 @@ const isExtreme = (value: string): boolean => {
   return level !== null && (level > 0.82 || level < 0.18);
 };
 
+const isSolidBackground = (node: HTMLElement): boolean => {
+  const color = node.style.backgroundColor;
+  if (color && color !== 'transparent' && !/^rgba\([^)]+,\s*0\s*\)$/i.test(color)) return true;
+  return node.hasAttribute('bgcolor');
+};
+
 /**
- * Does this element bring its own readable base? Only solid background
- * colors count. Declared background images don't — third-party image hosts
- * routinely block hotlinking from non-official origins, and a text-shadow
- * outline over a missing background still ghosts — so neither protects.
+ * Is this element's inline color anchored to a real surface? Only solid
+ * background colors count — declared background images don't, because
+ * third-party hosts routinely block hotlinking from non-official origins,
+ * and a text-shadow outline over a missing background still ghosts.
+ *
+ * The color is protected when a solid background sits on the element
+ * itself, on an ancestor, or on any DESCENDANT: a leaderboard declares
+ * `color: #fff` on its wrapper and the navy row backgrounds below inherit
+ * it — stripping at the top would strand those rows the other way.
  */
 const hasBackdrop = (start: HTMLElement): boolean => {
   for (let node: HTMLElement | null = start; node; node = node.parentElement) {
-    const color = node.style.backgroundColor;
-    if (color && color !== 'transparent' && !/^rgba\([^)]+,\s*0\s*\)$/i.test(color)) return true;
-    if (node.hasAttribute('bgcolor')) return true;
+    if (isSolidBackground(node)) return true;
+  }
+  for (const node of start.querySelectorAll<HTMLElement>('[style], [bgcolor]')) {
+    if (isSolidBackground(node)) return true;
   }
   return false;
 };
