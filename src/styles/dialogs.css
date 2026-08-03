@@ -66,16 +66,24 @@
   line-height: 1.5;
 }
 
+/* Dismiss is an escape hatch, not a peer of the action buttons: a quiet
+   ghost icon tucked into the corner. touch.css restores the 44px tap size
+   on coarse pointers. */
 .dialog-heading .icon-button {
   flex: 0 0 auto;
-  color: var(--arena-soft);
-  background: var(--arena-panel-raised);
-  border: 1px solid var(--arena-line);
+  width: 32px;
+  min-height: 32px;
+  margin: -2px -6px 0 0;
+  color: var(--arena-faint);
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
 }
 
 .dialog-heading .icon-button:hover {
   color: var(--arena-text);
-  background: var(--arena-line);
+  background: var(--arena-hover);
+  transform: none;
 }
 
 /* ── Account form ─────────────────────────────────────────────────────── */
