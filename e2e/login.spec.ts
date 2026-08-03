@@ -63,12 +63,15 @@ test('never collects a Showdown password; registered names go through OAuth', as
   await expect(dialog.getByRole('textbox', { name: 'Password' })).toHaveCount(0);
   await expect(dialog.locator('input[type="password"]')).toHaveCount(0);
 
-  // OAuth is the registered-account path, and it explains itself when the
-  // deployment has no client ID configured.
+  // OAuth is the registered-account path. Whether it is enabled depends on
+  // VITE_PS_OAUTH_CLIENT_ID (CI has none; a developer's .env.local may),
+  // so assert the invariant either way: the button exists, and when the
+  // deployment is unconfigured it explains what's missing.
   const oauth = dialog.getByRole('button', { name: /Sign in with Pok/i });
   await expect(oauth).toBeVisible();
-  await expect(oauth).toBeDisabled();
-  await expect(dialog.getByText(/OAuth client ID/i)).toBeVisible();
+  if (await oauth.isDisabled()) {
+    await expect(dialog.getByText(/OAuth client ID/i)).toBeVisible();
+  }
 
   // A registered name refused by the login server must not send a bare /trn.
   await page.getByRole('textbox', { name: 'Username' }).fill('RegisteredName');
