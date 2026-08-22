@@ -42,7 +42,7 @@ export function SettingsScreen() {
   const [serverInput, setServerInput] = useState('');
   const [logCopied, setLogCopied] = useState(false);
   const isDefaultServer = server.host === getDefaultServerConfig().host;
-  const { notificationsEnabled, setNotificationsEnabled, setTheme, theme } = useWorkspaceStore();
+  const { notificationsEnabled, setNotificationsEnabled, setSoundEnabled, setTheme, soundEnabled, theme } = useWorkspaceStore();
 
   return (
     <section className="settings-page" aria-label="Settings">
@@ -78,6 +78,17 @@ export function SettingsScreen() {
             checked={notificationsEnabled}
             onCheckedChange={setNotificationsEnabled}
             aria-label="Activity notifications"
+          >
+            <Switch.Thumb className="switch-thumb" />
+          </Switch.Root>
+        </div>
+        <div className="setting-row">
+          <span><strong>Battle sounds</strong><small>Cries on switch-in and a ping when it&apos;s your move.</small></span>
+          <Switch.Root
+            className="switch-root"
+            checked={soundEnabled}
+            onCheckedChange={setSoundEnabled}
+            aria-label="Battle sounds"
           >
             <Switch.Thumb className="switch-thumb" />
           </Switch.Root>

@@ -14,6 +14,8 @@ import {
   RotateCcw,
   Send,
   TimerReset,
+  Volume2,
+  VolumeX,
   X,
 } from 'lucide-react';
 import { type FormEvent, useEffect, useState } from 'react';
@@ -27,6 +29,7 @@ import { MoveControls } from '../components/move-controls';
 import { TeamBench } from '../components/team-bench';
 import { useShallow } from 'zustand/react/shallow';
 import { useArenaStore } from '../stores/arena-store';
+import { useWorkspaceStore } from '../stores/workspace-store';
 
 type InspectorTab = 'log' | 'chat' | 'info';
 
@@ -40,6 +43,9 @@ export function BattleScreen() {
   const [inspectorTab, setInspectorTab] = useState<InspectorTab>('log');
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const [userCard, setUserCard] = useState<UserCardAnchor | null>(null);
+  const { soundEnabled, setSoundEnabled } = useWorkspaceStore(
+    useShallow(state => ({ soundEnabled: state.soundEnabled, setSoundEnabled: state.setSoundEnabled }))
+  );
   const demoFixturesEnabled = import.meta.env.MODE === 'test' || import.meta.env.VITE_ENABLE_DEMO_FIXTURES === 'true';
   const room = rooms[params.battleId];
   const battleRoom = room?.type === 'battle' ? room : null;
@@ -168,6 +174,16 @@ export function BattleScreen() {
             {battleRoom && <BattleTimerChip timer={battleRoom.timer} />}
           </div>
           <div className="toolbar-actions">
+            <button
+              type="button"
+              className="icon-button"
+              aria-label={soundEnabled ? 'Mute battle sounds' : 'Unmute battle sounds'}
+              aria-pressed={soundEnabled}
+              title={soundEnabled ? 'Battle sounds on — cries and turn pings' : 'Battle sounds muted'}
+              onClick={() => setSoundEnabled(!soundEnabled)}
+            >
+              {soundEnabled ? <Volume2 size={17} /> : <VolumeX size={17} />}
+            </button>
             <button type="button" className="icon-button mobile-inspector-button" aria-label="Open battle log" onClick={() => openInspector('log')}>
               <ListTree size={17} />
             </button>

@@ -11,6 +11,8 @@ import {
   assertionFromToken, clearOAuthToken, oauthConfigured, refreshOAuthToken,
   saveOAuthToken, storedOAuthToken,
 } from '../compat/ps-oauth';
+import { playCry, playTurnPing } from '../battle/sound';
+import { useWorkspaceStore } from '../stores/workspace-store';
 import {
   parseChatRoomList,
   parseFormats,
@@ -476,7 +478,27 @@ const handleBattleLine = (roomId: string, line: PsLine, store: ArenaStoreApi) =>
       const event = battleEventFromLine(line.command, line.args, next.perspective, next.lastEvent);
       if (event) next = { ...next, lastEvent: event };
 
+      // Battle audio, focused room only: a switch-in announces itself with
+      // its cry (|switch|p1a: Nick|Species, details|hp).
+      if (
+        useWorkspaceStore.getState().soundEnabled &&
+        state.activeRoomId === roomId &&
+        (line.command === 'switch' || line.command === 'drag')
+      ) {
+        const species = (line.args[1] || '').split(',')[0].trim();
+        if (species) playCry(species);
+      }
+
       if (request) {
+        // "Your move": two rising notes when a real decision arrives for the
+        // battle you're looking at.
+        if (
+          useWorkspaceStore.getState().soundEnabled &&
+          state.activeRoomId === roomId &&
+          !request.wait
+        ) {
+          playTurnPing();
+        }
         const perspective = request.side?.id === 'p1' || request.side?.id === 'p2' ?
           request.side.id :
           next.perspective;

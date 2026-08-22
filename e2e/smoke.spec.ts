@@ -65,6 +65,12 @@ test('search creates a mock battle room and sends exact battle choices', async (
   await expect(page.locator('.target-button:disabled')).toHaveCount(3);
   await target.click();
 
+  // The sound toggle lives in the toolbar and persists its state.
+  const mute = page.getByRole('button', { name: /battle sounds/i });
+  await expect(mute).toHaveAttribute('aria-pressed', 'true');
+  await mute.click();
+  await expect(mute).toHaveAttribute('aria-pressed', 'false');
+
   await expect.poll(async () => page.evaluate(() => (window as unknown as { __mockPsSent: string[] }).__mockPsSent.join('\n'))).toContain('battle-gen9ou-1|/choose move 1 +1|7');
   await expect.poll(async () => page.evaluate(() => (window as unknown as { __mockPsSent: string[] }).__mockPsSent.join('\n'))).toContain('|/utm ');
   await expect.poll(async () => page.evaluate(() => (window as unknown as { __mockPsSent: string[] }).__mockPsSent.join('\n'))).toContain('|/search gen9ou');
