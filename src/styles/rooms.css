@@ -342,8 +342,108 @@
 
 .chat-author {
   flex: none;
+  padding: 0;
   color: var(--arena-accent);
+  background: transparent;
+  border: 0;
+  font: inherit;
   font-weight: 700;
+  line-height: inherit;
+}
+
+button.chat-author { cursor: pointer; }
+
+button.chat-author:hover { text-decoration: underline; }
+
+/* ── User card (portal) ───────────────────────────────────────────────── */
+
+.user-card {
+  z-index: 90;
+  display: grid;
+  gap: 10px;
+  min-width: 240px;
+  max-width: 300px;
+  padding: 12px;
+  background: var(--arena-panel);
+  border: 1px solid var(--arena-line-strong);
+  border-radius: 10px;
+  box-shadow: var(--arena-shadow-lg, 0 18px 40px rgb(0 0 0 / 35%));
+  outline: none;
+}
+
+.user-card header {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.user-card header img,
+.user-card-fallback {
+  width: 40px;
+  height: 40px;
+  background: var(--arena-hover);
+  border-radius: 8px;
+  image-rendering: pixelated;
+  object-fit: cover;
+}
+
+.user-card-fallback {
+  display: grid;
+  place-items: center;
+  color: var(--arena-accent-text);
+  font-size: 17px;
+  font-weight: 750;
+}
+
+.user-card header strong {
+  display: block;
+  overflow: hidden;
+  color: var(--arena-text);
+  font-size: 13.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-card-rank {
+  margin-inline-end: 3px;
+  color: var(--arena-gold);
+  font-style: normal;
+}
+
+.user-card header small {
+  display: block;
+  overflow: hidden;
+  color: var(--arena-faint);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-card .user-card-close {
+  width: 28px;
+  min-height: 28px;
+  color: var(--arena-faint);
+  background: transparent;
+  border: 0;
+}
+
+.user-card .user-card-close:hover {
+  color: var(--arena-text);
+  background: var(--arena-hover);
+  transform: none;
+}
+
+.user-card-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.user-card-actions .secondary-action {
+  flex: 1;
+  justify-content: center;
+  min-height: 34px;
+  font-size: 12.5px;
 }
 
 .chat-line.is-self .chat-author { color: var(--arena-green); }

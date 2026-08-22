@@ -234,6 +234,16 @@ describe('arena store protocol integration', () => {
     expect(chat[2].kind).toBeUndefined();
   });
 
+  it('caches |queryresponse|userdetails| into user cards', () => {
+    const store = useArenaStore.getState();
+    store.handleFrame(parsePsFrame(
+      '|queryresponse|userdetails|{"userid":"zarel","name":"Zarel","group":"~","avatar":167,"status":"coding","rooms":{"lobby":{},"dev":{}}}'
+    ));
+    expect(useArenaStore.getState().userCards.zarel).toEqual({
+      userid: 'zarel', name: 'Zarel', group: '~', avatar: '167', status: 'coding', rooms: ['lobby', 'dev'],
+    });
+  });
+
   it('updates named uhtml blocks in place and removes them when emptied', () => {
     const store = useArenaStore.getState();
     store.handleFrame(parsePsFrame('>lobby\n|init|chat\n|title|Lobby'));

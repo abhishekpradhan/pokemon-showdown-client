@@ -231,6 +231,24 @@ test('keeps source availability in settings', async ({ page }) => {
   );
 });
 
+test('chat names open a user card with challenge and message actions', async ({ page }) => {
+  await page.goto('/room/lobby');
+  await page.getByRole('button', { name: 'Driver', exact: true }).first().click();
+
+  const card = page.getByRole('dialog', { name: 'Driver profile' });
+  await expect(card).toBeVisible();
+  await expect(card.getByText('happy to help')).toBeVisible();
+  await expect(card.getByRole('button', { name: /Challenge/ })).toBeVisible();
+
+  const sent = await page.evaluate(() => (window as unknown as { __mockPsSent: string[] }).__mockPsSent.join('\n'));
+  expect(sent).toContain('/cmd userdetails driver');
+
+  // Message opens (creating) the PM room and lands in it.
+  await card.getByRole('button', { name: /Message/ }).click();
+  await expect(page).toHaveURL(/\/room\/pm-driver/);
+  await expect(page.getByRole('heading', { name: 'Driver' })).toBeVisible();
+});
+
 test('protocol log stays off the page and opens in a dialog', async ({ page }) => {
   await page.goto('/settings');
   // The log itself is never page furniture — only the switch and the entry point.

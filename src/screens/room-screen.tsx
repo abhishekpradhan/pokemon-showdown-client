@@ -3,6 +3,7 @@ import { Hash, LogOut, MessageCircle, Send, Swords, Users } from 'lucide-react';
 import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { ChatFeed } from '../components/chat-feed';
+import { UserCard, type UserCardAnchor } from '../components/user-card';
 import { JoiningState } from '../components/joining-state';
 import { nextRouteAfterClose } from '../rooms/registry';
 import { useArenaStore } from '../stores/arena-store';
@@ -30,6 +31,7 @@ export function RoomScreen() {
   );
   const room = rooms[params.roomId];
   const [message, setMessage] = useState('');
+  const [userCard, setUserCard] = useState<UserCardAnchor | null>(null);
   const feedRef = useRef<HTMLDivElement>(null);
 
   const roomId = room?.id;
@@ -129,6 +131,7 @@ export function RoomScreen() {
           messages={room.chat}
           selfName={username}
           onCommand={command => sendRoomMessage(room.id, command)}
+          onUserClick={(name, at) => setUserCard({ name, ...at })}
         />
       </div>
 
@@ -142,6 +145,7 @@ export function RoomScreen() {
         />
         <button type="submit" aria-label="Send"><Send size={15} /></button>
       </form>
+      {userCard && <UserCard anchor={userCard} onClose={() => setUserCard(null)} />}
     </section>
   );
 }

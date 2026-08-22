@@ -22,6 +22,7 @@ import { BattleField } from '../components/battle-field';
 import { JoiningState } from '../components/joining-state';
 import { BattleTimerChip } from '../components/battle-timer';
 import { ChatFeed } from '../components/chat-feed';
+import { UserCard, type UserCardAnchor } from '../components/user-card';
 import { MoveControls } from '../components/move-controls';
 import { TeamBench } from '../components/team-bench';
 import { useShallow } from 'zustand/react/shallow';
@@ -38,6 +39,7 @@ export function BattleScreen() {
   const [forfeitOpen, setForfeitOpen] = useState(false);
   const [inspectorTab, setInspectorTab] = useState<InspectorTab>('log');
   const [inspectorOpen, setInspectorOpen] = useState(false);
+  const [userCard, setUserCard] = useState<UserCardAnchor | null>(null);
   const demoFixturesEnabled = import.meta.env.MODE === 'test' || import.meta.env.VITE_ENABLE_DEMO_FIXTURES === 'true';
   const room = rooms[params.battleId];
   const battleRoom = room?.type === 'battle' ? room : null;
@@ -283,6 +285,7 @@ export function BattleScreen() {
                   messages={battleRoom?.chat ?? []}
                   selfName={username}
                   onCommand={command => sendBattleChat(command, battle.id)}
+                  onUserClick={(name, at) => setUserCard({ name, ...at })}
                 />
               </div>
               <form className="chat-entry" onSubmit={submitChat}>
@@ -378,6 +381,7 @@ export function BattleScreen() {
           </Dialog.Root>}
         </footer>
       </aside>
+      {userCard && <UserCard anchor={userCard} onClose={() => setUserCard(null)} />}
     </section>
   );
 }

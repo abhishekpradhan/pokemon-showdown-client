@@ -304,6 +304,23 @@ const handleGlobal = (line: PsLine, store: ArenaStoreApi): boolean => {
     if (response.id === 'savereplay') {
       getState().onReplaySaved(response.data as { id?: string; log?: string; password?: string });
     }
+    if (response.id === 'userdetails') {
+      const data = response.data as {
+        userid?: string; name?: string; group?: string; avatar?: string | number;
+        status?: string; rooms?: Record<string, unknown> | false;
+      };
+      if (data?.userid) {
+        const card = {
+          userid: data.userid,
+          name: data.name || data.userid,
+          group: (data.group || '').trim(),
+          avatar: data.avatar !== undefined ? String(data.avatar) : undefined,
+          status: data.status || undefined,
+          rooms: data.rooms ? Object.keys(data.rooms) : [],
+        };
+        setState(state => ({ userCards: { ...state.userCards, [card.userid]: card } }));
+      }
+    }
     return true;
   }
 

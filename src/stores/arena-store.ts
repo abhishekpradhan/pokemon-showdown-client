@@ -54,6 +54,7 @@ import {
   appendChat,
   appendLog,
   newBattleRoom,
+  newPmRoom,
   patchRoom,
   updateBattleRoom,
   upsert,
@@ -83,6 +84,15 @@ export type Challenges = {
 type LoginCredentials = {
   name: string;
   password?: string;
+};
+
+export type UserCardDetails = {
+  userid: string;
+  name: string;
+  group: string;
+  avatar?: string;
+  status?: string;
+  rooms: string[];
 };
 
 export type ArenaState = {
@@ -135,6 +145,11 @@ export type ArenaState = {
   setServer: (input: string) => boolean;
   resetServer: () => void;
   chooseName: (name: string) => Promise<void>;
+  /** `|queryresponse|userdetails|` cache, keyed by userid. */
+  userCards: Record<string, UserCardDetails>;
+  requestUserDetails: (name: string) => void;
+  /** Opens (creating if needed) the PM room with `name`; returns its room id. */
+  openPmWith: (name: string) => string;
   /** OAuth2 sign-in: the password is only ever typed on play.pokemonshowdown.com. */
   loginWithOAuth: () => Promise<void>;
   oauthAvailable: boolean;
@@ -297,6 +312,7 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
   connection: 'offline',
   loginPending: false,
   needsPassword: false,
+  userCards: {},
   oauthAvailable: oauthConfigured(),
   oauthLinked: !!storedOAuthToken(),
   server: loadStoredServer(),
@@ -677,6 +693,20 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
     }
     client.send(`/challenge ${toId(user)}, ${formatId}`);
     set({ lastError: undefined });
+  },
+  requestUserDetails: name => {
+    const userid = toId(name);
+    if (!userid) return;
+    get().protocol.send(`/cmd userdetails ${userid}`);
+  },
+  openPmWith: name => {
+    const partner = name.replace(/^[^A-Za-z0-9]/, '');
+    const pmRoomId = `pm-${toId(partner) || 'system'}`;
+    set(state => state.rooms[pmRoomId] ? {} : {
+      rooms: upsert(state.rooms, newPmRoom(pmRoomId, partner) as Room),
+    });
+    get().focusRoom(pmRoomId);
+    return pmRoomId;
   },
   acceptChallenge: user => {
     const { challenges, formats, activeTeam } = get();

@@ -63,11 +63,13 @@ const formatTime = (timestamp?: number) => {
   return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
-export function ChatFeed({ messages, selfName, onCommand }: {
+export function ChatFeed({ messages, selfName, onCommand, onUserClick }: {
   messages: ChatMessage[];
   selfName?: string;
   /** Receives the `value` of sanitized HTML command buttons (poll votes, etc.). */
   onCommand?: (command: string) => void;
+  /** Makes author names clickable (user cards). */
+  onUserClick?: (name: string, at: { x: number; y: number }) => void;
 }) {
   const handleHtmlClick = (event: MouseEvent<HTMLDivElement>) => {
     const button = (event.target as HTMLElement).closest('button[value]');
@@ -118,7 +120,20 @@ export function ChatFeed({ messages, selfName, onCommand }: {
         }
         return (
           <li className={clsx('chat-line', self && 'is-self')} key={key}>
-            <strong className="chat-author">{message.user}</strong>
+            {onUserClick ? (
+              <button
+                type="button"
+                className="chat-author"
+                onClick={event => {
+                  const rect = event.currentTarget.getBoundingClientRect();
+                  onUserClick(message.user, { x: rect.left, y: rect.bottom });
+                }}
+              >
+                {message.user}
+              </button>
+            ) : (
+              <strong className="chat-author">{message.user}</strong>
+            )}
             <span className="chat-body">{renderChatText(message.message)}</span>
             <time>{formatTime(message.timestamp)}</time>
           </li>
