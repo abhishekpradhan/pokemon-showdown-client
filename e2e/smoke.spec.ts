@@ -65,6 +65,21 @@ test('search creates a mock battle room and sends exact battle choices', async (
   await expect(page.locator('.target-button:disabled')).toHaveCount(3);
   await target.click();
 
+  // Dex tooltips are a fine-pointer affordance: hovering a move shows
+  // power/accuracy and effect text; hovering a combatant shows base stats.
+  // Touch devices keep the info panel instead, so mobile skips this block.
+  if (!test.info().project.name.includes('mobile')) {
+    await page.getByRole('button', { name: /Moonblast/i }).hover();
+    const moveTip = page.getByRole('tooltip');
+    await expect(moveTip).toBeVisible();
+    await expect(moveTip.getByText('95')).toBeVisible();
+    await expect(moveTip.getByText(/lower the target/i)).toBeVisible();
+
+    await page.locator('.nameplate-name', { hasText: 'Great Tusk' }).hover();
+    await expect(page.getByRole('tooltip').getByText('131').first()).toBeVisible();
+    await page.mouse.move(0, 0);
+  }
+
   // The sound toggle lives in the toolbar and persists its state.
   const mute = page.getByRole('button', { name: /battle sounds/i });
   await expect(mute).toHaveAttribute('aria-pressed', 'true');

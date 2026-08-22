@@ -1450,3 +1450,82 @@
   background: rgb(91 156 255 / 12%);
   border-radius: 999px;
 }
+
+
+/* ── Dex tooltips (hover/focus, body portal) ─────────────────────────── */
+
+.battle-tooltip {
+  z-index: 95;
+  display: grid;
+  gap: 8px;
+  max-width: 280px;
+  padding: 11px 12px;
+  color: var(--arena-soft);
+  background: var(--arena-panel);
+  border: 1px solid var(--arena-line-strong);
+  border-radius: 9px;
+  box-shadow: 0 14px 34px rgb(0 0 0 / 30%);
+  font-size: 12px;
+  pointer-events: none;
+}
+
+.battle-tooltip .tooltip-heading {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.battle-tooltip .tooltip-heading strong {
+  color: var(--arena-text);
+  font-size: 13px;
+}
+
+.battle-tooltip .tooltip-types { display: inline-flex; gap: 4px; }
+
+.battle-tooltip .tooltip-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 3px 12px;
+  margin: 0;
+}
+
+.battle-tooltip .tooltip-facts div { display: flex; justify-content: space-between; gap: 8px; }
+.battle-tooltip .tooltip-facts dt { color: var(--arena-faint); }
+.battle-tooltip .tooltip-facts dd { margin: 0; color: var(--arena-text); font-weight: 600; }
+
+.battle-tooltip .tooltip-desc {
+  margin: 0;
+  color: var(--arena-muted);
+  line-height: 1.5;
+}
+
+.battle-tooltip .tooltip-stats {
+  display: grid;
+  gap: 3px;
+}
+
+.battle-tooltip .tooltip-stats span {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) 30px;
+  gap: 8px;
+  align-items: center;
+}
+
+.battle-tooltip .tooltip-stats dfn { color: var(--arena-faint); font-style: normal; }
+
+.battle-tooltip .tooltip-stats i {
+  display: block;
+  block-size: 5px;
+  background: var(--arena-accent);
+  border-radius: 3px;
+  opacity: 0.75;
+}
+
+.battle-tooltip .tooltip-stats b {
+  color: var(--arena-text);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.nameplate-name { cursor: help; }

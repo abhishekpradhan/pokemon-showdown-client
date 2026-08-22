@@ -1,6 +1,7 @@
 import { clsx } from 'clsx';
 import { useState } from 'react';
 import type { BattleChoice } from '../compat/battle-adapter';
+import { MoveTooltip, TooltipTrigger } from './battle-tooltip';
 import { effectivenessTone, typeStyle } from '../data/types';
 
 /**
@@ -31,9 +32,10 @@ function MoveMeta({ move }: { move: BattleChoice }) {
   return parts.length ? <span className="move-meta">{parts.join(' · ')}</span> : null;
 }
 
-export function MoveControls({ moves, onChoose }: {
+export function MoveControls({ moves, onChoose, format }: {
   moves: BattleChoice[];
   onChoose: (move: BattleChoice) => void;
+  format?: string;
 }) {
   const gimmicks = gimmicksFor(moves);
   const [armed, setArmed] = useState<string | null>(null);
@@ -69,9 +71,9 @@ export function MoveControls({ moves, onChoose }: {
         {moves.map(move => {
           const tone = effectivenessTone(move.effectiveness);
           return (
+            <TooltipTrigger key={`${move.slot}-${move.name}`} content={() => <MoveTooltip move={move} format={format} />}>
             <button
               type="button"
-              key={`${move.slot}-${move.name}`}
               className={clsx('move-choice', move.disabled && 'is-disabled')}
               style={typeStyle(move.type)}
               disabled={move.disabled}
@@ -99,6 +101,7 @@ export function MoveControls({ moves, onChoose }: {
                 {move.pp} PP
               </small>
             </button>
+            </TooltipTrigger>
           );
         })}
       </div>

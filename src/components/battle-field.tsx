@@ -1,5 +1,6 @@
 import { clsx } from 'clsx';
 import { BOOST_LABELS, type ArenaBattle, type BoostId, type PokemonSet, type SideCondition } from '../compat/battle-adapter';
+import { PokemonTooltip, TooltipTrigger } from './battle-tooltip';
 import { genFromFormat } from '../data/dex';
 import { pokemonSprite } from '../data/sprites';
 import { STATUS_LABELS, typeStyle } from '../data/types';
@@ -94,7 +95,9 @@ function Combatant({ battle, hideHealth = false, pokemon, side, position = 0, po
     >
       <div className="combatant-nameplate">
         <div className="nameplate-row">
-          <strong>{pokemon.name}</strong>
+          <TooltipTrigger content={() => <PokemonTooltip pokemon={pokemon} format={battle.format} />}>
+            <strong tabIndex={0} className="nameplate-name">{pokemon.name}</strong>
+          </TooltipTrigger>
           {pokemon.level && pokemon.level !== 100 && <span className="nameplate-level">L{pokemon.level}</span>}
           {pokemon.gender && <span className={`nameplate-gender is-${pokemon.gender}`}>{pokemon.gender === 'M' ? '♂' : '♀'}</span>}
           {pokemon.terastallized && (

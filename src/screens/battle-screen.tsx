@@ -245,7 +245,7 @@ export function BattleScreen() {
           <div className="decision-controls">
             <div className="move-deck">
               {playerControls && battle.requestType !== 'switch' && battle.requestType !== 'team' && !pendingTarget ? (
-                <MoveControls moves={activeDeck} onChoose={choice => submitBattleChoice(choice, battle.id)} />
+                <MoveControls moves={activeDeck} format={battle.format} onChoose={choice => submitBattleChoice(choice, battle.id)} />
               ) : !pendingTarget && (
                 <div className="waiting-state" role="status" aria-live="polite">
                   <span className="waiting-pulse" />
