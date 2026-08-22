@@ -64,6 +64,21 @@ export async function installMockPs(page: Page) {
             '>lobby\n|uhtml|poll-e2e|<div class="infobox">Poll: Which team will win?<br />' +
             '<button name="send" value="/poll vote 1">1. Spheal Ordeal</button></div>'
           );
+          // A signups-phase tournament with a partial bracket preview.
+          this.emit('>lobby\n|tournament|create|gen9ou|Single Elimination|0');
+          this.emit('>lobby\n|tournament|join|Driver');
+          this.emit(
+            '>lobby\n|tournament|update|' + JSON.stringify({
+              format: '[Gen 9] OU', generator: 'Single Elimination', isStarted: false, isJoined: false,
+              bracketData: { type: 'tree', rootNode: {
+                state: 'unavailable',
+                children: [
+                  { team: 'Driver', children: [{ team: 'Driver' }, { team: 'Scrappie' }], state: 'finished', result: 'win', score: [2, 1] },
+                  { children: [{ team: 'gen 9 is trash man' }, { team: 'Bekama' }], state: 'available' },
+                ],
+              } },
+            })
+          );
           if (localStorage.getItem('__mockBattleStarted') === '1') this.emitBattle();
         }, 0);
       }
@@ -109,6 +124,10 @@ export async function installMockPs(page: Page) {
           // No |request| ever arrives for spectators.
           this.emit('>battle-gen9uu-spectate1\n|init|battle\n|title|AlphaPlayer vs. BetaPlayer\n|player|p1|AlphaPlayer|60|1400\n|player|p2|BetaPlayer|61|1380\n|gametype|singles\n|gen|9\n|tier|[Gen 9] UU\n|clearpoke\n|poke|p1|Krookodile, M|\n|poke|p2|Reuniclus, F|\n|start\n|switch|p1a: Krookodile|Krookodile, M|100/100\n|switch|p2a: Reuniclus|Reuniclus, F|100/100\n|turn|1');
           this.emit('>battle-gen9uu-spectate1\n|move|p1a: Krookodile|Knock Off|p2a: Reuniclus\n|-supereffective|p2a: Reuniclus\n|-damage|p2a: Reuniclus|38/100\n|turn|2');
+        }
+        if (message.includes('|/tour join')) {
+          this.emit('>lobby\n|tournament|join|Guest 1000');
+          this.emit('>lobby\n|tournament|update|{"isJoined":true}');
         }
         if (message.includes('/cmd userdetails')) {
           const id = message.split('/cmd userdetails ')[1]?.trim() || '';

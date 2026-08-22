@@ -244,6 +244,35 @@ describe('arena store protocol integration', () => {
     });
   });
 
+  it('tracks a room tournament through its lifecycle', () => {
+    const store = useArenaStore.getState();
+    useArenaStore.setState({ username: 'CodexTester' });
+    store.handleFrame(parsePsFrame('>lobby\n|init|chat\n|title|Lobby'));
+    store.handleFrame(parsePsFrame('>lobby\n|tournament|create|gen9ou|Single Elimination|8'));
+    store.handleFrame(parsePsFrame('>lobby\n|tournament|join|CodexTester'));
+    store.handleFrame(parsePsFrame('>lobby\n|tournament|join|Rival'));
+    store.handleFrame(parsePsFrame('>lobby\n|tournament|update|{"isJoined":true,"isStarted":false}'));
+
+    let room = useArenaStore.getState().rooms.lobby;
+    if (room?.type !== 'chat') throw new Error('expected chat room');
+    expect(room.tournament).toMatchObject({
+      format: 'gen9ou', generator: 'Single Elimination', playerCap: 8,
+      isJoined: true, players: ['CodexTester', 'Rival'],
+    });
+
+    store.handleFrame(parsePsFrame('>lobby\n|tournament|start|2'));
+    store.handleFrame(parsePsFrame('>lobby\n|tournament|battlestart|CodexTester|Rival|battle-gen9ou-77'));
+    room = useArenaStore.getState().rooms.lobby;
+    if (room?.type !== 'chat') throw new Error('expected chat room');
+    expect(room.tournament).toMatchObject({ isStarted: true, currentBattle: 'battle-gen9ou-77' });
+
+    store.handleFrame(parsePsFrame('>lobby\n|tournament|battleend|CodexTester|Rival|win|1,0|success|battle-gen9ou-77'));
+    store.handleFrame(parsePsFrame('>lobby\n|tournament|end|{}'));
+    room = useArenaStore.getState().rooms.lobby;
+    if (room?.type !== 'chat') throw new Error('expected chat room');
+    expect(room.tournament).toMatchObject({ ended: true, currentBattle: undefined });
+  });
+
   it('updates named uhtml blocks in place and removes them when emptied', () => {
     const store = useArenaStore.getState();
     store.handleFrame(parsePsFrame('>lobby\n|init|chat\n|title|Lobby'));

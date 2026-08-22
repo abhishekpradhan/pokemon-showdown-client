@@ -37,7 +37,32 @@ export type RoomBase = {
   unread: number;
 };
 
-export type ChatRoom = RoomBase & { type: 'chat' };
+export type BracketNode = {
+  team?: string;
+  state?: string;
+  result?: string;
+  score?: number[];
+  children?: BracketNode[];
+};
+
+export type TournamentState = {
+  format: string;
+  generator: string;
+  playerCap: number;
+  isStarted: boolean;
+  isJoined: boolean;
+  /** Signup roster from join/leave; the bracket takes over once started. */
+  players: string[];
+  bracketData?: { type: string; rootNode?: BracketNode; tableHeaders?: { cols: string[]; rows: string[] }; tableContents?: Array<Array<{ state?: string; result?: string; score?: number[] } | null>> };
+  /** Opponents you can /tour challenge right now, and those challenging you. */
+  challenges: string[];
+  challengeBys: string[];
+  /** Your live tournament battle, from |tournament|battlestart|. */
+  currentBattle?: string;
+  ended?: boolean;
+};
+
+export type ChatRoom = RoomBase & { type: 'chat'; tournament?: TournamentState };
 
 export type PmRoom = RoomBase & {
   type: 'pm';

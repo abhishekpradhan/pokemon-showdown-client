@@ -270,6 +270,28 @@ test('chat names open a user card with challenge and message actions', async ({ 
   await expect(page.getByRole('heading', { name: 'Driver' })).toBeVisible();
 });
 
+test('room tournaments show a banner with join and a bracket dialog', async ({ page }) => {
+  await page.goto('/room/lobby');
+
+  const banner = page.getByLabel('Tournament in Lobby');
+  await expect(banner).toBeVisible();
+  await expect(banner.getByText('[Gen 9] OU')).toBeVisible();
+  await expect(banner.getByText(/Signups open/)).toBeVisible();
+
+  // Joining goes through /tour join; the server's update flips the action.
+  await banner.getByRole('button', { name: 'Join' }).click();
+  await expect(banner.getByRole('button', { name: 'Leave' })).toBeVisible();
+  const sent = await page.evaluate(() => (window as unknown as { __mockPsSent: string[] }).__mockPsSent.join('\n'));
+  expect(sent).toContain('lobby|/tour join');
+
+  // The bracket dialog renders rounds from the server tree.
+  await banner.getByRole('button', { name: /Bracket/ }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByText('Final')).toBeVisible();
+  await expect(dialog.getByText('Scrappie').first()).toBeVisible();
+  await expect(dialog.getByText('Bekama').first()).toBeVisible();
+});
+
 test('protocol log stays off the page and opens in a dialog', async ({ page }) => {
   await page.goto('/settings');
   // The log itself is never page furniture — only the switch and the entry point.

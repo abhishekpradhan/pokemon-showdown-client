@@ -3,6 +3,7 @@ import { Hash, LogOut, MessageCircle, Send, Swords, Users } from 'lucide-react';
 import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { ChatFeed } from '../components/chat-feed';
+import { TournamentBanner } from '../components/tournament-banner';
 import { UserCard, type UserCardAnchor } from '../components/user-card';
 import { JoiningState } from '../components/joining-state';
 import { nextRouteAfterClose } from '../rooms/registry';
@@ -125,6 +126,14 @@ export function RoomScreen() {
           </button>
         </div>
       </header>
+
+      {room.type === 'chat' && room.tournament && (
+        <TournamentBanner
+          tournament={room.tournament}
+          roomTitle={room.title}
+          send={command => sendRoomMessage(room.id, command)}
+        />
+      )}
 
       <div className="room-surface-feed" ref={feedRef}>
         <ChatFeed

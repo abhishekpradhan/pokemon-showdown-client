@@ -32,7 +32,7 @@ import {
   updateBattleRoom,
   upsert,
 } from '../rooms/registry';
-import type { BattleRoom, ChatMessage, Room } from '../rooms/types';
+import type { BattleRoom, ChatMessage, ChatRoom, Room, TournamentState } from '../rooms/types';
 import type { ArenaState } from '../stores/arena-store';
 
 /**
@@ -341,7 +341,7 @@ const handleGlobal = (line: PsLine, store: ArenaStoreApi): boolean => {
 // ── Room lifecycle ──────────────────────────────────────────────────────────
 
 const handleLifecycle = (roomId: string, line: PsLine, store: ArenaStoreApi): boolean => {
-  const { setState } = store;
+  const { setState, getState } = store;
 
   switch (line.command) {
   case 'init': {
@@ -376,6 +376,83 @@ const handleLifecycle = (roomId: string, line: PsLine, store: ArenaStoreApi): bo
       rooms: patchRoom(state.rooms, roomId, { connected: false }),
     }));
     return true;
+
+  case 'tournament': {
+    const sub = line.args[0];
+    const rest = line.args.slice(1);
+    const patchTournament = (
+      mutate: (tour: TournamentState, room: ChatRoom) => TournamentState | undefined
+    ) => {
+      setState(state => {
+        const room = state.rooms[roomId];
+        if (room?.type !== 'chat') return {};
+        const base: TournamentState = room.tournament ?? {
+          format: '', generator: '', playerCap: 0, isStarted: false, isJoined: false,
+          players: [], challenges: [], challengeBys: [],
+        };
+        const tournament = mutate(base, room);
+        return { rooms: upsert(state.rooms, { ...room, tournament } as Room) };
+      });
+    };
+
+    switch (sub) {
+    case 'create':
+      patchTournament(() => ({
+        format: rest[0] || '', generator: rest[1] || '', playerCap: Number(rest[2]) || 0,
+        isStarted: false, isJoined: false, players: [], challenges: [], challengeBys: [],
+      }));
+      break;
+    case 'update':
+      try {
+        const data = JSON.parse(rest.join('|')) as Partial<TournamentState> & { teambuilderFormat?: string };
+        patchTournament(tour => ({
+          ...tour,
+          ...(data.format !== undefined ? { format: data.format } : {}),
+          ...(data.generator !== undefined ? { generator: data.generator } : {}),
+          ...(data.playerCap !== undefined ? { playerCap: data.playerCap } : {}),
+          ...(data.isStarted !== undefined ? { isStarted: data.isStarted } : {}),
+          ...(data.isJoined !== undefined ? { isJoined: data.isJoined } : {}),
+          ...(data.bracketData !== undefined ? { bracketData: data.bracketData } : {}),
+          ...(data.challenges !== undefined ? { challenges: data.challenges } : {}),
+          ...(data.challengeBys !== undefined ? { challengeBys: data.challengeBys } : {}),
+        }));
+      } catch { /* malformed update: keep the last good state */ }
+      break;
+    case 'join':
+      patchTournament(tour => ({
+        ...tour,
+        players: tour.players.includes(rest[0]) ? tour.players : [...tour.players, rest[0]],
+      }));
+      break;
+    case 'leave':
+    case 'disqualify':
+      patchTournament(tour => ({ ...tour, players: tour.players.filter(user => user !== rest[0]) }));
+      break;
+    case 'start':
+      patchTournament(tour => ({ ...tour, isStarted: true }));
+      break;
+    case 'battlestart': {
+      const me = toId(getState().username);
+      const mine = toId(rest[0] || '') === me || toId(rest[1] || '') === me;
+      if (mine) patchTournament(tour => ({ ...tour, currentBattle: rest[2] }));
+      break;
+    }
+    case 'battleend':
+      patchTournament(tour => {
+        const me = toId(getState().username);
+        const mine = toId(rest[0] || '') === me || toId(rest[1] || '') === me;
+        return mine ? { ...tour, currentBattle: undefined } : tour;
+      });
+      break;
+    case 'end':
+    case 'forceend':
+      patchTournament(tour => ({ ...tour, isStarted: false, ended: true, challenges: [], challengeBys: [], currentBattle: undefined }));
+      break;
+    default:
+      break;
+    }
+    return true;
+  }
 
   case 'notify':
   case 'tempnotify': {
