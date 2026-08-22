@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
+import { requestNotifyPermission } from '../compat/desktop-notify';
 import { getDefaultServerConfig } from '../compat/protocol-client';
 import { useArenaStore } from '../stores/arena-store';
 import { useWorkspaceStore } from '../stores/workspace-store';
@@ -72,11 +73,14 @@ export function SettingsScreen() {
       <section className="settings-section" aria-labelledby="notification-settings">
         <h2 id="notification-settings"><Bell size={15} aria-hidden /> Notifications</h2>
         <div className="setting-row">
-          <span><strong>Activity notifications</strong><small>Track battle sessions, challenges, and private messages.</small></span>
+          <span><strong>Activity notifications</strong><small>Challenges and server alerts — also on your desktop while the tab is in the background.</small></span>
           <Switch.Root
             className="switch-root"
             checked={notificationsEnabled}
-            onCheckedChange={setNotificationsEnabled}
+            onCheckedChange={enabled => {
+              setNotificationsEnabled(enabled);
+              if (enabled) void requestNotifyPermission();
+            }}
             aria-label="Activity notifications"
           >
             <Switch.Thumb className="switch-thumb" />

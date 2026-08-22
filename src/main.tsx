@@ -10,6 +10,14 @@ import './styles.css';
 // Kick the dex and engine chunks off immediately; a battle can open within
 // seconds of boot and neither request should wait on first render.
 void loadDex();
+
+// Installability and the offline shell. Dev servers skip it: a worker
+// caching Vite's transient module URLs only causes confusion.
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  window.addEventListener('load', () => {
+    void navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
 void loadEngine();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

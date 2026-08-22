@@ -12,6 +12,7 @@ import {
   saveOAuthToken, storedOAuthToken,
 } from '../compat/ps-oauth';
 import { playCry, playTurnPing } from '../battle/sound';
+import { desktopNotify } from '../compat/desktop-notify';
 import { useWorkspaceStore } from '../stores/workspace-store';
 import {
   parseChatRoomList,
@@ -234,6 +235,12 @@ const handleGlobal = (line: PsLine, store: ArenaStoreApi): boolean => {
         challengeTo?: { to: string; format: string } | null;
       };
       const from = data.challengesFrom || {};
+      if (useWorkspaceStore.getState().notificationsEnabled) {
+        const previous = getState().challenges.from;
+        for (const [user, format] of Object.entries(from)) {
+          if (!previous[user]) desktopNotify(`${user} challenged you`, format, `challenge-${user}`);
+        }
+      }
       setState(() => ({
         challenges: { from, to: data.challengeTo || null },
       }));
@@ -369,6 +376,18 @@ const handleLifecycle = (roomId: string, line: PsLine, store: ArenaStoreApi): bo
       rooms: patchRoom(state.rooms, roomId, { connected: false }),
     }));
     return true;
+
+  case 'notify':
+  case 'tempnotify': {
+    // |notify|TITLE|MESSAGE(|highlight token)| — surface on the desktop when
+    // the page is hidden; the in-app feed already shows the room activity.
+    if (useWorkspaceStore.getState().notificationsEnabled) {
+      const title = line.args[line.command === 'tempnotify' ? 1 : 0] || 'Showdown Arena';
+      const body = line.args[line.command === 'tempnotify' ? 2 : 1] || roomId;
+      desktopNotify(title, body, `room-${roomId}`);
+    }
+    return true;
+  }
 
   case 'title':
     setState(state => ({ rooms: patchRoom(state.rooms, roomId, { title: line.args.join('|') || roomId }) }));
