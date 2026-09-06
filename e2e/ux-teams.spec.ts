@@ -95,3 +95,59 @@ test('a delayed Pokédex does not interrupt typing in another field', async ({ p
     await expect(name).toHaveValue('Keep typing here');
   } finally { release(); }
 });
+
+test('offline editing stays informative and saves locally without masking save errors', async ({ page }) => {
+  const socketEvent = async (type: 'error' | 'open') => {
+    await page.evaluate(eventType => {
+      const socket = (window as unknown as { __mockPsSockets: Array<{ onerror: ((event: Event) => void) | null; onopen: ((event: Event) => void) | null }> }).__mockPsSockets[0];
+      if (eventType === 'error') socket.onerror?.(new Event('error'));
+      else socket.onopen?.(new Event('open'));
+    }, type);
+  };
+  await page.goto('/teambuilder');
+  const validate = page.getByRole('button', { name: 'Validate with server', exact: true });
+  await expect(validate).toBeEnabled();
+  await socketEvent('error');
+  const offline = page.getByRole('status').filter({ hasText: 'Live server connection unavailable. You can still edit and save teams in this browser.' });
+  await expect(offline).toBeVisible();
+  await expect(offline).toHaveClass(/is-info/);
+  await expect(page.getByText('WebSocket error', { exact: true })).toHaveCount(0);
+  await expect(validate).toBeDisabled();
+  await page.screenshot({ path: test.info().outputPath('offline-team-status.png'), fullPage: true });
+
+  const name = page.getByRole('textbox', { name: 'Team name', exact: true });
+  const save = page.getByRole('button', { name: 'Save team', exact: true });
+  await name.fill('Offline practice');
+  await save.click();
+  await expect(save).toBeDisabled();
+  await page.reload();
+  await expect(name).toHaveValue('Offline practice');
+  await expect(save).toBeDisabled();
+  await expect(validate).toBeEnabled();
+
+  // A recovered connection must hide the generic error still held in the store.
+  await socketEvent('error');
+  await expect(offline).toBeVisible();
+  await socketEvent('open');
+  await expect(validate).toBeEnabled();
+  await expect(offline).toHaveCount(0);
+  await expect(page.getByText('WebSocket error', { exact: true })).toHaveCount(0);
+
+  // Fail only the saved library write; draft recovery remains available.
+  await socketEvent('error');
+  await page.evaluate(() => {
+    const original = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (key, value) {
+      if (key === 'ps-modern-teams-v1') throw new DOMException('Storage quota exceeded', 'QuotaExceededError');
+      return original.call(this, key, value);
+    };
+  });
+  await name.fill('Unsaved offline edits');
+  await save.click();
+  const error = page.getByRole('alert').filter({ hasText: 'Could not save to browser storage. Your edits remain open; export a backup or free storage and retry.' });
+  await expect(error).toBeVisible();
+  await expect(error).toHaveClass(/is-error/);
+  await expect(offline).toHaveCount(0);
+  await expect(name).toHaveValue('Unsaved offline edits');
+  await expect(save).toBeEnabled();
+});
