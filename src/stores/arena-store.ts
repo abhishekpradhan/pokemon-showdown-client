@@ -1,4 +1,6 @@
+import { setRoomError } from '../rooms/errors';
 import { create } from 'zustand';
+import type { ChallengeDetails } from '../compat/battle-invitations';
 import {
   addBattleChoice,
   battleDecisionState,
@@ -7,6 +9,7 @@ import {
   createBattleChoiceSession,
   demoBattle,
   type ArenaBattle,
+  type BattleSideID,
   type BattleChoice,
   type BattleChoiceState,
   type BattleDecisionState,
@@ -16,7 +19,7 @@ import {
   getAssertion,
   type AssertionOutcome,
 } from '../compat/login-server';
-import { beginAuthentication, cancelAuthentication } from '../compat/auth-session';
+import { beginAuthentication, cancelAuthentication, expectAuthenticationIdentity } from '../compat/auth-session';
 import { sanitizeProtocolLog } from '../compat/diagnostics';
 import { replayUploadUrl } from '../compat/replay-upload';
 import { useWorkspaceStore } from './workspace-store';
@@ -87,6 +90,7 @@ export type FormatOption = {
 export type Challenges = {
   /** username → format id, straight from `|updatechallenges|`. */
   from: Record<string, string>;
+  details?: Record<string, ChallengeDetails>;
   to: { to: string; format: string } | null;
 };
 
@@ -111,6 +115,7 @@ export type ArenaState = {
   /** Global group symbol from `|updateuser|` (e.g. `+`, `%`, `@`). */
   userGroup: string;
   avatar?: string;
+  serverLanguage?: string;
   named: boolean;
   challstr: string;
   connection: ConnectionState;
@@ -201,6 +206,8 @@ export type ArenaState = {
   acceptChallenge: (user: string) => void;
   rejectChallenge: (user: string) => void;
   cancelChallenge: () => void;
+  inviteBattlePlayer: (roomId: string, slot: BattleSideID, user: string) => boolean;
+  revokeBattleInvitation: (roomId: string, slot: BattleSideID) => boolean;
   submitBattleChoice: (choice: BattleChoice | PokemonSet | BattleChoiceState, roomId?: string) => void;
   submitBattleTarget: (target: number, roomId?: string) => void;
   getBattleDecision: (roomId?: string) => BattleDecisionState;
@@ -289,14 +296,16 @@ const clearCancelSearchTimeout = () => {
 
 /**
  * Turns a login-server assertion into either a `/trn` handshake or a UI state.
- * The server confirms the name with `|updateuser|`, which clears loginPending.
+ * Only the requested named identity in `|updateuser|` confirms the handshake.
  */
 const applyAssertion = (name: string, outcome: AssertionOutcome) => {
   if (outcome.kind === 'assertion') {
+    expectAuthenticationIdentity(name);
     useArenaStore.getState().protocol.send(`/trn ${name},0,${outcome.assertion}`);
     return;
   }
   clearLoginTimeout();
+  cancelAuthentication();
   if (outcome.kind === 'needs-password') {
     useArenaStore.setState({
       loginPending: false,
@@ -421,8 +430,9 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
         }
         const name = result.user || stored.user;
         if (!name) return;
-        set({ loginPending: true, oauthLinked: true });
+        set({ loginPending: true, loginStage: 'confirmation', oauthLinked: true });
         scheduleLoginTimeout();
+        expectAuthenticationIdentity(name);
         get().protocol.send(`/trn ${name},0,${result.assertion}`);
       } else {
         let name = '';
@@ -430,7 +440,7 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
         if (!name) return;
         const outcome = await getAssertion(toId(name), challstr, attempt.signal);
         if (!current()) return;
-        set({ loginPending: true });
+        set({ loginPending: true, loginStage: 'confirmation' });
         scheduleLoginTimeout();
         applyAssertion(name, outcome);
       }
@@ -494,9 +504,11 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
       if (!attempt.current() || get().challstr !== challstr) return;
       const saved = saveOAuthToken(grant.token, grant.user);
       try { sessionStorage.removeItem('arena-guest-name'); } catch { /* optional */ }
-      set({ oauthLinked: true, loginStage: 'confirmation', sessionNotice: saved ? undefined : 'Signed in for this session. Browser storage is blocked, so sign-in cannot be remembered.' });
+      set({ loginPending: true, oauthLinked: true, loginStage: 'confirmation', sessionNotice: saved ? undefined : 'Signed in for this session. Browser storage is blocked, so sign-in cannot be remembered.' });
       scheduleLoginTimeout();
-      get().protocol.send(`/trn ${grant.user || get().username},0,${grant.assertion}`);
+      const name = grant.user || get().username;
+      expectAuthenticationIdentity(name);
+      get().protocol.send(`/trn ${name},0,${grant.assertion}`);
     } catch (error) {
       if (!attempt.current()) return;
       clearLoginTimeout();
@@ -525,13 +537,13 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
     if (!id) return;
     if (id.startsWith('pm-')) { get().openPmWith(id.slice(3)); return; }
     if (id.startsWith('battle-') && !battleSupport(id.split('-')[1]).supported) {
-      set(state => ({ roomErrors: { ...state.roomErrors, [id]: battleSupport(id.split('-')[1]).reason || 'Unsupported battle format. Open this battle in the official client.' } })); return;
+      set(state => ({ roomErrors: setRoomError(state.roomErrors, id, battleSupport(id.split('-')[1]).reason || 'Unsupported battle format. Open this battle in the official client.') })); return;
     }
     if (get().connection !== 'connected') {
-      set(state => ({ roomErrors: { ...state.roomErrors, [id]: 'Reconnect to join this room.' } }));
+      set(state => ({ roomErrors: setRoomError(state.roomErrors, id, 'Reconnect to join this room.') }));
       return;
     }
-    set(state => ({ activeRoomId: id, roomErrors: { ...state.roomErrors, [id]: '' } }));
+    set(state => ({ activeRoomId: id, roomErrors: setRoomError(state.roomErrors, id) }));
     get().protocol.send(`/join ${id}`);
   },
   leaveRoom: roomId => {
@@ -545,6 +557,7 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
     if (room.type !== 'pm') get().protocol.send('/leave', id);
     set(state => ({
       activeRoomId: state.activeRoomId === id ? undefined : state.activeRoomId,
+      roomErrors: setRoomError(state.roomErrors, id),
       rooms: upsert(state.rooms, room.type === 'battle' ? {
         ...newBattleRoom(id), title: room.title, connected: false,
       } : { ...room, connected: false }),
@@ -553,8 +566,9 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
       const closed = Object.values(state.rooms).filter(item => !item.connected);
       if (closed.length <= 12) return state;
       const rooms = { ...state.rooms };
-      for (const item of closed.slice(0, -12)) delete rooms[item.id];
-      return { rooms };
+      let roomErrors = state.roomErrors;
+      for (const item of closed.slice(0, -12)) { delete rooms[item.id]; roomErrors = setRoomError(roomErrors, item.id); }
+      return { rooms, roomErrors };
     });
     return true;
   },
@@ -764,12 +778,14 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
   },
   acceptChallenge: user => {
     const { challenges, formats, activeTeam } = get();
-    const formatId = challenges.from[user] || challenges.from[toId(user)];
+    const formatId = Object.entries(challenges.from).find(([name]) => toId(name) === toId(user))?.[1];
+    const detail = challenges.details?.[toId(user)];
     if (get().connection !== 'connected' || !get().named || !formatId) { set({ lastError: 'Connect and choose a name before accepting an active challenge.' }); return; }
     if (!battleSupport(formatId).supported) { set({ lastError: battleSupport(formatId).reason }); return; }
-    const entry = formats.find(item => item.id === toId(formatId || ''));
-    if (entry?.team !== false && formatId) {
-      const validation = get().validateTeamForFormat(get().activeTeamId, toId(formatId));
+    const teamFormat = detail?.teambuilderFormat ?? formatId;
+    const entry = formats.find(item => item.id === toId(teamFormat));
+    if (teamFormat && entry?.team !== false) {
+      const validation = get().validateTeamForFormat(get().activeTeamId, toId(teamFormat));
       if (!validation.ok) {
         set({ lastError: `That challenge needs a valid team: ${validation.errors.join(' ')}` });
         return;
@@ -779,6 +795,8 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
         return;
       }
     }
+    // Official /accept delegates to the server's stored /acceptbattle handler
+    // for invitations. PM metadata intentionally does not transmit a command.
     if (get().protocol.send(`/accept ${toId(user)}`) === false) {
       set({ lastError: 'The challenge acceptance was not sent. Reconnect and retry.' });
       return;
@@ -792,9 +810,10 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
     }
     set(state => {
       const from = { ...state.challenges.from };
-      delete from[user];
-      delete from[toId(user)];
-      return { lastError: undefined, challenges: { ...state.challenges, from } };
+      for (const name of Object.keys(from)) if (toId(name) === toId(user)) delete from[name];
+      const details = { ...state.challenges.details };
+      delete details[toId(user)];
+      return { lastError: undefined, challenges: { ...state.challenges, from, ...(state.challenges.details ? { details } : {}) } };
     });
   },
   cancelChallenge: () => {
@@ -803,6 +822,25 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
       return;
     }
     set(state => ({ lastError: undefined, challenges: { ...state.challenges, to: null } }));
+  },
+  inviteBattlePlayer: (roomId, slot, user) => {
+    const state = get();
+    const room = state.rooms[roomId];
+    const seat = room?.type === 'battle' ? room.invitations?.find(entry => entry.slot === slot) : undefined;
+    const userid = toId(user);
+    if (!userid || userid === toId(state.username) || /[\r\n|,]/.test(user)) { set({ lastError: 'Choose another player to invite.' }); return false; }
+    if (room?.type !== 'battle' || !room.connected || room.result?.ended || !seat?.canInvite) { set({ lastError: 'That battle seat is no longer available. Wait for the server to refresh the invitation.' }); return false; }
+    if (state.connection !== 'connected' || !state.named || state.protocol.send(`/invitebattle ${userid}, ${slot}`, roomId) === false) { set({ lastError: 'The invitation was not sent. Connect and choose a name, then retry.' }); return false; }
+    set({ lastError: undefined });
+    return true;
+  },
+  revokeBattleInvitation: (roomId, slot) => {
+    const state = get();
+    const room = state.rooms[roomId];
+    const invited = room?.type === 'battle' ? room.invitations?.find(entry => entry.slot === slot)?.invited : undefined;
+    if (room?.type !== 'battle' || !room.connected || !invited || state.connection !== 'connected' || !state.named || state.protocol.send(`/uninvitebattle ${invited}`, roomId) === false) { set({ lastError: 'The invitation could not be removed. Reconnect and check the current seat.' }); return false; }
+    set({ lastError: undefined });
+    return true;
   },
 
   submitBattleChoice: (choice, roomId) => {
@@ -1022,6 +1060,8 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
     if (state.named) {
       const preferences = useWorkspaceStore.getState();
       for (const id of preferences.autojoinRooms.filter(id => /^[a-z0-9-]+$/.test(id) && !id.startsWith('battle-')).slice(0, 20)) state.protocol.send(`/join ${id}`);
+      if (preferences.preferredAvatar && preferences.preferredAvatar !== state.avatar) state.protocol.send(`/avatar ${preferences.preferredAvatar}`);
+      if (preferences.serverLanguage !== (state.serverLanguage || 'english')) state.protocol.send(`/language ${preferences.serverLanguage}`);
       if (preferences.blockPms) state.protocol.send('/blockpms');
       if (preferences.blockChallenges) state.protocol.send('/blockchallenges');
     }
@@ -1060,6 +1100,8 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
 useWorkspaceStore.subscribe((preferences, previous) => {
   const state = useArenaStore.getState();
   if (!state.named || state.connection !== 'connected') return;
+  if (preferences.preferredAvatar && preferences.preferredAvatar !== previous.preferredAvatar) state.protocol.send(`/avatar ${preferences.preferredAvatar}`);
+  if (preferences.serverLanguage !== previous.serverLanguage) state.protocol.send(`/language ${preferences.serverLanguage}`);
   if (preferences.blockPms !== previous.blockPms) state.protocol.send(preferences.blockPms ? '/blockpms' : '/unblockpms');
   if (preferences.blockChallenges !== previous.blockChallenges) state.protocol.send(preferences.blockChallenges ? '/blockchallenges' : '/unblockchallenges');
 });

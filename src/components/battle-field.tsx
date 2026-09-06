@@ -1,5 +1,5 @@
 import { clsx } from 'clsx';
-import { BOOST_LABELS, type ArenaBattle, type BoostId, type PokemonSet, type SideCondition } from '../compat/battle-adapter';
+import { BOOST_LABELS, battleSideIndex, isFourPlayerBattle, type ArenaBattle, type ArenaBattleSide, type BattleSideID, type BoostId, type PokemonSet, type SideCondition } from '../compat/battle-adapter';
 import { PokemonTooltip, TooltipTrigger } from './battle-tooltip';
 import { genFromFormat } from '../data/dex';
 import { pokemonSprite } from '../data/sprites';
@@ -9,7 +9,7 @@ import { useWorkspaceStore } from '../stores/workspace-store';
 function HealthBar({ pokemon, hidden }: { pokemon: PokemonSet; hidden: boolean }) {
   const percent = Math.max(0, Math.min(100, pokemon.hp));
   const tone = percent > 50 ? 'high' : percent > 20 ? 'mid' : 'low';
-  // Exact HP is only ever known for your own side.
+  // Exact HP comes only from a private roster disclosed by the server.
   const exact = pokemon.currentHp !== undefined && pokemon.maxHp !== undefined ?
     `${pokemon.currentHp}/${pokemon.maxHp}` : null;
 
@@ -79,7 +79,7 @@ function Combatant({ battle, hideHealth = false, pokemon, side, position = 0, po
   positions?: number;
   event?: BattleEvent;
 }) {
-  const eventHere = event && event.side === side && (event.slot ?? 0) === position;
+  const eventHere = event && (event.sideId ? event.sideId === pokemon.sideId : event.side === side) && (event.slot ?? 0) === position;
   const reducedMotion = useWorkspaceStore(state => state.reducedMotion);
   const eventClass = eventHere ? `is-${event.kind}` : '';
   const sprite = pokemonSprite(pokemon.species, {
@@ -164,16 +164,74 @@ function RosterPips({ team, total = team.length, hidden, label }: { team: Pokemo
 export type BattleEvent = {
   kind: 'attack' | 'hit' | 'faint' | 'note';
   side: 'near' | 'far';
+  sideId?: BattleSideID;
   slot?: number;
   at: number;
   label?: string;
 };
+
+function LayoutSide({ owner, battle, half, hardcore, event, preview }: {
+  owner: ArenaBattleSide; battle: ArenaBattle; half: 'near' | 'far'; hardcore: boolean; event?: BattleEvent; preview: boolean;
+}) {
+  const four = isFourPlayerBattle(battle.gameType);
+  const viewpoint = battle.playerSide || 'p1';
+  const own = owner.id === viewpoint;
+  const ally = battle.gameType === 'multi' && battleSideIndex(owner.id) % 2 === battleSideIndex(viewpoint) % 2 && !own;
+  const relation = own ? battle.mode === 'player' ? 'You' : 'Viewpoint' : ally ? 'Partner' : 'Opponent';
+  const count = four ? 1 : 3;
+  const positions = Array.from({ length: count }, (_, index) => index);
+  if (half === 'far') positions.reverse();
+  return <section className="layout-side" aria-label={`${owner.name}'s side`} data-owner={owner.id}>
+    <header className="layout-owner">
+      <span><strong>{owner.name}</strong><small>{relation}{owner.rating > 0 ? ` · ${owner.rating}` : ''}</small></span>
+      <RosterPips team={owner.team} total={owner.teamSize} hidden={hardcore} label={`${owner.name}'s team`} />
+    </header>
+    {preview ? <div className="layout-preview" aria-label={`${owner.name}'s team preview`}>
+      {owner.team.map(pokemon => <TooltipTrigger key={pokemon.slot} label={pokemon.name} content={() => <PokemonTooltip pokemon={pokemon} format={`gen${battle.generation || 9}`} />}>
+        <span tabIndex={0} className="layout-preview-pokemon"><img src={pokemonSprite(pokemon.species, { side: 'far', still: true }).url} alt="" width={40} height={40} /><strong>{pokemon.species}</strong></span>
+      </TooltipTrigger>)}
+      {owner.team.length < owner.teamSize && <small>{owner.teamSize - owner.team.length} Pokémon unrevealed</small>}
+    </div> : <div className="layout-active-grid" data-count={count}>
+      {positions.map(index => {
+        const pokemon = owner.actives.find(pokemon => pokemon.slot === index + 1);
+        return pokemon ? <Combatant key={index} battle={battle} pokemon={pokemon} side={half} position={index} positions={count} hideHealth={hardcore} event={event} /> :
+          <div className="layout-empty-position" key={index}>Position {index + 1} empty</div>;
+      })}
+    </div>}
+    {!!owner.conditions.length && <div className="layout-side-conditions" aria-label={`${owner.name}'s side conditions`}>
+      {owner.conditions.map(condition => <span key={condition.name}>{condition.name}{condition.layers > 1 ? ` ×${condition.layers}` : ''}{condition.duration ? ` · ${condition.duration.join('–')} turns` : ''}</span>)}
+    </div>}
+  </section>;
+}
+
+function ExpandedBattleField({ battle, hardcore, lastEvent }: { battle: ArenaBattle; hardcore: boolean; lastEvent?: BattleEvent }) {
+  const parity = battleSideIndex(battle.playerSide || 'p1') % 2;
+  const sides = battle.sides || [];
+  const preview = battle.requestType === 'team' || battle.turn === 0 && sides.every(side => !side.actives.length);
+  const effects = [battle.weather, ...(battle.fieldConditions || [])].filter(Boolean);
+  return <div className="battle-field is-expanded" aria-label="Battle field" data-layout={battle.gameType} data-weather={battle.weather || 'clear'}>
+    <div className="field-backdrop" aria-hidden /><div className="field-vignette" aria-hidden />
+    <header className="layout-field-heading"><strong>{battle.gameType === 'freeforall' ? 'Free-for-all' : battle.gameType === 'multi' ? 'Multi battle' : 'Triples'}</strong><span>{preview ? sides.every(side => !side.team.length) ? 'Waiting for players' : 'Team preview' : `Turn ${battle.turn || '—'}`}</span></header>
+    {(['far', 'near'] as const).map(half => {
+      const owners = sides.filter(side => (battleSideIndex(side.id) % 2 === parity) === (half === 'near'));
+      if (half === 'far') owners.reverse();
+      return <div className={`layout-half is-${half}`} key={half}>
+        {owners.map(owner => <LayoutSide key={owner.id} owner={owner} battle={battle} half={half} hardcore={hardcore} event={lastEvent} preview={preview} />)}
+      </div>;
+    })}
+    {lastEvent?.label && <p className="layout-announcement" role="status">{lastEvent.label}</p>}
+    {effects.length > 0 && <div className="layout-field-effects" role="group" aria-label="Field conditions">{effects.map(effect => <span key={effect}>{effect}</span>)}</div>}
+  </div>;
+}
 
 export function BattleField({ battle, hardcore = false, lastEvent }: {
   battle: ArenaBattle;
   hardcore?: boolean;
   lastEvent?: BattleEvent;
 }) {
+  if ((battle.gameType === 'triples' || isFourPlayerBattle(battle.gameType)) && battle.sides?.length) {
+    return <ExpandedBattleField battle={battle} hardcore={hardcore} lastEvent={lastEvent} />;
+  }
   const nearPlayer = battle.playerSide === 'p2' ? battle.p2 : battle.p1;
   const farPlayer = battle.playerSide === 'p2' ? battle.p1 : battle.p2;
   const effects = [battle.weather, ...(battle.fieldConditions || [])].filter(Boolean) as string[];

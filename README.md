@@ -58,6 +58,8 @@ Once the service worker finishes installing, the local team editor, bundled game
 
 Use [GitHub issues](https://github.com/abhishekpradhan/pokemon-showdown-client/issues) for bugs and feature requests. Report vulnerabilities privately using [SECURITY.md](SECURITY.md). [SUPPORT.md](SUPPORT.md) explains triage and maintainer contact paths.
 
+For the latest feature scope and external acceptance limits, see the [1.2 parity record](docs/parity-completion.md) and [manual release checklist](docs/manual-acceptance.md).
+
 ## License and attribution
 
 AGPL-3.0-or-later — [LICENSE](LICENSE). This project began as a fork of the [official Pokémon Showdown client](https://github.com/smogon/pokemon-showdown-client), by Guangcong Luo and contributors. Preserve the applicable source and copyright notices when distributing changes. [Attribution and dependency/asset origins](docs/attribution.md).

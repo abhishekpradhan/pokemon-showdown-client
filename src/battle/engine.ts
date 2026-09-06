@@ -3,10 +3,16 @@ import type { ID } from '@pkmn/data';
 import {
   buildMoveDeck,
   battleSupport,
+  battleSideIndex,
+  isBattleSideID,
+  isBattleRequest,
+  isFourPlayerBattle,
   defensiveTypes,
   normalizeBattleRequest,
   requestFlags,
   type ArenaBattle,
+  type ArenaBattleSide,
+  type BattleSideID,
   type BattleRequest,
   type BattleRequestPokemon,
   type PokemonSet,
@@ -77,15 +83,60 @@ const engineWarnings = new WeakMap<Battle, string>();
 const exactHealthSides = new WeakMap<Battle, Set<string>>();
 const privateRosters = new WeakMap<Battle, Map<string, BattleRequestPokemon[]>>();
 
+/**
+ * @pkmn/client 0.7.3 initializes p3/p4 with off-by-one side numbers and
+ * aliases their active arrays to p1/p2. A private request then replaces only
+ * one alias. Reconcile those arrays by Pokémon owner after request refreshes,
+ * preserving canonical positions (p1a/p2a/p3b/p4b) and the engine's half model.
+ */
+function repairFourPlayerSides(battle: Battle, clear = false) {
+  if (!isFourPlayerBattle(battle.gameType) || !battle.p3 || !battle.p4) return;
+  battle.sides.splice(2, battle.sides.length - 2, battle.p3, battle.p4);
+  const all = battle.sides.flatMap(side => side.active);
+  const halves: Array<Array<Pokemon | null>> = [[null, null], [null, null]];
+  for (const [index, side] of battle.sides.entries()) {
+    (side as unknown as { n: number }).n = index;
+    const pokemon = clear ? null : [...side.active, ...all].find(pokemon => pokemon?.side === side && !pokemon.fainted) || null;
+    const slot = Math.floor(index / 2);
+    if (pokemon) { pokemon.slot = slot; halves[index % 2][slot] = pokemon; }
+  }
+  for (const [index, side] of battle.sides.entries()) side.active = halves[index % 2];
+}
+
 export function feedLine(battle: Battle, raw: string): boolean {
   try {
+    // Upkeep iterates all four sides; the engine's shared half arrays would
+    // otherwise increment Toxic counters twice for each active Pokémon.
+    if (raw.split('|')[1] === 'upkeep' && isFourPlayerBattle(battle.gameType) && battle.p3 && battle.p4) {
+      battle.p3.active = []; battle.p4.active = [];
+    }
     battle.add(raw);
+    repairFourPlayerSides(battle, raw.split('|')[1] === 'start');
     if (raw.startsWith('|request|') && battle.request?.side?.id) {
       const sides = exactHealthSides.get(battle) || new Set<string>();
       sides.add(battle.request.side.id);
       exactHealthSides.set(battle, sides);
       const rosters = privateRosters.get(battle) || new Map<string, BattleRequestPokemon[]>();
       rosters.set(battle.request.side.id, battle.request.side.pokemon as BattleRequestPokemon[]);
+      const request = battle.request;
+      // Partner data is deliberately disclosed by the server in multi only.
+      // Feed it as a roster update; do not synthesize or expose it in FFA.
+      const payload = JSON.parse(raw.slice('|request|'.length)) as BattleRequest;
+      const ownId = request.side.id;
+      const allyId = payload.ally?.id;
+      if (battle.gameType === 'multi' && isBattleSideID(ownId) && isBattleSideID(allyId) &&
+        battleSideIndex(allyId) === (battleSideIndex(ownId) ^ 2) && payload.ally?.pokemon && isBattleRequest({ side: payload.ally })) {
+        try {
+          battle.add(`|request|${JSON.stringify({ side: payload.ally, forceSwitch: [false] })}`);
+          if (battle.request?.side) {
+            rosters.set(allyId, battle.request.side.pokemon as BattleRequestPokemon[]);
+            sides.add(allyId);
+          }
+        } finally {
+          battle.request = request;
+          repairFourPlayerSides(battle);
+        }
+      }
       privateRosters.set(battle, rosters);
     }
     return true;
@@ -190,7 +241,7 @@ const projectSideConditions = (battle: Battle, side: Battle['p1']): SideConditio
 export type EngineProjectionContext = {
   roomId: string;
   /** Our seat, when we are a player; null when spectating. */
-  perspective: 'p1' | 'p2' | null;
+  perspective: BattleSideID | null;
   /** Set by the router from |win|/|tie| — the engine does not track it. */
   result?: { winner?: string; ended: boolean };
   lastRequest?: BattleRequest;
@@ -204,8 +255,9 @@ const FALLBACK: PokemonSet = {
 
 export function projectEngineBattle(battle: Battle, context: EngineProjectionContext): ArenaBattle {
   const ourSideId = context.perspective ?? 'p1';
-  const ours = ourSideId === 'p2' ? battle.p2 : battle.p1;
-  const theirs = ourSideId === 'p2' ? battle.p1 : battle.p2;
+  const ourIndex = battleSideIndex(ourSideId);
+  const ours = battle.sides[ourIndex] || battle.p1;
+  const theirs = battle.sides[ourIndex ^ 1] || battle.p2;
   const mode: ArenaBattle['mode'] = context.result?.ended ? 'ended' :
     context.perspective ? 'player' : 'spectator';
   // Exact HP is knowable whenever we held a seat — including after the battle
@@ -214,27 +266,32 @@ export function projectEngineBattle(battle: Battle, context: EngineProjectionCon
     context.lastRequest?.side?.id === ourSideId || battle.request?.side?.id === ourSideId);
 
   const request = context.lastRequest ? normalizeBattleRequest({ ...context.lastRequest, gameType: battle.gameType, teamPreviewCount: battle.teamPreviewCount }) : undefined;
-  const ownRoster = request?.side?.pokemon || privateRosters.get(battle)?.get(ourSideId);
-  const privatePokemon = (pokemon: Pokemon) => ownRoster?.find(entry => entry.ident === `${ourSideId}: ${pokemon.name}`) || ownRoster?.[pokemon.slot];
-  const team = ours.team.map((pokemon, index) => projectPokemon(battle, pokemon, index + 1, exactOurs, privatePokemon(pokemon)));
-  const opponentTeam = theirs.team.map((pokemon, index) => projectPokemon(battle, pokemon, index + 1, false));
-
-  const actives = ours.active
-    .map((pokemon, index) => pokemon ? projectPokemon(battle, pokemon, index + 1, exactOurs, privatePokemon(pokemon)) : null)
-    .filter((pokemon): pokemon is PokemonSet => pokemon !== null);
-  const opponentActives = theirs.active
-    .map((pokemon, index) => pokemon ? projectPokemon(battle, pokemon, index + 1, false) : null)
-    .filter((pokemon): pokemon is PokemonSet => pokemon !== null);
-
-  const activePokemon = ours.active.find(Boolean);
-  const opponentActive = theirs.active.find(Boolean);
-
-  const active = activePokemon ?
-    projectPokemon(battle, activePokemon, (activePokemon.slot ?? 0) + 1, exactOurs, privatePokemon(activePokemon)) :
-    team.find(pokemon => pokemon.active) || team[0] || FALLBACK;
-  const opposing = opponentActive ?
-    projectPokemon(battle, opponentActive, (opponentActive.slot ?? 0) + 1, false) :
-    opponentTeam.find(pokemon => pokemon.active) || opponentTeam[0] || { ...FALLBACK, name: 'Opponent' };
+  const four = isFourPlayerBattle(battle.gameType);
+  const sides: ArenaBattleSide[] = battle.sides.map((side, index) => {
+    const id = `p${index + 1}` as BattleSideID;
+    const roster = id === ourSideId ? request?.side?.pokemon || privateRosters.get(battle)?.get(id) : privateRosters.get(battle)?.get(id);
+    const exact = id === ourSideId ? exactOurs : context.perspective !== null && !!exactHealthSides.get(battle)?.has(id);
+    const privatePokemon = (pokemon: Pokemon) => roster?.find(entry => entry.ident === `${id}: ${pokemon.name}`);
+    const project = (pokemon: Pokemon, slot: number) => ({ ...projectPokemon(battle, pokemon, slot, exact, privatePokemon(pokemon)), sideId: id });
+    const team = side.team.map((pokemon, slot) => project(pokemon, slot + 1));
+    const actives = side.active.flatMap((pokemon, slot) => pokemon && pokemon.side === side ? [project(pokemon, four ? 1 : slot + 1)] : []);
+    // Multi shares hazards/screens by team; keep one engine owner so timers
+    // are not decremented twice by shared mutable condition objects.
+    const partner = battle.gameType === 'multi' ? battle.sides[index ^ 2] : undefined;
+    const conditions = projectSideConditions(battle, side);
+    if (partner) for (const condition of projectSideConditions(battle, partner)) {
+      if (!conditions.some(entry => entry.name === condition.name)) conditions.push(condition);
+    }
+    return { id, name: side.name || `Player ${index + 1}`, rating: Number(side.rating) || 0,
+      team, actives, teamSize: Math.max(side.totalPokemon, team.length), conditions };
+  });
+  const ownView = sides[ourIndex] || sides[0];
+  const opponentView = sides[ourIndex ^ 1] || sides[1];
+  const { team, actives } = ownView;
+  const opponentTeam = opponentView.team;
+  const opponentActives = opponentView.actives;
+  const active = actives[0] || team.find(pokemon => pokemon.active) || team[0] || FALLBACK;
+  const opposing = opponentActives[0] || opponentTeam.find(pokemon => pokemon.active) || opponentTeam[0] || { ...FALLBACK, name: 'Opponent' };
 
   const flags = request ? requestFlags(request) : undefined;
   const moves = request ?
@@ -260,6 +317,9 @@ export function projectEngineBattle(battle: Battle, context: EngineProjectionCon
     playerSide: context.perspective ?? undefined,
     p1: { name: battle.p1.name || 'Player 1', rating: Number(battle.p1.rating) || 0 },
     p2: { name: battle.p2.name || 'Player 2', rating: Number(battle.p2.rating) || 0 },
+    p3: sides[2] ? { name: sides[2].name, rating: sides[2].rating } : undefined,
+    p4: sides[3] ? { name: sides[3].name, rating: sides[3].rating } : undefined,
+    sides,
     active,
     opponentActive: opposing,
     actives: actives.length ? actives : undefined,
@@ -268,8 +328,8 @@ export function projectEngineBattle(battle: Battle, context: EngineProjectionCon
     opponentTeam,
     weather: battle.field.weather ? String(battle.field.weather) : undefined,
     fieldConditions: fieldConditions.length ? fieldConditions : undefined,
-    sideConditions: projectSideConditions(battle, ours),
-    opponentSideConditions: projectSideConditions(battle, theirs),
+    sideConditions: ownView.conditions,
+    opponentSideConditions: opponentView.conditions,
     winner: context.result?.winner,
     ended: context.result?.ended,
     timerOn: battle.kickingInactive !== 'off' && battle.kickingInactive !== 0,
@@ -301,7 +361,7 @@ export function projectEngineLog(
   const end = options.upTo === undefined ? lines.length : Math.min(options.upTo + 1, lines.length);
 
   const battle = engineModule.createBattle(null);
-  let perspective: 'p1' | 'p2' | null = null;
+  let perspective: BattleSideID | null = null;
   let result: EngineProjectionContext['result'];
   let lastRequest: BattleRequest | undefined;
   let format: string | undefined;
@@ -314,7 +374,7 @@ export function projectEngineLog(
     const command = parts[1] || '';
 
     if (command === 'player' && userId) {
-      const side = parts[2] === 'p2' ? 'p2' : 'p1';
+      const side = isBattleSideID(parts[2]) ? parts[2] : null;
       const name = (parts[3] || '').toLowerCase().replace(/[^a-z0-9]/g, '');
       if (name && name === userId) perspective = side;
     }
@@ -326,7 +386,7 @@ export function projectEngineLog(
       if (rawRequest) {
         try {
           lastRequest = JSON.parse(rawRequest) as BattleRequest;
-          if (lastRequest.side?.id === 'p1' || lastRequest.side?.id === 'p2') {
+          if (isBattleSideID(lastRequest.side?.id)) {
             perspective = lastRequest.side.id;
           }
         } catch { /* not a valid request payload */ }
@@ -366,14 +426,14 @@ export function createBattleHistory(roomId: string, username = '', options: { tu
       for (let index = consumed; index < lines.length; index++) {
         const raw = lines[index];
         const [, command = '', ...args] = raw.split('|');
-        if (command === 'player' && ['p1', 'p2'].includes(args[0]) && userId && args[1]?.toLowerCase().replace(/[^a-z0-9]/g, '') === userId) context.perspective = args[0] as 'p1' | 'p2';
+        if (command === 'player' && isBattleSideID(args[0]) && userId && args[1]?.toLowerCase().replace(/[^a-z0-9]/g, '') === userId) context.perspective = args[0];
         if (command === 'tier') context.format = args[0];
         if (command === 'win') context.result = { winner: args[0], ended: true };
         if (command === 'tie') context.result = { ended: true };
         if (command === 'request') {
           try {
             context.lastRequest = JSON.parse(args.join('|')) as BattleRequest;
-            if (context.lastRequest.side?.id === 'p1' || context.lastRequest.side?.id === 'p2') context.perspective = context.lastRequest.side.id;
+            if (isBattleSideID(context.lastRequest.side?.id)) context.perspective = context.lastRequest.side.id;
           } catch { /* The live router surfaces malformed request state. */ }
         }
         feedLine(battle!, raw);
@@ -396,7 +456,18 @@ export function createBattleHistory(roomId: string, username = '', options: { tu
 
 /** A spectator can change sides without changing what information is known. */
 export function flipBattleView(battle: ArenaBattle): ArenaBattle {
-  return { ...battle, playerSide: battle.playerSide === 'p2' ? 'p1' : 'p2',
+  if (battle.sides?.length) {
+    const current = battleSideIndex(battle.playerSide || 'p1');
+    const index = isFourPlayerBattle(battle.gameType) ? (current + 1) % 4 : current ^ 1;
+    const own = battle.sides[index];
+    const foe = battle.sides[index ^ 1];
+    if (own && foe) return { ...battle, playerSide: own.id,
+      active: own.actives[0] || own.team[0] || FALLBACK, opponentActive: foe.actives[0] || foe.team[0] || FALLBACK,
+      actives: own.actives, opponentActives: foe.actives, team: own.team, opponentTeam: foe.team,
+      teamSize: own.teamSize, opponentTeamSize: foe.teamSize, sideConditions: own.conditions, opponentSideConditions: foe.conditions };
+  }
+  const nextSide = `p${(battleSideIndex(battle.playerSide || 'p1') ^ 1) + 1}` as BattleSideID;
+  return { ...battle, playerSide: nextSide,
     active: battle.opponentActive, opponentActive: battle.active,
     actives: battle.opponentActives, opponentActives: battle.actives,
     team: battle.opponentTeam, opponentTeam: battle.team,

@@ -54,6 +54,8 @@ The [audit](project-audit-2026-09-05.md) describes the original `f48e68fc` basel
 - Private vulnerability reporting, Dependabot alerts/security fixes and secret scanning/push protection are enabled on the public repository. Main requires an up-to-date pull request, the aggregate Release checks status, resolved conversations and linear history; administrator bypass, force pushes and deletion are disabled. The single-maintainer workflow does not claim an independent approving review.
 - Exact committed CI and production deployment/provenance results are retained in the [1.1.0 release evidence](https://github.com/abhishekpradhan/pokemon-showdown-client/releases/tag/v1.1.0).
 
-## Explicit support limits
+## Historical 1.1 support limits
+
+The subsequent [1.2 parity record](parity-completion.md) supersedes the triples/multi/free-for-all restriction below and adds team suggestions and personal preferences. This section preserves the original release evidence.
 
 Triples, rotation, multi and free-for-all battle layouts are gated; arbitrary custom-server mechanics require an explicit capability implementation. The official provider handles account registration/recovery. Background push, a packaged desktop shell and cloud team sync are not provided. The client retains bounded local history, not a server chat archive. Replays cannot expose private information absent from their protocol log. Automated WebKit/mobile emulation does not replace testing every physical iOS/Android device or a full screen-reader conformance audit. These restrictions are published in [compatibility](compatibility.md), rather than being presented as completed unrestricted feature parity.

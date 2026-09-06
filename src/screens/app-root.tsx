@@ -21,6 +21,8 @@ import { SessionTabs } from '../components/session-tabs';
 import { StatusCallout } from '../components/status-callout';
 import { navItems } from '../navigation';
 import { ChallengeDialog } from '../components/challenge-dialog';
+import { useBattleAudio } from '../battle/use-battle-audio';
+import { useBackground } from '../preferences/use-background';
 import { openChallenge } from '../compat/ui-events';
 
 export function AppRoot() {
@@ -60,6 +62,8 @@ export function AppRoot() {
   const routeBattleId = location.pathname.startsWith('/battle/') ?
     location.pathname.slice('/battle/'.length) : undefined;
   const routeBattle = routeBattleId ? rooms[routeBattleId] : undefined;
+  useBackground();
+  useBattleAudio(!!(routeBattle?.type === 'battle' && routeBattle.connected && routeBattle.battle.turn >= 1 && !routeBattle.battle.ended));
   const routeRoom = location.pathname.startsWith('/room/') ? rooms[location.pathname.slice('/room/'.length)] : undefined;
   const context = routeBattleId ?
     {
@@ -267,15 +271,15 @@ export function AppRoot() {
                           <div className="notification-row is-challenge" key={challenger}>
                             <span>
                               <strong>{challenger} challenged you</strong>
-                              <small>{format}</small>
+                              <small>{challenges.details?.[challenger.toLowerCase().replace(/[^a-z0-9]/g, '')]?.message || format}</small>
                             </span>
                             <span className="challenge-actions">
                               <button type="button" className="primary-action" onClick={() => {
                                 openChallenge(challenger, format, true);
                                 setNotificationsOpen(false);
-                              }}>Accept</button>
+                              }}>{challenges.details?.[challenger.toLowerCase().replace(/[^a-z0-9]/g, '')]?.acceptLabel || 'Accept'}</button>
                               <button type="button" className="secondary-action" onClick={() => rejectChallenge(challenger)}>
-                                Reject
+                                {challenges.details?.[challenger.toLowerCase().replace(/[^a-z0-9]/g, '')]?.rejectLabel || 'Reject'}
                               </button>
                             </span>
                           </div>

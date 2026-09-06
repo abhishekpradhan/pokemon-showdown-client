@@ -5,18 +5,17 @@ import {
   ClipboardCopy,
   ExternalLink,
   FileCode2,
-  Monitor,
-  Moon,
-  Paintbrush,
   RadioTower,
   RefreshCw,
   Scale,
   Server,
-  Sun,
   X,
 } from 'lucide-react';
 import { useMemo, useState, useSyncExternalStore } from 'react';
 import { useShallow } from 'zustand/react/shallow';
+import { AppearanceSettings } from '../components/settings/appearance-settings';
+import { AudioSettings } from '../components/settings/audio-settings';
+import { ProfileSettings } from '../components/settings/profile-settings';
 import { requestNotifyPermission } from '../compat/desktop-notify';
 import { getDefaultServerConfig } from '../compat/protocol-client';
 import { useArenaStore } from '../stores/arena-store';
@@ -50,7 +49,7 @@ export function SettingsScreen() {
   const report = useMemo(() => diagnosticReport(rawProtocolLog, { connection, server: `${server.host}:${server.port}` }), [rawProtocolLog, connection, server]);
   const isDefaultServer = server.host === getDefaultServerConfig().host;
   const preferences = useWorkspaceStore();
-  const { notificationsEnabled, setNotificationsEnabled, setSoundEnabled, setTheme, soundEnabled, theme, setPreference } = preferences;
+  const { notificationsEnabled, setNotificationsEnabled, setPreference } = preferences;
   const confirmReload = () => {
     const live = Object.values(useArenaStore.getState().rooms).some(room => room.connected && room.type === 'battle' && room.battle.mode === 'player' && !room.battle.ended);
     return !live || window.confirm('A battle is still in progress. Reloading disconnects you temporarily. Continue now?');
@@ -65,7 +64,7 @@ export function SettingsScreen() {
 
       <nav className="settings-jump" aria-label="Settings sections">
         {[
-          ['appearance-settings', 'Appearance'], ['chat-preferences', 'Chat & privacy'],
+          ['appearance-settings', 'Appearance'], ['profile-settings', 'Profile & language'], ['audio-settings', 'Audio'], ['chat-preferences', 'Chat & privacy'],
           ['notification-settings', 'Notifications'], ['offline-settings', 'Offline & updates'],
           ['connection-settings', 'Connection'], ['diagnostics-settings', 'Diagnostics'],
         ].map(([id, label]) => <a key={id} href={`#${id}`} onClick={event => {
@@ -77,23 +76,9 @@ export function SettingsScreen() {
         }}>{label}</a>)}
       </nav>
 
-      <section className="settings-section" aria-labelledby="appearance-settings">
-        <h2 id="appearance-settings"><Paintbrush size={15} aria-hidden /> Appearance</h2>
-        <div className="setting-row">
-          <span><strong>Theme</strong><small>Match the system, or pin light or dark.</small></span>
-          <div className="setting-segmented" role="group" aria-label="Theme">
-            <button type="button" aria-pressed={theme === 'light'} className={theme === 'light' ? 'is-active' : ''} onClick={() => setTheme('light')}>
-              <Sun size={13} aria-hidden /> Light
-            </button>
-            <button type="button" aria-pressed={theme === 'dark'} className={theme === 'dark' ? 'is-active' : ''} onClick={() => setTheme('dark')}>
-              <Moon size={13} aria-hidden /> Dark
-            </button>
-            <button type="button" aria-pressed={theme === 'system'} className={theme === 'system' ? 'is-active' : ''} onClick={() => setTheme('system')}>
-              <Monitor size={13} aria-hidden /> System
-            </button>
-          </div>
-        </div>
-      </section>
+      <AppearanceSettings />
+      <ProfileSettings />
+      <AudioSettings />
 
       <section className="settings-section" aria-labelledby="chat-preferences">
         <h2 id="chat-preferences">Chat, privacy and motion</h2>
@@ -103,7 +88,7 @@ export function SettingsScreen() {
           ['privateBattles', 'Make new battles private'],
         ] as const).map(([key, label]) => <div className="setting-row" key={key}><strong>{label}</strong>
           <Switch.Root className="switch-root" aria-label={label} checked={preferences[key]} onCheckedChange={value => setPreference(key, value)}><Switch.Thumb className="switch-thumb" /></Switch.Root></div>)}
-        <label className="setting-row"><strong>Sound volume</strong><input aria-label="Sound volume" type="range" min={0} max={100} value={preferences.volume} onChange={event => setPreference('volume', Number(event.currentTarget.value))} /></label>
+
         {([
           ['highlights', 'Highlight words'], ['ignoredUsers', 'Ignored users'], ['mutedRooms', 'Muted rooms'], ['autojoinRooms', 'Rooms to join on sign-in'],
         ] as const).map(([key, label]) => <label className="setting-field" key={key}><span><strong>{label}</strong><small>Separate entries with commas.</small></span><input aria-label={label} defaultValue={preferences[key].join(', ')} onBlur={event => setPreference(key, normalizePreferenceList(key, event.currentTarget.value))} /></label>)}
@@ -137,17 +122,7 @@ export function SettingsScreen() {
             <Switch.Thumb className="switch-thumb" />
           </Switch.Root>
         </div>
-        <div className="setting-row">
-          <span><strong>Battle sounds</strong><small>Cries on switch-in and a ping when it&apos;s your move.</small></span>
-          <Switch.Root
-            className="switch-root"
-            checked={soundEnabled}
-            onCheckedChange={setSoundEnabled}
-            aria-label="Battle sounds"
-          >
-            <Switch.Thumb className="switch-thumb" />
-          </Switch.Root>
-        </div>
+
       </section>
 
       <section className="settings-section" aria-labelledby="connection-settings">

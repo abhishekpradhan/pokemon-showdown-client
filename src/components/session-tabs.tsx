@@ -82,7 +82,7 @@ export function SessionTabs() {
       id: room.id,
       type: room.type,
       title: room.type === 'battle' && room.battle.p1.name !== 'Player 1' ?
-        `${room.battle.p1.name} v ${room.battle.p2.name}` :
+        room.battle.p3 && room.battle.p4 ? room.battle.gameType === 'multi' ? `${room.battle.p1.name} + ${room.battle.p3.name} v ${room.battle.p2.name} + ${room.battle.p4.name}` : [room.battle.p1, room.battle.p2, room.battle.p3, room.battle.p4].map(side => side.name).join(' v ') : `${room.battle.p1.name} v ${room.battle.p2.name}` :
         room.title,
       live: room.type === 'battle' && !room.battle.ended,
       unread: room.unread,

@@ -55,7 +55,9 @@ export function gen(num: number = DEFAULT_GEN): Generation | null {
 
 /** Extracts the generation number from a format id such as `gen9ou`. */
 export function genFromFormat(formatId?: string) {
-  const match = /^gen(\d+)/.exec(formatId || '');
+  // Formats such as gen91v1/gen92v2doubles append a digit-led ruleset.
+  // Preserve genuine future generation numbers without absorbing that ruleset.
+  const match = /^gen(\d+?)(?=(?:1v1|2v2doubles)$|[a-z]|$)/.exec(formatId || '');
   return match ? Number(match[1]) : DEFAULT_GEN;
 }
 

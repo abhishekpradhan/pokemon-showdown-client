@@ -212,11 +212,11 @@ export function HomeScreen() {
                 <div className="challenge-row" key={challenger}>
                   <span>
                     <strong>{challenger}</strong>
-                    <small>{format}</small>
+                    <small>{challenges.details?.[challenger.toLowerCase().replace(/[^a-z0-9]/g, '')]?.message || format}</small>
                   </span>
                   <span className="challenge-actions">
-                    <button type="button" className="primary-action" onClick={() => openChallenge(challenger, format, true)}>Accept</button>
-                    <button type="button" className="secondary-action" onClick={() => rejectChallenge(challenger)}>Reject</button>
+                    <button type="button" className="primary-action" onClick={() => openChallenge(challenger, format, true)}>{challenges.details?.[challenger.toLowerCase().replace(/[^a-z0-9]/g, '')]?.acceptLabel || 'Accept'}</button>
+                    <button type="button" className="secondary-action" onClick={() => rejectChallenge(challenger)}>{challenges.details?.[challenger.toLowerCase().replace(/[^a-z0-9]/g, '')]?.rejectLabel || 'Reject'}</button>
                   </span>
                 </div>
               ))}

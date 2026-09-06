@@ -62,3 +62,17 @@
   }
 }
 html[data-reduce-motion='true'] *, html[data-reduce-motion='true'] *::before, html[data-reduce-motion='true'] *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+
+/* A full touch target around the switch's compact, recognizable track. */
+@media (pointer: coarse) {
+  .switch-root { width: 44px; height: 44px; min-width: 44px; min-height: 44px; background: transparent; }
+  .settings-section .switch-root,
+  .battle-info-panel .switch-root,
+  .switch-root[data-state='checked'],
+  .settings-section .switch-root[data-state='checked'],
+  .battle-info-panel .switch-root[data-state='checked'] { background: transparent; }
+  .switch-root::before { content: ''; position: absolute; width: 40px; height: 22px; left: 2px; top: 50%; transform: translateY(-50%); border-radius: 999px; background: var(--arena-track); transition: background var(--arena-fast) ease; }
+  .switch-root[data-state='checked']::before { background: var(--arena-accent); }
+  .switch-root .switch-thumb { left: 5px; }
+  .switch-root[data-state='checked'] .switch-thumb { left: 23px; }
+}

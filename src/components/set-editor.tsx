@@ -5,6 +5,9 @@ import { pokemonIconStyle } from '../data/sprites';
 import { ALL_TYPES } from '../data/types';
 import type { TeamSet } from '../compat/team-store';
 import { SearchableSelect } from './searchable-select';
+import { SampleSetsPanel } from '../teams/sample-sets-panel';
+import { SpreadSuggestionPanel } from '../teams/spread-suggestion-panel';
+import { SetDetailFields, SetIVFields } from '../teams/set-detail-fields';
 
 /**
  * Structured set editing, dex-backed: species/item/move autocomplete from the
@@ -196,6 +199,8 @@ export function SetEditor({ set, formatId, onChange, onRemove, focusSpecies = fa
         )}
       </header>
 
+      <SampleSetsPanel key={`${formatId}:${set.species}`} set={set} format={formatId} onChange={onChange} />
+
       <div className="set-editor-grid">
         {(generationNumber >= 2 || set.item) && <label className="set-field">
           <span>Item</span>
@@ -285,7 +290,13 @@ export function SetEditor({ set, formatId, onChange, onRemove, focusSpecies = fa
             </label>
           ))}
         </div>
-        {generationNumber >= 3 && <div className="set-ev-presets"><span>Quick spread</span><button type="button" onClick={() => patch({ evs: { atk: 252, spe: 252, spd: 4 }, nature: 'Jolly' })}>Fast physical</button><button type="button" onClick={() => patch({ evs: { spa: 252, spe: 252, spd: 4 }, nature: 'Timid' })}>Fast special</button><button type="button" onClick={() => patch({ evs: undefined })}>Reset EVs</button></div>}
+        <SpreadSuggestionPanel key={`${formatId}:${set.species}`} set={set} format={formatId} onChange={onChange} />
+        {generationNumber >= 3 && <div className="set-ev-presets">
+          <span>Quick spread</span>
+          <button type="button" onClick={() => patch({ evs: { atk: 252, spe: 252, spd: 4 }, nature: 'Jolly' })}>Fast physical</button>
+          <button type="button" onClick={() => patch({ evs: { spa: 252, spe: 252, spd: 4 }, nature: 'Timid' })}>Fast special</button>
+          <button type="button" onClick={() => patch({ evs: undefined })}>Reset EVs</button>
+        </div>}
       </div>
 
       <div className="set-editor-grid is-compact">
@@ -311,32 +322,8 @@ export function SetEditor({ set, formatId, onChange, onRemove, focusSpecies = fa
           />
         </label>
       </div>
-      <details className="set-details set-iv-details">
-        <summary>{generationNumber <= 2 ? 'DVs' : 'IVs'} and calculated stats</summary>
-        <div className="ev-grid">
-          {STAT_KEYS.map(key => {
-            const iv = set.ivs?.[key] ?? 31;
-            const actual = calculatedStats?.[key];
-            return <label className="ev-field" key={key}><span>{STAT_LABELS[key]}</span><input aria-label={`${STAT_LABELS[key]} ${generationNumber <= 2 ? 'DV' : 'IV'}`} type="number" min={0} max={generationNumber <= 2 ? 15 : 31} value={generationNumber <= 2 ? Math.floor(iv / 2) : iv} onChange={event => { const value = Math.max(0, Math.min(generationNumber <= 2 ? 15 : 31, Math.trunc(Number(event.currentTarget.value) || 0))); patch({ ivs: { ...set.ivs, [key]: generationNumber <= 2 ? value * 2 + 1 : value } }); }} /><output>{actual ?? '—'}</output></label>;
-          })}
-        </div>
-        <div className="button-row">
-          <button type="button" className="secondary-action" onClick={() => patch({ ivs: { ...set.ivs, atk: 0 } })}>Minimum Attack</button>
-          <button type="button" className="secondary-action" onClick={() => patch({ ivs: { ...set.ivs, spe: 0 } })}>Minimum Speed</button>
-          <button type="button" className="secondary-action" onClick={() => patch({ ivs: undefined })}>Reset IVs</button>
-        </div>
-      </details>
-      <details className="set-details"><summary>Set details</summary><div className="set-editor-grid is-compact">
-        <label className="set-field"><span>Gender</span><select aria-label="Gender" value={set.gender || ''} onChange={event => patch({ gender: event.currentTarget.value || undefined })}><option value="">Default</option><option value="M">Male</option><option value="F">Female</option><option value="N">Genderless</option></select></label>
-        <label className="set-field"><span>Shiny</span><input aria-label="Shiny" type="checkbox" checked={!!set.shiny} onChange={event => patch({ shiny: event.currentTarget.checked })} /></label>
-        <label className="set-field"><span>Happiness</span><input type="number" min={0} max={255} value={set.happiness ?? 255} onChange={event => patch({ happiness: Math.max(0, Math.min(255, Number(event.currentTarget.value) || 0)) })} /></label>
-        <label className="set-field"><span>Hidden Power type</span><select aria-label="Hidden Power type" value={set.hpType || ''} onChange={event => patch({ hpType: event.currentTarget.value || undefined })}><option value="">Default</option>{ALL_TYPES.filter(type => !['???', 'Normal', 'Fairy', 'Stellar'].includes(type)).map(type => <option key={type}>{type}</option>)}</select></label>
-        <label className="set-field"><span>Poké Ball</span><input value={set.pokeball || ''} placeholder="Default" onChange={event => patch({ pokeball: event.currentTarget.value || undefined })} /></label>
-        {(generationNumber === 8 || set.dynamaxLevel !== undefined || set.gigantamax) && <>
-          <label className="set-field"><span>Dynamax level</span><input type="number" min={0} max={10} value={set.dynamaxLevel ?? 10} onChange={event => patch({ dynamaxLevel: Math.max(0, Math.min(10, Number(event.currentTarget.value) || 0)) })} /></label>
-          <label className="set-field"><span>Gigantamax</span><input type="checkbox" checked={!!set.gigantamax} onChange={event => patch({ gigantamax: event.currentTarget.checked })} /></label>
-        </>}
-      </div></details>
+      <SetIVFields set={set} generation={generationNumber} calculatedStats={calculatedStats} onChange={onChange} />
+      <SetDetailFields set={set} generation={generationNumber} onChange={onChange} />
     </div>
   );
 }

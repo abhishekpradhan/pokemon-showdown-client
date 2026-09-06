@@ -41,7 +41,7 @@ export function buildArtifacts(env: Record<string, string>): Plugin {
         name: key.slice(key.lastIndexOf('node_modules/') + 13), version: entry.version, license: entry.license || 'See package license', development: !!entry.dev,
       })).sort((a, b) => a.name.localeCompare(b.name));
       writeFileSync(resolve(outDir, 'third-party-licenses.json'), JSON.stringify({ sourceRevision: revision, dependencies }, null, 2));
-      const notices = ['ARENA THIRD-PARTY NOTICES', 'Installed runtime package license/notice files; external media attribution is in docs/attribution.md.'];
+      const notices = ['ARENA THIRD-PARTY NOTICES', readFileSync(resolve('UPSTREAM_NOTICES.txt'), 'utf8'), 'Installed runtime package license/notice files; external media attribution is in docs/attribution.md.'];
       for (const [path, entry] of Object.entries(lock.packages)) {
         if (!path.startsWith('node_modules/') || entry.dev || !existsSync(path)) continue;
         const files = readdirSync(path, { withFileTypes: true }).filter(file => file.isFile() && /^(licen[sc]e|copying|notice)([.-].*)?$/i.test(file.name));

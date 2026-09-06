@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from '@tanstack/react-router';
 import { useShallow } from 'zustand/react/shallow';
 import { toId } from '../compat/protocol-parsers';
-import { SPRITE_HOST } from '../data/sprites';
+import { avatarUrl as trainerAvatarUrl } from '../preferences/avatars';
 import { useArenaStore } from '../stores/arena-store';
 import { useWorkspaceStore } from '../stores/workspace-store';
 import { openChallenge } from '../compat/ui-events';
@@ -102,9 +102,7 @@ export function UserCard({ anchor, onClose }: { anchor: UserCardAnchor; onClose:
   const group = card?.group || (/^[^A-Za-z0-9]/.test(anchor.name) ? anchor.name.charAt(0) : '');
   const groupLabel = group ? GROUP_LABELS[group] || `Rank ${group}` : '';
   const isSelf = toId(selfName) === userid;
-  // Numeric avatars live on the trainer sprite sheet; named ones do too.
-  const avatarUrl = card?.avatar ?
-    `${SPRITE_HOST}/sprites/trainers/${String(card.avatar).replace(/[^a-z0-9-]/gi, '')}.png` : null;
+  const avatarUrl = trainerAvatarUrl(card?.avatar);
 
   return createPortal(
     <div className="user-card" ref={cardRef} style={style} role="dialog" aria-label={`${displayName} profile`} tabIndex={-1}>

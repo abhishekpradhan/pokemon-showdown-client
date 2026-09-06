@@ -765,3 +765,12 @@ textarea:focus-visible,
 @media (pointer: coarse) { .session-tab-close { opacity: 1; min-inline-size: 30px; } }
 button:disabled:hover { transform: none; }
 .select-popover { z-index: 210; }
+
+/* Personal backdrops stay behind an opaque reading surface in every theme. */
+html[data-background='ocean'] { --arena-background-image: linear-gradient(135deg, #17385b, #387b84, #182c51); }
+html[data-background='dusk'] { --arena-background-image: linear-gradient(135deg, #533557, #a66354, #252956); }
+html[data-background='forest'] { --arena-background-image: linear-gradient(135deg, #193f36, #526e43, #143339); }
+html[data-background]:not([data-background='none']) .arena-app {
+  background-image: linear-gradient(color-mix(in srgb, var(--arena-ink) 80%, transparent), color-mix(in srgb, var(--arena-ink) 80%, transparent)), var(--arena-background-image);
+  background-size: cover; background-position: center;
+}
