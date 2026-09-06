@@ -21,6 +21,7 @@ import { desktopNotify } from '../compat/desktop-notify';
 import { parseBattleInvitations, parseChallengeDetails } from '../compat/battle-invitations';
 import { replayUploadUrl } from '../compat/replay-upload';
 import { isServerLanguage } from '../preferences/options';
+import { avatarUrl } from '../preferences/avatars';
 import { cancelAuthentication, matchesAuthenticationIdentity } from '../compat/auth-session';
 import { useWorkspaceStore } from '../stores/workspace-store';
 import {
@@ -342,7 +343,15 @@ const handleGlobal = (line: PsLine, store: ArenaStoreApi): boolean => {
           rooms: data.rooms ? Object.keys(data.rooms) : [],
           online: data.rooms !== false,
         };
-        setState(state => ({ userCards: Object.fromEntries([...Object.entries(state.userCards).filter(([id]) => id !== card.userid).slice(-199), [card.userid, card]]) }));
+        setState(state => ({
+          userCards: Object.fromEntries([...Object.entries(state.userCards).filter(([id]) => id !== card.userid).slice(-199), [card.userid, card]]),
+          // Only a structured response for the current connected identity can
+          // confirm its avatar. Other cards, stale identities and HTML cannot.
+          ...(state.named && state.connection === 'connected' && !state.loginPending &&
+            data.userid === toId(state.username) && data.rooms !== false &&
+            (typeof data.avatar === 'string' || typeof data.avatar === 'number') && avatarUrl(data.avatar)
+            ? { avatar: String(data.avatar) } : {}),
+        }));
       }
     }
     return true;

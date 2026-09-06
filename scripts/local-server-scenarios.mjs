@@ -5,6 +5,38 @@ import { challenge, identify, line, playUntil, finishBattle } from './local-serv
 
 const team = Teams => Teams.pack(Array.from({ length: 6 }, (_, index) => ({ name: `Test${index + 1}`, species: 'Mew', ability: 'Synchronize', moves: ['Tackle', 'Helping Hand', 'Splash'], nature: 'Hardy', level: 100 })));
 
+export async function verifyProfileConfirmation({ player, evidence }) {
+  const userid = player.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const from = player.frames.length;
+  player.send('/avatar dawn');
+  const preview = await player.wait(frame => frame.lines.some(item =>
+    (item.command === 'raw' || (item.command === 'pm' && item.args[2]?.startsWith('/raw '))) &&
+    item.args.join('|').includes('/dawn.png')), 'server avatar preview', from);
+  player.send(`/cmd userdetails ${userid}`);
+  const detailsFrame = await player.wait(line('queryresponse', args => args[0] === 'userdetails' && JSON.parse(args[1]).userid === userid), 'own user-details avatar confirmation', from);
+  const details = JSON.parse(detailsFrame.lines.find(item => item.command === 'queryresponse' && item.args[0] === 'userdetails').args[1]);
+  assert.equal(details.name, player.name);
+  assert.equal(details.avatar, 'dawn');
+  // The query response is an ordered round-trip boundary. At this pinned
+  // revision /avatar sends text/raw preview, not an updateuser acknowledgement.
+  const avatarFrames = player.frames.slice(from, player.frames.indexOf(detailsFrame) + 1);
+  assert(!avatarFrames.some(line('updateuser')), '/avatar must not be mistaken for the language updateuser contract.');
+  const languageFrom = player.frames.length;
+  player.send('/language french');
+  const languageFrame = await player.wait(line('updateuser', args => JSON.parse(args[3] || '{}').language === 'french'), 'server language metadata confirmation', languageFrom);
+  const language = languageFrame.lines.find(item => item.command === 'updateuser').args;
+  assert.equal(language[0].trim(), player.name);
+  assert.equal(language[1], '1');
+  assert.equal(language[2], 'dawn');
+  const resetFrom = player.frames.length;
+  player.send('/language english');
+  await player.wait(line('updateuser', args => JSON.parse(args[3] || '{}').language === 'english'), 'restore English for later scenario assertions', resetFrom);
+  evidence.push('Real profile confirmation: /avatar dawn sends raw preview without updateuser; own /cmd userdetails confirms dawn. /language french independently confirms authoritative updateuser metadata.');
+  return { avatar: 'dawn', avatarPreview: preview.lines.some(item => item.command === 'pm') ? 'PM /raw directive' : 'raw command',
+    avatarConfirmation: 'own queryresponse userdetails', avatarUpdateuserBeforeQuery: false,
+    language: 'french', languageConfirmation: 'updateuser settings.language', englishRestored: true };
+}
+
 export async function verifyReconnect({ alice, bob, Teams, evidence }) {
   for (const player of [alice, bob]) player.send(`/utm ${team(Teams)}`);
   const { room, offsets } = await challenge([alice, bob], 'gen9doublescustomgame');

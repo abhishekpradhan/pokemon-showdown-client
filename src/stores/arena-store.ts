@@ -23,6 +23,7 @@ import { beginAuthentication, cancelAuthentication, expectAuthenticationIdentity
 import { sanitizeProtocolLog } from '../compat/diagnostics';
 import { replayUploadUrl } from '../compat/replay-upload';
 import { useWorkspaceStore } from './workspace-store';
+import { avatarName, isPublicAvatar } from '../preferences/avatars';
 import {
   getDefaultServerConfig,
   loadStoredServer,
@@ -173,6 +174,7 @@ export type ArenaState = {
   /** `|queryresponse|userdetails|` cache, keyed by userid. */
   userCards: Record<string, UserCardDetails>;
   requestUserDetails: (name: string) => void;
+  applyAvatarPreference: () => boolean;
   /** Opens (creating if needed) the PM room with `name`; returns its room id. */
   openPmWith: (name: string) => string;
   /** OAuth2 sign-in: the password is only ever typed on play.pokemonshowdown.com. */
@@ -371,6 +373,15 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
   connect: () => get().protocol.connect(),
   disconnect: () => get().protocol.disconnect(),
   reconnect: () => get().protocol.reconnect(),
+  applyAvatarPreference: () => {
+    const { named, username, connection, protocol } = get();
+    const avatar = useWorkspaceStore.getState().preferredAvatar;
+    if (!named || connection !== 'connected' || !isPublicAvatar(avatar)) return false;
+    if (protocol.send(`/avatar ${avatar}`) === false) return false;
+    // /avatar replies with chat HTML, not updateuser. Read our own structured
+    // details to confirm what the server actually applied.
+    return protocol.send(`/cmd userdetails ${toId(username)}`) !== false;
+  },
   setServer: input => {
     const server = parseServerInput(input, get().server);
     if (!server) {
@@ -1060,7 +1071,7 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
     if (state.named) {
       const preferences = useWorkspaceStore.getState();
       for (const id of preferences.autojoinRooms.filter(id => /^[a-z0-9-]+$/.test(id) && !id.startsWith('battle-')).slice(0, 20)) state.protocol.send(`/join ${id}`);
-      if (preferences.preferredAvatar && preferences.preferredAvatar !== state.avatar) state.protocol.send(`/avatar ${preferences.preferredAvatar}`);
+      if (preferences.preferredAvatar && preferences.preferredAvatar !== avatarName(state.avatar || '')) state.applyAvatarPreference();
       if (preferences.serverLanguage !== (state.serverLanguage || 'english')) state.protocol.send(`/language ${preferences.serverLanguage}`);
       if (preferences.blockPms) state.protocol.send('/blockpms');
       if (preferences.blockChallenges) state.protocol.send('/blockchallenges');
@@ -1100,7 +1111,7 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
 useWorkspaceStore.subscribe((preferences, previous) => {
   const state = useArenaStore.getState();
   if (!state.named || state.connection !== 'connected') return;
-  if (preferences.preferredAvatar && preferences.preferredAvatar !== previous.preferredAvatar) state.protocol.send(`/avatar ${preferences.preferredAvatar}`);
+  if (preferences.preferredAvatar && preferences.preferredAvatar !== previous.preferredAvatar) state.applyAvatarPreference();
   if (preferences.serverLanguage !== previous.serverLanguage) state.protocol.send(`/language ${preferences.serverLanguage}`);
   if (preferences.blockPms !== previous.blockPms) state.protocol.send(preferences.blockPms ? '/blockpms' : '/unblockpms');
   if (preferences.blockChallenges !== previous.blockChallenges) state.protocol.send(preferences.blockChallenges ? '/blockchallenges' : '/unblockchallenges');
