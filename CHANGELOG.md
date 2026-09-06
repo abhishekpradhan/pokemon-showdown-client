@@ -8,6 +8,7 @@ This release addresses the September 2026 project audit. Its release notes recor
 - Add supported battle/editor/community workflow improvements with explicit capability and compatibility behavior.
 - Replace unbounded app caching with a versioned offline manifest, update consent and cache repair that preserves local teams.
 - Bound/test production proxies, add CSP and safe interactive room-content rules, and update vulnerable dependencies.
+- Correct hosted Edge redirect handling without forwarding redirects; verify the deployed assertion proxy with a real signed guest acknowledgement before release.
 - Check API/browser-test TypeScript, desktop/mobile/browser/visual and production paths; enforce license/advisory/bundle gates.
 - Publish current compatibility, privacy, self-hosting, contribution/release documentation and matching-source/dependency build metadata.
 

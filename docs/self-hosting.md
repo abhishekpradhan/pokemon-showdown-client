@@ -40,3 +40,13 @@ Configure hosting-level request limits, rate/concurrency limits, operational ale
 ## Verify a deployed build
 
 Check `/build-info.json` identifies the intended source revision, `/oauth.html` is the callback, `/api/action` rejects GET and cross-origin POST, and responses have the expected CSP/cache headers. Confirm a guest handshake, origin-registered OAuth where available, a controlled battle, configured replay URL/upload, and offline team editing after worker installation. Verify an update from the previous deployed version and keep the previous deployment available for rollback. See [release checklist](releases.md).
+
+Run the guest handshake through the actual deployed assertion proxy from the repository with supported Node:
+
+```sh
+LIVE_PS_TESTS=1 LIVE_APP_URL=https://showdown-arena.vercel.app npm run test:live
+```
+
+Replace the URL with your application's HTTPS origin. Credentials, paths, queries and fragments are rejected; HTTP loopback origins are allowed for local verification. The script sends `/api/action` the same Origin header as the browser, fails on HTTP errors such as 502, and requires the simulator to acknowledge the signed ephemeral guest name. It sends no chat or matchmaking commands; it only joins the lobby to check read access. If a custom simulator is configured, supply the matching `VITE_PS_SERVER_HOST`, `VITE_PS_SERVER_PORT`, `VITE_PS_SERVER_PREFIX` and `VITE_PS_SERVER_SECURE` as shell variables. The script does not load `.env.local` or bypass hosting deployment protection.
+
+Without `LIVE_APP_URL`, `LIVE_PS_TESTS=1 npm run test:live` contacts `PS_LOGIN_SERVER` (or the official login server) directly. That mode remains an advisory upstream check and cannot verify a deployed proxy. Neither mode completes registered OAuth authorization or a battle; verify those separately as described above.

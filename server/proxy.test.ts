@@ -9,9 +9,44 @@ const request = (body: BodyInit = 'act=getassertion&userid=alice&challstr=4%7Cte
     method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', Origin: 'https://arena.example', ...headers }, body,
   });
 
-afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
+afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); vi.restoreAllMocks(); });
 
 describe('production proxy boundary', () => {
+  it('serves assertions when hosted fetch rejects the error redirect mode', async () => {
+    vi.stubGlobal('fetch', vi.fn((_url: string, options: RequestInit) => {
+      if (options.redirect === 'error') throw new TypeError('Hosted fetch cannot use this redirect mode');
+      return Promise.resolve(new Response('signed-assertion'));
+    }));
+    const response = await login(request());
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe('signed-assertion');
+  });
+
+  it('never follows upstream redirects or leaks their contents into diagnostics', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const fetchMock = vi.fn().mockResolvedValue(new Response('private-token-content', {
+      status: 307, headers: { Location: 'https://another.example/?token=private-token' },
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+    const response = await login(request());
+    expect(response.status).toBe(502);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][1].redirect).toBe('manual');
+    expect(response.headers.get('location')).toBeNull();
+    expect(await response.text()).not.toContain('private-token');
+    expect(log).toHaveBeenCalledWith('Upstream request failed', { service: 'login', stage: 'upstream-redirect', kind: 'Error' });
+    expect(JSON.stringify(log.mock.calls)).not.toContain('private-token');
+  });
+
+  it('rejects redirects immediately even when upstream body cancellation stalls', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const cancel = vi.fn(() => new Promise<void>(() => {}));
+    const body = new ReadableStream<Uint8Array>({ cancel });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(body, { status: 302 })));
+    expect((await login(request())).status).toBe(502);
+    expect(cancel).toHaveBeenCalledTimes(1);
+  }, 1000);
+
   it('forwards allowed requests without cookies and prevents upstream active HTML or cookies escaping', async () => {
     vi.stubEnv('PS_LOGIN_SERVER', 'https://login.example/action.php');
     const fetchMock = vi.fn().mockResolvedValue(new Response('assertion', { headers: { 'Content-Type': 'text/html', 'Set-Cookie': 'bad=value' } }));
