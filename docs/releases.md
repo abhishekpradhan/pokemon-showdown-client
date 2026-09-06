@@ -16,6 +16,14 @@ Create the version tag/release at the reviewed commit, describing behavior, test
 
 Run the deployed smoke from [self-hosting](self-hosting.md): static callback routing and headers, guest/OAuth where registered, controlled battle/reconnect, replay endpoints and an old-to-new worker update. Offline team editing must work after installation. Keep the previous deployment ready while verifying. Update release notes with links to CI and deployment evidence rather than claiming unrun tests.
 
+After confirming the deployed source revision, run this exact guest-proxy check with supported Node (replace the origin for another installation):
+
+```sh
+LIVE_PS_TESTS=1 LIVE_APP_URL=https://showdown-arena.vercel.app npm run test:live
+```
+
+Retain its mode and boolean handshake evidence. A failure is a deployment verification blocker: a successful direct-provider smoke cannot substitute for a failed deployed `/api/action` request. This opt-in test uses an ephemeral guest, sends no chat or matchmaking commands, and requires a signed assertion plus the actual named simulator acknowledgement. Continue the separate registered OAuth, controlled battle/replay and offline/update checks; do not treat the guest check alone as a complete release verification.
+
 ## Rollback
 
 Restore the previous immutable deployment, verify its source metadata and live connection, and communicate the affected version/recovery steps in the release record. Browser workers only activate a new app version after their manifest is installed; users can apply it or repair app caches without clearing teams. Consider storage compatibility before rollback; preserve exports/recovery records and prefer a forward fix if the older client cannot read the current schema.

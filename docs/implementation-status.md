@@ -46,10 +46,11 @@ The [audit](project-audit-2026-09-05.md) describes the original `f48e68fc` basel
 
 ## Verification record
 
-- Integrated TypeScript/ESLint checks and 195 unit tests in 32 files passed on Node 24. API handlers also pass NodeNext module-resolution checks used by the deployment runtime.
+- Integrated TypeScript/ESLint checks and 211 unit tests in 33 files passed on Node 24. API handlers also pass NodeNext module-resolution checks used by the deployment runtime.
 - The full Chromium/mobile/Firefox/WebKit workflow matrix passed 277 checks, with three intentional desktop skips for the mobile-only touch test. The four desktop/mobile visual references were regenerated and visually reviewed. CI repeats these gates against the committed tree.
 - The pinned real-server run completed guest handshakes, a real unrated battle through turn 2, and a complete private tournament. See [local integration](local-integration.md). Its isolated upstream test dependencies are distinct from the shipped dependency lock.
 - Production build, three production browser checks, and the 390-entry license inventory pass. Initial gzip bundle is within the 300 KiB gate; all shipped assets remain within the documented budgets. The shipped dependency audit reports zero advisories.
+- Hosted verification caught an Edge runtime incompatibility with the proxy's redirect-error mode. Manual fetch mode with explicit rejection of all upstream redirects preserves the boundary and completes a real signed guest handshake. The release smoke now targets the actual deployed proxy and requires the simulator's named-user acknowledgement.
 - Private vulnerability reporting, Dependabot alerts/security fixes and secret scanning/push protection are enabled on the public repository. Main requires an up-to-date pull request, the aggregate Release checks status, resolved conversations and linear history; administrator bypass, force pushes and deletion are disabled. The single-maintainer workflow does not claim an independent approving review.
 - Exact committed CI and production deployment/provenance results are retained in the [1.1.0 release evidence](https://github.com/abhishekpradhan/pokemon-showdown-client/releases/tag/v1.1.0).
 

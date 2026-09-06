@@ -82,13 +82,14 @@ export async function proxyForm(request: Request, options: ProxyOptions): Promis
   const form = new URLSearchParams(body);
   const invalid = options.validate(form);
   if (invalid) return reply(invalid, 400);
+  let stage = 'upstream-fetch';
   try {
     const upstreamUrl = new URL(options.upstream);
     if (!['https:', 'http:'].includes(upstreamUrl.protocol) || upstreamUrl.username || upstreamUrl.password) {
       return reply('Invalid upstream configuration.', 503);
     }
     const signal = AbortSignal.timeout(options.timeout);
-    const upstream = await fetch(upstreamUrl, {
+    const upstream = await fetch(upstreamUrl.href, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -96,11 +97,24 @@ export async function proxyForm(request: Request, options: ProxyOptions): Promis
       },
       body: form.toString(),
       signal,
-      redirect: 'error',
+      // The hosted Edge fetch implementation throws for redirect: 'error'
+      // even on a non-redirect response. Manual mode plus the status guard
+      // below preserves the no-forwarding boundary on that runtime.
+      redirect: 'manual',
     });
+    stage = 'upstream-response';
+    if (upstream.status >= 300 && upstream.status < 400) {
+      stage = 'upstream-redirect';
+      void upstream.body?.cancel().catch(() => {});
+      throw new Error('Upstream redirects are not supported');
+    }
     const text = await readBoundedBody(upstream.body, options.responseLimit, signal);
-    return reply([204, 205, 304].includes(upstream.status) ? null : text, upstream.status);
-  } catch {
+    return reply([204, 205].includes(upstream.status) ? null : text, upstream.status);
+  } catch (error) {
+    const kind = error instanceof Error && ['Error', 'TypeError', 'RangeError', 'TimeoutError', 'AbortError', 'BodyLimitError'].includes(error.name) ? error.name : 'UnknownError';
+    // Error messages, causes, URLs and request/response contents can contain
+    // credentials. Record only fixed categories useful for runtime diagnosis.
+    console.error('Upstream request failed', { service: options.label, stage, kind });
     return reply(`The ${options.label} server did not respond successfully.`, 502);
   }
 }
