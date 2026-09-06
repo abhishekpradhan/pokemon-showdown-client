@@ -119,7 +119,11 @@ try {
     player.send('/utm null');
   }
   evidence.push('Two real protocol clients: handshake, format catalog and guest identity accepted.');
-  const profileConfirmation = await verifyProfileConfirmation({ player: alice, evidence });
+  const profileConfirmation = await verifyProfileConfirmation({ player: alice, evidence, setThrottle: async enabled => {
+    const ready = childMessage('profile-throttle-ready');
+    server.send({ type: 'profile-throttle', enabled });
+    assert.equal((await ready).enabled, enabled);
+  } });
   alice.send('/challenge ArenaBob, gen9randombattle');
   await bob.wait(line('pm', args => args[0].trim() === 'ArenaAlice' && args[2] === '/challenge gen9randombattle'), 'incoming direct challenge');
   bob.send('/accept ArenaAlice');

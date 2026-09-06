@@ -378,9 +378,9 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
     const avatar = useWorkspaceStore.getState().preferredAvatar;
     if (!named || connection !== 'connected' || !isPublicAvatar(avatar)) return false;
     if (protocol.send(`/avatar ${avatar}`) === false) return false;
-    // /avatar replies with chat HTML, not updateuser. Read our own structured
-    // details to confirm what the server actually applied.
-    return protocol.send(`/cmd userdetails ${toId(username)}`) !== false;
+    // /avatar replies with chat HTML, not updateuser. /query shares its queue;
+    // /cmd userdetails bypasses throttling and can read before /avatar applies.
+    return protocol.send(`/query userdetails ${toId(username)}`) !== false;
   },
   setServer: input => {
     const server = parseServerInput(input, get().server);

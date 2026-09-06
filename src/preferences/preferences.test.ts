@@ -35,7 +35,7 @@ describe('preferences persistence and server confirmation', () => {
     useArenaStore.setState({ named: true, username: 'PreferenceTester', connection: 'connected', avatar: 'dawn', serverLanguage: 'english', loginPending: false });
     useWorkspaceStore.getState().setPreference('preferredAvatar', 'lucas');
     useWorkspaceStore.getState().setPreference('serverLanguage', 'french');
-    expect(send.mock.calls.map(args => args[0])).toEqual(['/avatar lucas', '/cmd userdetails preferencetester', '/language french']);
+    expect(send.mock.calls.map(args => args[0])).toEqual(['/avatar lucas', '/query userdetails preferencetester', '/language french']);
     expect(useArenaStore.getState().avatar).toBe('dawn');
     const settled = vi.fn(); useArenaStore.setState({ onLoginSettled: settled });
     routeFrame(parsePsFrame('|updateuser| PreferenceTester|1|lucas|{"language":"french"}'), useArenaStore);
@@ -50,7 +50,7 @@ describe('preferences persistence and server confirmation', () => {
     const settled = vi.fn();
     useArenaStore.setState({ named: true, username: 'PreferenceTester', connection: 'connected', avatar: 'dawn', loginPending: false, onLoginSettled: settled });
     useWorkspaceStore.getState().setPreference('preferredAvatar', 'lucas');
-    expect(send.mock.calls.map(args => args[0])).toEqual(['/avatar lucas', '/cmd userdetails preferencetester']);
+    expect(send.mock.calls.map(args => args[0])).toEqual(['/avatar lucas', '/query userdetails preferencetester']);
     routeFrame(parsePsFrame('|raw|<img src="https://play.pokemonshowdown.com/sprites/trainers/lucas.png" />'), useArenaStore);
     routeFrame(parsePsFrame('|queryresponse|userdetails|{"userid":"someoneelse","avatar":1,"rooms":{}}'), useArenaStore);
     expect(useArenaStore.getState().avatar).toBe('dawn');
@@ -86,7 +86,7 @@ describe('preferences persistence and server confirmation', () => {
     useArenaStore.getState().onLoginSettled();
     useArenaStore.getState().applyAvatarPreference();
     expect(send.mock.calls.map(args => args[0])).toEqual([
-      '/avatar lucas', '/cmd userdetails preferencetester', '/avatar lucas', '/cmd userdetails preferencetester',
+      '/avatar lucas', '/query userdetails preferencetester', '/avatar lucas', '/query userdetails preferencetester',
     ]);
     send.mockClear().mockReturnValue(false);
     expect(useArenaStore.getState().applyAvatarPreference()).toBe(false);

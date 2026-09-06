@@ -6,6 +6,16 @@ const server = require(path.resolve('dist/server'));
 server.readyPromise.then(() => {
   global.LoginServer.disabled = true;
   process.on('message', message => {
+    if (message.type === 'profile-throttle') {
+      const user = global.Users.get('arenaalice');
+      assert(user?.connected && !user.hasSysopAccess() && !user.trusted && !user.isPublicBot);
+      assert.equal(typeof message.enabled, 'boolean');
+      // Exercise the actual guest command queue for profile ordering, then
+      // restore the faster battle harness. Queue methods/timers are untouched.
+      global.Config.nothrottle = !message.enabled;
+      process.send?.({ type: 'profile-throttle-ready', enabled: message.enabled });
+      return;
+    }
     if (message.type === 'prepare-replay') {
       // Preserve the real /hidereplay and /savereplay handlers. Only the
       // publication backend is replaced; no replay leaves this process.
