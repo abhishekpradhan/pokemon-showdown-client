@@ -42,7 +42,7 @@ test('OAuth callback stays separate under CSP and cannot replace the offline tea
   await page.reload();
   await page.getByRole('link', { name: 'Teams', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Teams', exact: true })).toBeVisible();
-  await page.getByLabel('New team', { exact: true }).click();
+  await page.getByRole('complementary', { name: 'Saved teams' }).getByLabel('New team', { exact: true }).click();
   await expect(page.getByRole('textbox', { name: 'Team name', exact: true })).toBeVisible();
   await page.getByRole('textbox', { name: 'Team name', exact: true }).fill('Offline regression team');
   await page.getByRole('button', { name: 'Add Pokémon', exact: true }).first().click();
@@ -55,7 +55,8 @@ test('OAuth callback stays separate under CSP and cannot replace the offline tea
   await page.getByRole('button', { name: 'Save as new team', exact: true }).click();
   await page.reload();
   await expect(page.getByRole('textbox', { name: 'Team name', exact: true })).toHaveValue('Offline regression team');
-  await expect(page.getByRole('button', { name: 'Edit Pikachu', exact: true })).toContainText('Thunderbolt');
+  await page.getByRole('button', { name: 'Edit Pikachu', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Move 1', exact: true })).toContainText('Thunderbolt');
   await expect(page.getByText('Finishing sign-in…')).toHaveCount(0);
   await expect(page.locator('vite-error-overlay')).toHaveCount(0);
   await page.screenshot({ path: testInfo.outputPath('offline-team-editor.png'), fullPage: true });

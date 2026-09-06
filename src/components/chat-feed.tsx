@@ -1,5 +1,5 @@
 import { clsx } from 'clsx';
-import { Fragment, memo, type MouseEvent, type ReactNode } from 'react';
+import { Fragment, memo, useState, type MouseEvent, type ReactNode } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import type { ChatMessage } from '../rooms/types';
 import { sanitizeChatHtml, isSafeChatCommand, normalizeChatHref } from './chat-html';
@@ -35,9 +35,17 @@ const URL_PATTERN = /(https?:\/\/[^\s<>"']+[^\s<>"'.,;:!?)])/g;
 /** `**bold**`, `__italic__`, `` `code` ``, `~~strike~~`, `||spoiler||`, links. */
 const INLINE_PATTERN = /(\*\*[^*\n]+\*\*|__[^_\n]+__|`[^`\n]+`|~~[^~\n]+~~|\|\|[^|\n]+\|\|)/g;
 
+function Spoiler({ text }: { text: string }) {
+  const [revealed, setRevealed] = useState(false);
+  return <button type="button" className={clsx('chat-spoiler', revealed && 'is-revealed')} aria-expanded={revealed}
+    aria-label={revealed ? `Hide spoiler: ${text}` : 'Reveal spoiler'} onClick={() => setRevealed(value => !value)}>
+    <span aria-hidden={!revealed}>{text}</span>
+  </button>;
+}
+
 const renderSegment = (segment: string, key: number): ReactNode => {
   if (segment.startsWith('||') && segment.endsWith('||')) {
-    return <span className="chat-spoiler" key={key} tabIndex={0} title="Spoiler">{segment.slice(2, -2)}</span>;
+    return <Spoiler key={key} text={segment.slice(2, -2)} />;
   }
   if (segment.startsWith('**') && segment.endsWith('**')) {
     return <strong key={key}>{segment.slice(2, -2)}</strong>;
@@ -76,12 +84,13 @@ const formatTime = (timestamp?: number) => {
   return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
-export const ChatFeed = memo(function ChatFeed({ messages, selfName, onCommand, onUserClick, announce = false, label = 'Chat history' }: {
+export const ChatFeed = memo(function ChatFeed({ messages, selfName, onCommand, onUserClick, announce = false, label = 'Chat history', emptyText = 'No messages yet.' }: {
   messages: ChatMessage[];
   selfName?: string;
   /** Opt in only for live conversation; replay/history views stay quiet. */
   announce?: boolean;
   label?: string;
+  emptyText?: string;
   /** Receives the `value` of sanitized HTML command buttons (poll votes, etc.). */
   onCommand?: (command: string) => void;
   /** Makes author names clickable (user cards). */
@@ -89,6 +98,7 @@ export const ChatFeed = memo(function ChatFeed({ messages, selfName, onCommand, 
 }) {
   const navigate = useNavigate();
   const { timestamps, ignoredUsers, highlights } = useWorkspaceStore();
+  const visibleMessages = messages.filter(message => !ignoredUsers.includes(toId(message.user)));
   const announcements = useChatAnnouncements(messages, announce, selfName);
   const handleHtmlClick = (event: MouseEvent<HTMLDivElement>) => {
     const target = (event.target as HTMLElement).closest<HTMLElement>('[data-cmd],button[value],[data-href],a[href]');
@@ -108,10 +118,10 @@ export const ChatFeed = memo(function ChatFeed({ messages, selfName, onCommand, 
   return (
     <>
     <div role="log" aria-label={label} aria-live="off">
-    {!messages.length ? <p className="chat-empty">No messages yet.</p> : <ol className="chat-feed-list">
-      {messages.filter(message => !ignoredUsers.includes(toId(message.user))).map((message, index) => {
+    {!visibleMessages.length ? <p className="chat-empty">{messages.length ? 'Messages from ignored users are hidden.' : emptyText}</p> : <ol className="chat-feed-list">
+      {visibleMessages.map((message, index) => {
         const key = message.uhtmlName || `${message.timestamp || index}-${index}`;
-        const self = !!selfName && message.user.toLowerCase() === selfName.toLowerCase();
+        const self = !!selfName && toId(message.user) === toId(selfName);
 
         if (message.kind === 'html') {
           return (

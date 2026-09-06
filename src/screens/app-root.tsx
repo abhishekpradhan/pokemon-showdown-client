@@ -26,8 +26,8 @@ import { openChallenge } from '../compat/ui-events';
 export function AppRoot() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { challenges, chooseName, connect, connection, disconnect, lastError, loginPending, loginWithOAuth, logout, named, oauthAvailable, reconnect, rejectChallenge, rooms, username } = useArenaStore(
-    useShallow(state => ({ challenges: state.challenges, rejectChallenge: state.rejectChallenge, chooseName: state.chooseName, connect: state.connect, connection: state.connection, disconnect: state.disconnect, lastError: state.lastError, loginPending: state.loginPending, loginWithOAuth: state.loginWithOAuth, logout: state.logout, named: state.named, oauthAvailable: state.oauthAvailable, reconnect: state.reconnect, rooms: state.rooms, username: state.username }))
+  const { challenges, chooseName, connect, connection, lastError, loginPending, loginWithOAuth, logout, named, oauthAvailable, reconnect, rejectChallenge, rooms, username } = useArenaStore(
+    useShallow(state => ({ challenges: state.challenges, rejectChallenge: state.rejectChallenge, chooseName: state.chooseName, connect: state.connect, connection: state.connection, lastError: state.lastError, loginPending: state.loginPending, loginWithOAuth: state.loginWithOAuth, logout: state.logout, named: state.named, oauthAvailable: state.oauthAvailable, reconnect: state.reconnect, rooms: state.rooms, username: state.username }))
   );
   const { notificationsEnabled, setTheme, theme, reducedMotion } = useWorkspaceStore();
   const sessionNotice = useArenaStore(state => state.sessionNotice);
@@ -36,22 +36,44 @@ export function AppRoot() {
   const [accountOpen, setAccountOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const submittedAccountRef = useRef(false);
+  const pendingAccountRef = useRef(false);
+  const [accountAttempted, setAccountAttempted] = useState(false);
+  const accountOpenerRef = useRef<HTMLElement | null>(null);
+  const accountInputRef = useRef<HTMLInputElement>(null);
+  const accountNavigationRef = useRef(false);
+  const previousPathRef = useRef(location.pathname);
   const accountLabel = named ? username : 'Unnamed guest';
   const focusWorkspace = () => document.getElementById('workspace')?.focus();
+  const openAccount = (opener: HTMLElement) => {
+    accountOpenerRef.current = opener;
+    accountNavigationRef.current = false;
+    setNameInput(named ? username : '');
+    setAccountAttempted(false);
+    setNotificationsOpen(false);
+    setAccountOpen(true);
+  };
+  const cancelAccountLogin = () => {
+    submittedAccountRef.current = false;
+    pendingAccountRef.current = false;
+    useArenaStore.getState().cancelLogin();
+  };
   const routeBattleId = location.pathname.startsWith('/battle/') ?
     location.pathname.slice('/battle/'.length) : undefined;
   const routeBattle = routeBattleId ? rooms[routeBattleId] : undefined;
+  const routeRoom = location.pathname.startsWith('/room/') ? rooms[location.pathname.slice('/room/'.length)] : undefined;
   const context = routeBattleId ?
     {
       label: (routeBattle?.type === 'battle' ? routeBattle.battle.format : undefined) || 'Live battle',
       meta: routeBattleId,
     } :
-    location.pathname === '/teambuilder' ? { label: 'Team workspace', meta: 'Local teams' } :
-    location.pathname === '/rooms' ? { label: 'Room console', meta: 'Community' } :
-    location.pathname === '/ladder' ? { label: 'Rankings', meta: 'Public ladder' } :
-    location.pathname === '/replays' ? { label: 'Replay lab', meta: 'Review' } :
-    location.pathname === '/settings' ? { label: 'Client settings', meta: 'Preferences' } :
-    { label: 'Matchmaking', meta: 'Battle queue' };
+    location.pathname.startsWith('/room/') ? { label: routeRoom?.title || 'Conversation', meta: routeRoom?.type === 'pm' ? 'Private message' : 'Chat room' } :
+    location.pathname === '/teambuilder' ? { label: 'Teams', meta: 'Saved in this browser' } :
+    location.pathname === '/rooms' ? { label: 'Rooms', meta: 'Community' } :
+    location.pathname === '/battles' ? { label: 'Live battles', meta: 'Spectate' } :
+    location.pathname === '/ladder' ? { label: 'Ladder', meta: 'Player rankings' } :
+    location.pathname === '/replays' ? { label: 'Replays', meta: 'Battle review' } :
+    location.pathname === '/settings' ? { label: 'Settings', meta: 'Preferences' } :
+    { label: 'Battle', meta: 'Find an opponent' };
   const incomingChallenges = Object.entries(challenges.from);
   // The badge tells the truth: it counts exactly what the popover lists.
 
@@ -62,6 +84,7 @@ export function AppRoot() {
   const submitName = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     submittedAccountRef.current = true;
+    setAccountAttempted(true);
     void chooseName(nameInput);
   };
 
@@ -72,7 +95,8 @@ export function AppRoot() {
   useEffect(() => {
     const sync = () => {
       const match = location.pathname.match(/^\/(battle|room)\/([^/]+)/);
-      const id = match ? decodeURIComponent(match[2]) : undefined;
+      let id: string | undefined;
+      try { id = match ? decodeURIComponent(match[2]) : undefined; } catch { /* Invalid route has no focused room. */ }
       useArenaStore.getState().focusRoom(document.hidden ? undefined : id);
     };
     sync();
@@ -85,7 +109,16 @@ export function AppRoot() {
       const path = (event as CustomEvent<string>).detail;
       if (/^\/(?:room|battle)\/[a-z0-9-]+$/.test(path)) void navigate({ to: path });
     };
-    const account = () => setAccountOpen(true);
+    const account = (event: Event) => {
+      const opener = (event as CustomEvent<unknown>).detail;
+      accountNavigationRef.current = false;
+      accountOpenerRef.current = opener instanceof HTMLElement ? opener : document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      const state = useArenaStore.getState();
+      setNameInput(state.named ? state.username : '');
+      setAccountAttempted(false);
+      setNotificationsOpen(false);
+      setAccountOpen(true);
+    };
     window.addEventListener('arena:open-room', open);
     window.addEventListener('arena:open-account', account);
     return () => { window.removeEventListener('arena:open-room', open); window.removeEventListener('arena:open-account', account); };
@@ -94,11 +127,21 @@ export function AppRoot() {
   useEffect(() => { document.documentElement.dataset.reduceMotion = String(reducedMotion); }, [reducedMotion]);
 
   useEffect(() => {
-    if (submittedAccountRef.current && accountOpen && named && !loginPending) {
+    if (previousPathRef.current === location.pathname) return;
+    previousPathRef.current = location.pathname;
+    setNotificationsOpen(false);
+    const workspace = document.getElementById('workspace');
+    if (workspace) { workspace.scrollTop = 0; workspace.focus({ preventScroll: true }); }
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (submittedAccountRef.current && accountOpen && loginPending) pendingAccountRef.current = true;
+    if (submittedAccountRef.current && pendingAccountRef.current && accountOpen && named && !loginPending && !lastError) {
       submittedAccountRef.current = false;
+      pendingAccountRef.current = false;
       setAccountOpen(false);
     }
-  }, [accountOpen, loginPending, named]);
+  }, [accountOpen, lastError, loginPending, named]);
 
   // Resolve the theme preference to a concrete data-theme, tracking the OS
   // when set to "system".
@@ -198,24 +241,26 @@ export function AppRoot() {
                 ))}
               </div>
               <div className="notification-wrap">
+                <Dialog.Root open={notificationsOpen} onOpenChange={setNotificationsOpen} modal={false}>
+                <Dialog.Trigger asChild>
                 <button
                   className={clsx('notification-button', notificationsOpen && 'is-active')}
                   type="button"
                   aria-label="Notifications"
                   aria-expanded={notificationsOpen}
-                  onClick={() => setNotificationsOpen(open => !open)}
                 >
                   <Bell size={17} aria-hidden />
                   {notificationsEnabled && badgeCount > 0 && <span>{badgeCount}</span>}
                 </button>
-                {notificationsOpen && (
-                  <div className="notification-popover">
+                </Dialog.Trigger>
+                  <Dialog.Content className="notification-popover">
                     <div className="popover-heading">
-                      <strong>Updates</strong>
-                      <button type="button" className="icon-button" aria-label="Close notifications" onClick={() => setNotificationsOpen(false)}>
+                      <Dialog.Title asChild><strong>Updates</strong></Dialog.Title>
+                      <Dialog.Close className="icon-button" aria-label="Close notifications">
                         <X size={15} />
-                      </button>
+                      </Dialog.Close>
                     </div>
+                    <Dialog.Description className="visually-hidden">Incoming challenges and unread private messages.</Dialog.Description>
                     {!notificationsEnabled ? <p className="popover-empty">Activity notifications are disabled in Settings.</p> : (
                       <>
                         {incomingChallenges.map(([challenger, format]) => (
@@ -254,57 +299,47 @@ export function AppRoot() {
                         )}
                       </>
                     )}
-                  </div>
-                )}
+                  </Dialog.Content>
+                </Dialog.Root>
               </div>
-              <Dialog.Root open={accountOpen} onOpenChange={open => { setAccountOpen(open); if (!open) useArenaStore.getState().cancelLogin(); }}>
+              <Dialog.Root open={accountOpen} onOpenChange={open => { setAccountOpen(open); if (!open) cancelAccountLogin(); }}>
+                <Dialog.Trigger asChild>
                 <button
                   className="user-trigger"
                   type="button"
                   aria-label={accountLabel}
-                  onClick={() => {
-                    setNameInput(named ? username : '');
-                    setAccountOpen(true);
-                  }}
+                  onClick={event => openAccount(event.currentTarget)}
                 >
                   <Bot size={18} aria-hidden />
-                  <span>{accountLabel}</span>
+                  <span>{named ? username : 'Choose name'}</span>
                   <ChevronDown size={13} aria-hidden />
                 </button>
+                </Dialog.Trigger>
                 <Dialog.Portal>
                   <Dialog.Overlay className="dialog-overlay" />
-                  <Dialog.Content className="account-dialog">
+                  <Dialog.Content className="account-dialog"
+                    onOpenAutoFocus={event => { event.preventDefault(); accountInputRef.current?.focus(); accountInputRef.current?.select(); }}
+                    onCloseAutoFocus={event => {
+                      if (accountNavigationRef.current) { event.preventDefault(); document.getElementById('workspace')?.focus({ preventScroll: true }); }
+                      else if (accountOpenerRef.current?.isConnected) { event.preventDefault(); accountOpenerRef.current.focus(); }
+                    }}
+                  >
                     <div className="dialog-heading">
                       <div>
                         <Dialog.Title>{named ? 'Account connected' : 'Choose name'}</Dialog.Title>
                         <Dialog.Description>
-                          {named ? `Signed in as ${username}.` : 'Pick a name to start battling.'}
+                          {named ? `Playing as ${username}.` : 'Use a guest name, or sign in to your existing account.'}
                         </Dialog.Description>
                       </div>
                       <Dialog.Close className="icon-button" aria-label="Close account dialog">
                         <X size={17} />
                       </Dialog.Close>
                     </div>
-                    <div className="account-oauth">
-                      <button
-                        className="primary-action"
-                        type="button"
-                        disabled={loginPending || !oauthAvailable || connection !== 'connected'}
-                        onClick={() => { submittedAccountRef.current = true; void loginWithOAuth(); }}
-                      >
-                        <ShieldCheck size={15} aria-hidden />
-                        {loginPending ? 'Signing in…' : 'Sign in with Pokémon Showdown'}
-                      </button>
-                      <p className="account-hint">
-                        {oauthAvailable ?
-                          'Opens Pokémon Showdown to authorize this client. Your password stays with Pokémon Showdown. You can revoke access from your account there.' :
-                          'Registered sign-in is unavailable on this installation. You can use an unregistered guest name, or play on the official client.'}
-                      </p>
-                    </div>
                     <form className="account-form" onSubmit={submitName}>
                       <label>
                         <span>Guest name</span>
                         <input
+                          ref={accountInputRef}
                           aria-label="Username"
                           placeholder="Pick any unused name"
                           autoComplete="username"
@@ -313,16 +348,15 @@ export function AppRoot() {
                         />
                       </label>
                       <p className="account-hint">
-                        Unregistered names work immediately and claim nothing — registered
-                        accounts must use the button above.
+                        Guest names are temporary and are not reserved for you.
                       </p>
                       {connection !== 'connected' && <StatusCallout tone="error">Connect before choosing a name.</StatusCallout>}
                       {loginPending && <StatusCallout>{loginStage === 'authorization' ? 'Complete sign-in in the authorization window.' : 'Waiting for server confirmation.'}</StatusCallout>}
-                      {loginPending && <button className="secondary-action" type="button" onClick={() => useArenaStore.getState().cancelLogin()}>Cancel sign-in</button>}
+                      {loginPending && <button className="secondary-action" type="button" onClick={cancelAccountLogin}>Cancel sign-in</button>}
                       {sessionNotice && <StatusCallout>{sessionNotice}</StatusCallout>}
-                      {lastError && <StatusCallout tone="error">{lastError}</StatusCallout>}
+                      {accountAttempted && lastError && <StatusCallout tone="error">{lastError}</StatusCallout>}
                       <div className="button-row">
-                        <button className="secondary-action" type="submit" disabled={loginPending || !nameInput.trim()}>
+                        <button className="primary-action" type="submit" disabled={loginPending || !nameInput.trim() || connection !== 'connected'}>
                           {loginPending ? 'Submitting…' : 'Use guest name'}
                         </button>
                         {named && (
@@ -330,12 +364,26 @@ export function AppRoot() {
                             Log out
                           </button>
                         )}
-                        <button className="secondary-action" type="button" onClick={() => connection === 'connected' ? disconnect() : reconnect()}>
-                          {connection === 'connected' ? 'Disconnect' : 'Reconnect'}
-                        </button>
-                        <Link className="secondary-action" to="/settings" onClick={() => setAccountOpen(false)}>Settings</Link>
+                        {connection !== 'connected' && <button className="secondary-action" type="button" onClick={reconnect}>Reconnect</button>}
+                        <Link className="secondary-action" to="/settings" onClick={() => { accountNavigationRef.current = true; cancelAccountLogin(); setAccountOpen(false); }}>Settings</Link>
                       </div>
                     </form>
+                    <div className="account-oauth">
+                      <button
+                        className="secondary-action"
+                        type="button"
+                        disabled={loginPending || !oauthAvailable || connection !== 'connected'}
+                        onClick={() => { submittedAccountRef.current = true; setAccountAttempted(true); void loginWithOAuth(); }}
+                      >
+                        <ShieldCheck size={15} aria-hidden />
+                        {loginPending ? 'Signing in…' : 'Sign in with Pokémon Showdown'}
+                      </button>
+                      <p className="account-hint">
+                        {oauthAvailable ?
+                          'Sign in securely on Pokémon Showdown. Your password stays there.' :
+                          'Registered sign-in is unavailable on this installation. You can use an unregistered guest name, or play on the official client.'}
+                      </p>
+                    </div>
                   </Dialog.Content>
                 </Dialog.Portal>
               </Dialog.Root>

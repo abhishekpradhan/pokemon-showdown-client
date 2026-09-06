@@ -7,10 +7,11 @@ test.beforeEach(async ({ page }) => {
 
 test('loads home with real readiness states and no demo language', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Ready when you are.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Find a battle' })).toBeVisible();
   await expect(page.getByText(/demo|fixture|preview/i)).toHaveCount(0);
-  await expect(page.getByText('Choose a player name')).toBeVisible();
-  await expect(page.getByRole('button', { name: /find battle/i })).toBeDisabled();
+  await expect(page.getByText('Name needed', { exact: true })).toBeVisible();
+  await expect(page.locator('.queue-action')).toHaveText('Choose name');
+  await expect(page.locator('.queue-action')).toBeEnabled();
 
   await page.getByRole('button', { name: /Unnamed guest/i }).click();
   await page.getByRole('textbox', { name: 'Username' }).fill('CodexTester');
@@ -121,6 +122,13 @@ test('closing the active tab moves to the neighbouring tab', async ({ page }) =>
 });
 
 test('teambuilder imports selects duplicates and deletes teams', async ({ page }) => {
+  const expectSavedTeam = async (name: string) => {
+    const library = page.getByRole('button', { name: /Team library/ });
+    const mobile = await library.isVisible();
+    if (mobile) await library.click();
+    await expect(page.getByLabel('Saved teams').getByText(name, { exact: true })).toBeVisible();
+    if (mobile) await library.click();
+  };
   await page.goto('/teambuilder');
   await page.getByRole('button', { name: 'New team' }).first().click();
   await page.getByRole('textbox', { name: 'Team name' }).fill('Builder Test');
@@ -133,14 +141,14 @@ test('teambuilder imports selects duplicates and deletes teams', async ({ page }
   // The import populated slot one; saving files it in the library.
   await expect(page.getByRole('button', { name: 'Edit Raichu' })).toBeVisible();
   await page.getByRole('button', { name: 'Save as new team' }).click();
-  await expect(page.getByLabel('Saved teams').getByText('Builder Test', { exact: true })).toBeVisible();
+  await expectSavedTeam('Builder Test');
 
   await page.getByRole('button', { name: 'Duplicate Builder Test' }).click();
   await expect(page.getByRole('button', { name: 'Duplicate Builder Test copy' })).toBeVisible();
   // Duplication preserves the visible edits as a recoverable draft; saving
   // publishes that copy to the library before it can be deleted from there.
   await page.getByRole('button', { name: 'Save as new team' }).click();
-  await expect(page.getByLabel('Saved teams').getByText('Builder Test copy', { exact: true })).toBeVisible();
+  await expectSavedTeam('Builder Test copy');
 
   await page.getByRole('button', { name: 'Delete Builder Test copy' }).click();
   await page.getByRole('button', { name: 'Delete team' }).click();
@@ -153,7 +161,7 @@ test('teambuilder imports selects duplicates and deletes teams', async ({ page }
 
 test('loads every primary route directly without placeholder language', async ({ page }) => {
   const routes = [
-    ['/', 'Ready when you are.'],
+    ['/', 'Find a battle'],
     ['/teambuilder', 'Teams'],
     ['/rooms', 'Rooms'],
     ['/ladder', 'Ladder'],
@@ -196,7 +204,7 @@ test('keeps mobile battle controls usable without horizontal overflow', async ({
 
 test('provides keyboard access to the main workspace', async ({ page, browserName }) => {
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Ready when you are.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Find a battle' })).toBeVisible();
   // Safari on macOS uses Option-Tab to include links with default keyboard settings.
   // https://support.apple.com/guide/safari/keyboard-shortcuts-and-gestures-cpsh003/mac
   await page.keyboard.press(browserName === 'webkit' && process.platform === 'darwin' ? 'Alt+Tab' : 'Tab');
@@ -207,11 +215,11 @@ test('provides keyboard access to the main workspace', async ({ page, browserNam
 
 test('supports keyboard selection and command focus', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Ready when you are.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Find a battle' })).toBeVisible();
 
   // '/' opens the command palette; arrows + Enter run the highlighted result.
   await page.keyboard.press('/');
-  const paletteInput = page.getByRole('textbox', { name: 'Search commands' });
+  const paletteInput = page.getByRole('combobox', { name: 'Search commands' });
   await expect(paletteInput).toBeFocused();
   await paletteInput.fill('teams');
   await page.keyboard.press('Enter');

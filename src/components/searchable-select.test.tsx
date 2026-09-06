@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import * as Dialog from '@radix-ui/react-dialog';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { SearchableSelect } from './searchable-select';
 
 describe('SearchableSelect keyboard navigation', () => {
@@ -30,5 +31,35 @@ describe('SearchableSelect keyboard navigation', () => {
     fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Escape' });
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
     expect(trigger).toHaveFocus();
+  });
+
+  it('clears a dismissed search and exits the popup on Tab without selecting', () => {
+    const onValueChange = vi.fn();
+    render(<><SearchableSelect ariaLabel="Format" options={[{ value: 'ou', label: 'OU' }, { value: 'uu', label: 'UU' }]} onValueChange={onValueChange} /><button>Outside</button></>);
+    const trigger = screen.getByRole('button', { name: 'Format' });
+    fireEvent.click(trigger);
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'missing' } });
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'Outside' }));
+    fireEvent.click(trigger);
+    expect(screen.getByRole('combobox')).toHaveValue('');
+    expect(screen.getAllByRole('option')).toHaveLength(2);
+    fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Tab' });
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+    expect(onValueChange).not.toHaveBeenCalled();
+  });
+
+  it('keeps a modal popup inside its focus scope and consumes only the first Escape', async () => {
+    render(<Dialog.Root defaultOpen><Dialog.Portal><Dialog.Content><Dialog.Title>Challenge</Dialog.Title><Dialog.Description>Select a format</Dialog.Description><SearchableSelect ariaLabel="Format" options={[{ value: 'ou', label: 'OU' }]} onValueChange={vi.fn()} /></Dialog.Content></Dialog.Portal></Dialog.Root>);
+    const trigger = screen.getByRole('button', { name: 'Format' });
+    fireEvent.click(trigger);
+    const input = screen.getByRole('combobox');
+    expect(input.closest('[role=dialog]')).toBe(screen.getByRole('dialog'));
+    expect(input).toHaveFocus();
+    fireEvent.keyDown(input, { key: 'Escape' });
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+    fireEvent.keyDown(trigger, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 });

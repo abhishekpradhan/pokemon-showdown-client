@@ -1,11 +1,12 @@
 import * as Dialog from '@radix-ui/react-dialog';
 import { useNavigate } from '@tanstack/react-router';
-import { Hash, LayoutGrid, Search, Shield, Swords } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Hash, LayoutGrid, Search, Shield, Swords, X } from 'lucide-react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { navItems } from '../navigation';
 import { toId } from '../compat/protocol-parsers';
 import { useArenaStore } from '../stores/arena-store';
+import { battleSupport } from '../compat/battle-adapter';
 
 /**
  * The command palette. The topbar shows a compact trigger; the palette itself
@@ -38,13 +39,25 @@ export function CommandBar() {
   const [query, setQuery] = useState('');
   const [highlight, setHighlight] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
+  const openerRef = useRef<HTMLElement | null>(null);
+  const executedRef = useRef(false);
+  const resultsId = useId();
+  const openPalette = (opener: HTMLElement) => {
+    openerRef.current = opener;
+    executedRef.current = false;
+    setQuery(''); setHighlight(0); setOpen(true);
+  };
 
   useEffect(() => {
     const handleShortcut = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
-      const isTyping = target?.matches('input, textarea, [contenteditable="true"]');
-      if ((event.key === 'k' && (event.metaKey || event.ctrlKey)) || (event.key === '/' && !isTyping)) {
+      const isTyping = target?.matches('input, textarea, select') || target?.isContentEditable;
+      if (event.isComposing || event.defaultPrevented || target?.closest('[role="dialog"]')) return;
+      if ((event.key.toLowerCase() === 'k' && (event.metaKey || event.ctrlKey)) || (event.key === '/' && !isTyping && !event.altKey && !event.metaKey && !event.ctrlKey)) {
         event.preventDefault();
+        openerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        executedRef.current = false;
+        setQuery(''); setHighlight(0);
         setOpen(true);
       }
     };
@@ -54,8 +67,10 @@ export function CommandBar() {
 
   const commands = useMemo((): Command[] => {
     const go = (fn: () => void) => () => {
+      executedRef.current = true;
       setOpen(false);
       setQuery('');
+      setHighlight(0);
       fn();
     };
     const pages: Command[] = navItems.map(item => ({
@@ -84,11 +99,11 @@ export function CommandBar() {
       hint: team.format,
       run: go(() => {
         selectTeam(team.id);
-        void navigate({ to: '/teambuilder' });
+        void navigate({ to: '/teambuilder', search: { team: team.id } });
       }),
     }));
     const formatCommands: Command[] = formats
-      .filter(format => format.searchShow || format.challengeShow)
+      .filter(format => format.searchShow && battleSupport(format.id).supported)
       .map(format => ({
         id: `format-${format.id}`,
         group: 'Formats',
@@ -104,9 +119,10 @@ export function CommandBar() {
 
   const matches = useMemo(() => {
     const needle = query.trim().toLowerCase();
+    const normalizedNeedle = toId(needle);
     const pool = needle ?
       commands.filter(command =>
-        command.label.toLowerCase().includes(needle) || toId(command.label).includes(toId(needle))
+        command.label.toLowerCase().includes(needle) || (normalizedNeedle.length > 0 && toId(command.label).includes(normalizedNeedle))
       ) :
       // Empty query: pages and whatever is already open, not 400 formats.
       commands.filter(command => command.group === 'Pages' || command.group === 'Open sessions');
@@ -114,6 +130,7 @@ export function CommandBar() {
   }, [commands, query]);
 
   const move = (delta: number) => {
+    if (!matches.length) return;
     setHighlight(current => {
       const next = Math.min(Math.max(current + delta, 0), matches.length - 1);
       listRef.current
@@ -132,7 +149,7 @@ export function CommandBar() {
 
   return (
     <>
-      <button type="button" className="command-trigger" onClick={() => setOpen(true)}>
+      <button type="button" className="command-trigger" aria-label="Search" aria-haspopup="dialog" aria-expanded={open} onClick={event => openPalette(event.currentTarget)}>
         <Search size={15} aria-hidden />
         <span>Search</span>
         <kbd>{isMac ? '⌘K' : 'Ctrl K'}</kbd>
@@ -141,7 +158,13 @@ export function CommandBar() {
       <Dialog.Root open={open} onOpenChange={next => { setOpen(next); if (!next) { setQuery(''); setHighlight(0); } }}>
         <Dialog.Portal>
           <Dialog.Overlay className="dialog-overlay" />
-          <Dialog.Content className="command-palette" aria-label="Command palette">
+          <Dialog.Content className="command-palette" aria-label="Command palette"
+            onCloseAutoFocus={event => {
+              event.preventDefault();
+              if (executedRef.current) document.getElementById('workspace')?.focus({ preventScroll: true });
+              else if (openerRef.current?.isConnected) openerRef.current.focus();
+            }}
+          >
             <Dialog.Title className="visually-hidden">Search</Dialog.Title>
             <Dialog.Description className="visually-hidden">
               Jump to pages, formats, open sessions, or teams.
@@ -152,6 +175,11 @@ export function CommandBar() {
                 autoFocus
                 placeholder="Pages, formats, sessions, teams…"
                 aria-label="Search commands"
+                role="combobox"
+                aria-autocomplete="list"
+                aria-expanded="true"
+                aria-controls={resultsId}
+                aria-activedescendant={matches[highlight] ? `${resultsId}-${matches[highlight].id}` : undefined}
                 value={query}
                 onChange={event => {
                   setQuery(event.currentTarget.value);
@@ -160,12 +188,12 @@ export function CommandBar() {
                 onKeyDown={event => {
                   if (event.key === 'ArrowDown') { event.preventDefault(); move(1); }
                   if (event.key === 'ArrowUp') { event.preventDefault(); move(-1); }
-                  if (event.key === 'Enter') { event.preventDefault(); matches[highlight]?.run(); }
+                  if (event.key === 'Enter' && !event.nativeEvent.isComposing) { event.preventDefault(); matches[highlight]?.run(); }
                 }}
               />
-              <kbd>esc</kbd>
+              <Dialog.Close className="palette-close" aria-label="Close search"><X size={17} aria-hidden /></Dialog.Close>
             </div>
-            <div className="palette-results" ref={listRef} role="listbox" aria-label="Results">
+            <div className="palette-results" id={resultsId} ref={listRef} role="listbox" aria-label="Results">
               {groups.map(({ group, items }) => (
                 <div className="palette-group" key={group}>
                   <span className="palette-group-label">{group}</span>
@@ -173,6 +201,8 @@ export function CommandBar() {
                     <button
                       type="button"
                       key={command.id}
+                      id={`${resultsId}-${command.id}`}
+                      tabIndex={-1}
                       data-index={command.index}
                       role="option"
                       aria-selected={command.index === highlight}

@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { cloneElement, isValidElement, useEffect, useId, useRef, useState, type CSSProperties, type ReactElement, type ReactNode } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { createPortal } from 'react-dom';
 import { defensiveTypes, type BattleChoice, type PokemonSet } from '../compat/battle-adapter';
@@ -27,6 +27,7 @@ export function TooltipTrigger({ content, children, className, label = 'Battle d
   const [style, setStyle] = useState<CSSProperties>({});
   const anchorRef = useRef<HTMLSpanElement>(null);
   const tipRef = useRef<HTMLDivElement>(null);
+  const inspectionRef = useRef<HTMLDivElement>(null);
   const timer = useRef<number>(undefined);
 
   const show = () => {
@@ -61,9 +62,13 @@ export function TooltipTrigger({ content, children, className, label = 'Battle d
     const raf = requestAnimationFrame(place);
     const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') hide(); };
     document.addEventListener('keydown', onKey);
+    window.addEventListener('resize', place);
+    window.addEventListener('scroll', hide, true);
     return () => {
       cancelAnimationFrame(raf);
       document.removeEventListener('keydown', onKey);
+      window.removeEventListener('resize', place);
+      window.removeEventListener('scroll', hide, true);
     };
   }, [open]);
 
@@ -71,22 +76,23 @@ export function TooltipTrigger({ content, children, className, label = 'Battle d
     <span
       ref={anchorRef}
       className={['battle-tooltip-trigger', className].filter(Boolean).join(' ')}
-      aria-describedby={open && !pinned ? tooltipId : undefined}
-      onMouseEnter={show}
+      onPointerEnter={event => { if (event.pointerType === 'mouse' && !pinned) show(); }}
       onMouseLeave={hide}
-      onFocus={show}
+      onFocus={event => { if (!pinned && !(event.target instanceof HTMLElement && event.target.closest('.touch-inspect'))) show(); }}
       onBlur={hide}
     >
-      {children}
-      <button type="button" className="touch-inspect" aria-label={`Inspect ${label}`} onClick={() => { hide(); setPinned(true); }}>ⓘ</button>
+      {isValidElement(children) ? cloneElement(children as ReactElement<{ 'aria-describedby'?: string }>, { 'aria-describedby': open && !pinned ? tooltipId : undefined }) : children}
       <Dialog.Root open={pinned} onOpenChange={setPinned}>
+        <Dialog.Trigger asChild>
+          <button type="button" className="touch-inspect" aria-label={`Inspect ${label}`} onClick={hide}>ⓘ</button>
+        </Dialog.Trigger>
         <Dialog.Portal>
           <Dialog.Overlay className="dialog-overlay" />
-          <Dialog.Content className="battle-inspection account-dialog">
-            <Dialog.Title>{label}</Dialog.Title>
-            <Dialog.Description>Known battle information and move details.</Dialog.Description>
+          <Dialog.Content ref={inspectionRef} className="battle-inspection account-dialog" onOpenAutoFocus={event => { event.preventDefault(); inspectionRef.current?.focus(); }}>
+            <Dialog.Title className="visually-hidden">{label}</Dialog.Title>
+            <Dialog.Description className="visually-hidden">Known battle information and move details.</Dialog.Description>
             {content()}
-            <Dialog.Close className="secondary-action">Close details</Dialog.Close>
+            <Dialog.Close className="secondary-action battle-details-close">Close details</Dialog.Close>
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>

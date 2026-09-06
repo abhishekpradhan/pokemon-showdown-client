@@ -10,7 +10,7 @@
 .dialog-overlay {
   position: fixed;
   inset: 0;
-  z-index: 70;
+  z-index: 190;
   background: rgb(3 5 9 / 62%);
   backdrop-filter: blur(5px);
   animation: dialog-overlay-in var(--arena-base) var(--arena-ease);
@@ -20,7 +20,7 @@
   position: fixed;
   inset-block-start: 50%;
   inset-inline-start: 50%;
-  z-index: 80;
+  z-index: 200;
   overflow: auto;
   inline-size: min(460px, calc(100vw - 28px));
   max-block-size: calc(100svh - 28px);
@@ -147,3 +147,6 @@
   font-size: 12px;
   line-height: 1.5;
 }
+
+.account-form + .account-oauth { margin: 18px 0 0; padding: 16px 0 0; border-block-end: 0; border-block-start: 1px solid var(--arena-line); }
+.account-oauth .secondary-action { width: 100%; font-size: 13px; min-height: 42px; }

@@ -1,5 +1,5 @@
 import { Trash2 } from 'lucide-react';
-import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { calculateSetStats, defaultAbilityForSpecies, genForFormat, genFromFormat, getAbility, getItem, getMove, isDexLoaded, loadDex, onDexLoaded } from '../data/dex';
 import { pokemonIconStyle } from '../data/sprites';
 import { ALL_TYPES } from '../data/types';
@@ -29,20 +29,38 @@ const STAT_LABELS: Record<(typeof STAT_KEYS)[number], string> = {
 };
 const MAX_TOTAL_EVS = 510;
 
-export function SetEditor({ set, formatId, onChange, onRemove }: {
+export function SetEditor({ set, formatId, onChange, onRemove, focusSpecies = false }: {
   set: TeamSet;
   formatId: string;
   onChange: (next: TeamSet) => void;
   onRemove?: () => void;
+  focusSpecies?: boolean;
 }) {
   const ready = useDexReady();
   const [learnset, setLearnset] = useState<string[] | null>(null);
   const [dexError, setDexError] = useState('');
   const [unrestricted, setUnrestricted] = useState(false);
+  const headingRef = useRef<HTMLElement>(null);
+  const focusOrigin = useRef<Element | null>(null);
 
   useEffect(() => {
     void loadDex().catch(() => setDexError('Pokédex could not load. Check your connection and retry.'));
   }, []);
+
+  useEffect(() => {
+    if (!focusSpecies) return;
+    focusOrigin.current ??= document.activeElement;
+    if (!ready) return;
+    const frame = requestAnimationFrame(() => {
+      // The dex may arrive after the user has moved on to another field or
+      // dialog. Deferred focus must not interrupt that newer interaction.
+      if (document.activeElement !== focusOrigin.current) return;
+      const trigger = headingRef.current?.querySelector<HTMLButtonElement>('button[aria-label="Species"]');
+      trigger?.focus({ preventScroll: true });
+      trigger?.scrollIntoView?.({ block: 'center', inline: 'nearest' });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [ready, focusSpecies]);
 
   const generationNumber = genFromFormat(formatId);
   const permissive = unrestricted || /hackmons|almostanyability|customgame|balancedhackmons|mixandmega/.test(formatId);
@@ -93,13 +111,14 @@ export function SetEditor({ set, formatId, onChange, onRemove }: {
   }, [formatId, permissive, ready]);
 
   const abilityOptions = useMemo(() => {
+    if (!ready) return [];
     const generation = genForFormat(formatId, permissive);
     const species = generation?.species.get(set.species);
     if (permissive && generation) return [{ value: '', label: 'No ability' }, ...[...generation.abilities].map(entry => ({ value: entry.name, label: entry.name }))];
     if (!species) return [];
     const abilities = Object.values(species.abilities || {}).filter(Boolean) as string[];
     return abilities.map(name => ({ value: name, label: name, description: '' }));
-  }, [set.species, permissive, formatId]);
+  }, [set.species, permissive, formatId, ready]);
 
   const moveOptions = useMemo(() => {
     const generation = genForFormat(formatId, permissive);
@@ -127,7 +146,8 @@ export function SetEditor({ set, formatId, onChange, onRemove }: {
     }));
   }, [formatId, permissive, ready]);
 
-  const evTotal = STAT_KEYS.reduce((total, key) => total + (set.evs?.[key] || 0), 0);
+  const evTotal = STAT_KEYS.reduce((total, key) => total + (set.evs?.[key] ?? (generationNumber <= 2 ? 252 : 0)), 0);
+  const calculatedStats = calculateSetStats(set, generationNumber, defaultLevel);
 
   // Teams imported from packed text carry ids ("closecombat"); the selects
   // speak display names. Canonicalize for display — writes then naturally
@@ -159,7 +179,7 @@ export function SetEditor({ set, formatId, onChange, onRemove }: {
 
   return (
     <div className="set-editor">
-      <header className="set-editor-heading">
+      <header className="set-editor-heading" ref={headingRef}>
         <span className="set-editor-icon" style={pokemonIconStyle(set.species || 'substitute')} aria-hidden />
         <SearchableSelect
           ariaLabel="Species"
@@ -176,10 +196,8 @@ export function SetEditor({ set, formatId, onChange, onRemove }: {
         )}
       </header>
 
-      <label className="set-unrestricted"><input type="checkbox" checked={unrestricted} onChange={event => setUnrestricted(event.currentTarget.checked)} /> Show all moves and abilities</label>
-      <p className="set-editor-hint">Gen {generationNumber} suggestions. The server checks the selected format's clauses and custom rules.</p>
       <div className="set-editor-grid">
-        <label className="set-field">
+        {(generationNumber >= 2 || set.item) && <label className="set-field">
           <span>Item</span>
           <SearchableSelect
             ariaLabel="Held item"
@@ -189,9 +207,9 @@ export function SetEditor({ set, formatId, onChange, onRemove }: {
             value={itemValue}
             onValueChange={value => patch({ item: value || undefined })}
           />
-        </label>
-        <label className="set-field">
-          <span>Ability {generationNumber < 3 ? "(unused in this generation)" : ""}</span>
+        </label>}
+        {(generationNumber >= 3 || set.ability) && <label className="set-field">
+          <span>Ability</span>
           <SearchableSelect
             ariaLabel="Ability"
             emptyLabel={species ? 'No abilities' : 'Choose a species first'}
@@ -200,8 +218,8 @@ export function SetEditor({ set, formatId, onChange, onRemove }: {
             value={abilityValue}
             onValueChange={value => patch({ ability: value || undefined })}
           />
-        </label>
-        <label className="set-field">
+        </label>}
+        {(generationNumber >= 3 || set.nature) && <label className="set-field">
           <span>Nature</span>
           <SearchableSelect
             ariaLabel="Nature"
@@ -211,9 +229,9 @@ export function SetEditor({ set, formatId, onChange, onRemove }: {
             value={set.nature || ''}
             onValueChange={value => patch({ nature: value || undefined })}
           />
-        </label>
-        <label className="set-field">
-          <span>Tera type {generationNumber < 9 ? "(Gen 9)" : ""}</span>
+        </label>}
+        {(generationNumber >= 9 || set.teraType) && <label className="set-field">
+          <span>Tera type</span>
           <SearchableSelect
             ariaLabel="Tera type"
             emptyLabel="No types match"
@@ -222,7 +240,7 @@ export function SetEditor({ set, formatId, onChange, onRemove }: {
             value={set.teraType || ''}
             onValueChange={value => patch({ teraType: value || undefined })}
           />
-        </label>
+        </label>}
       </div>
 
       <div className="set-editor-moves">
@@ -237,11 +255,12 @@ export function SetEditor({ set, formatId, onChange, onRemove }: {
               emptyLabel="No moves match"
               options={moveOptions}
               placeholder={`Move ${index + 1}`}
-              value={moveValue(index)}
+              value={moveValue(index) || undefined}
               onValueChange={value => setMove(index, value)}
             />
           ))}
         </div>
+        <label className="set-unrestricted"><input type="checkbox" checked={unrestricted} onChange={event => setUnrestricted(event.currentTarget.checked)} /> Show all moves and abilities</label>
       </div>
 
       <div className="set-editor-evs">
@@ -253,6 +272,7 @@ export function SetEditor({ set, formatId, onChange, onRemove }: {
             <label className="ev-field" key={key}>
               <span>{STAT_LABELS[key]}</span>
               <input
+                aria-label={`${STAT_LABELS[key]} EV`}
                 type="number"
                 inputMode="numeric"
                 min={0}
@@ -261,9 +281,11 @@ export function SetEditor({ set, formatId, onChange, onRemove }: {
                 value={set.evs?.[key] ?? (generationNumber <= 2 ? 252 : 0)}
                 onChange={event => setEv(key, event.currentTarget.value)}
               />
+              <output aria-label={`${STAT_LABELS[key]} calculated stat`}>{calculatedStats?.[key] ?? '—'}</output>
             </label>
           ))}
         </div>
+        {generationNumber >= 3 && <div className="set-ev-presets"><span>Quick spread</span><button type="button" onClick={() => patch({ evs: { atk: 252, spe: 252, spd: 4 }, nature: 'Jolly' })}>Fast physical</button><button type="button" onClick={() => patch({ evs: { spa: 252, spe: 252, spd: 4 }, nature: 'Timid' })}>Fast special</button><button type="button" onClick={() => patch({ evs: undefined })}>Reset EVs</button></div>}
       </div>
 
       <div className="set-editor-grid is-compact">
@@ -289,12 +311,12 @@ export function SetEditor({ set, formatId, onChange, onRemove }: {
           />
         </label>
       </div>
-      <div className="set-editor-evs">
-        <span className="set-section-label">{generationNumber <= 2 ? 'DVs' : 'IVs'} and calculated stats</span>
+      <details className="set-details set-iv-details">
+        <summary>{generationNumber <= 2 ? 'DVs' : 'IVs'} and calculated stats</summary>
         <div className="ev-grid">
           {STAT_KEYS.map(key => {
             const iv = set.ivs?.[key] ?? 31;
-            const actual = calculateSetStats(set, generationNumber, defaultLevel)?.[key];
+            const actual = calculatedStats?.[key];
             return <label className="ev-field" key={key}><span>{STAT_LABELS[key]}</span><input aria-label={`${STAT_LABELS[key]} ${generationNumber <= 2 ? 'DV' : 'IV'}`} type="number" min={0} max={generationNumber <= 2 ? 15 : 31} value={generationNumber <= 2 ? Math.floor(iv / 2) : iv} onChange={event => { const value = Math.max(0, Math.min(generationNumber <= 2 ? 15 : 31, Math.trunc(Number(event.currentTarget.value) || 0))); patch({ ivs: { ...set.ivs, [key]: generationNumber <= 2 ? value * 2 + 1 : value } }); }} /><output>{actual ?? '—'}</output></label>;
           })}
         </div>
@@ -302,15 +324,13 @@ export function SetEditor({ set, formatId, onChange, onRemove }: {
           <button type="button" className="secondary-action" onClick={() => patch({ ivs: { ...set.ivs, atk: 0 } })}>Minimum Attack</button>
           <button type="button" className="secondary-action" onClick={() => patch({ ivs: { ...set.ivs, spe: 0 } })}>Minimum Speed</button>
           <button type="button" className="secondary-action" onClick={() => patch({ ivs: undefined })}>Reset IVs</button>
-          <button type="button" className="secondary-action" onClick={() => patch({ evs: { atk: 252, spe: 252, spd: 4 }, nature: 'Jolly' })}>Fast physical</button>
-          <button type="button" className="secondary-action" onClick={() => patch({ evs: { spa: 252, spe: 252, spd: 4 }, nature: 'Timid' })}>Fast special</button>
         </div>
-      </div>
+      </details>
       <details className="set-details"><summary>Set details</summary><div className="set-editor-grid is-compact">
-        <label className="set-field"><span>Gender</span><select value={set.gender || ''} onChange={event => patch({ gender: event.currentTarget.value || undefined })}><option value="">Default</option><option value="M">Male</option><option value="F">Female</option><option value="N">Genderless</option></select></label>
+        <label className="set-field"><span>Gender</span><select aria-label="Gender" value={set.gender || ''} onChange={event => patch({ gender: event.currentTarget.value || undefined })}><option value="">Default</option><option value="M">Male</option><option value="F">Female</option><option value="N">Genderless</option></select></label>
         <label className="set-field"><span>Shiny</span><input aria-label="Shiny" type="checkbox" checked={!!set.shiny} onChange={event => patch({ shiny: event.currentTarget.checked })} /></label>
         <label className="set-field"><span>Happiness</span><input type="number" min={0} max={255} value={set.happiness ?? 255} onChange={event => patch({ happiness: Math.max(0, Math.min(255, Number(event.currentTarget.value) || 0)) })} /></label>
-        <label className="set-field"><span>Hidden Power type</span><select value={set.hpType || ''} onChange={event => patch({ hpType: event.currentTarget.value || undefined })}><option value="">Default</option>{ALL_TYPES.filter(type => !['???', 'Normal', 'Fairy', 'Stellar'].includes(type)).map(type => <option key={type}>{type}</option>)}</select></label>
+        <label className="set-field"><span>Hidden Power type</span><select aria-label="Hidden Power type" value={set.hpType || ''} onChange={event => patch({ hpType: event.currentTarget.value || undefined })}><option value="">Default</option>{ALL_TYPES.filter(type => !['???', 'Normal', 'Fairy', 'Stellar'].includes(type)).map(type => <option key={type}>{type}</option>)}</select></label>
         <label className="set-field"><span>Poké Ball</span><input value={set.pokeball || ''} placeholder="Default" onChange={event => patch({ pokeball: event.currentTarget.value || undefined })} /></label>
         {(generationNumber === 8 || set.dynamaxLevel !== undefined || set.gigantamax) && <>
           <label className="set-field"><span>Dynamax level</span><input type="number" min={0} max={10} value={set.dynamaxLevel ?? 10} onChange={event => patch({ dynamaxLevel: Math.max(0, Math.min(10, Number(event.currentTarget.value) || 0)) })} /></label>

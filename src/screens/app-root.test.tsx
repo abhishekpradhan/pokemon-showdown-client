@@ -17,7 +17,7 @@ function renderWithRouter() {
 describe('modern app shell', () => {
   it('renders the cockpit shell and matchmaking workspace', async () => {
     renderWithRouter();
-    expect(await screen.findByRole('heading', { name: /ready when you are/i })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: /find a battle/i })).toBeInTheDocument();
     expect(screen.getByRole('navigation', { name: 'Primary' })).toBeInTheDocument();
     expect(screen.getByLabelText('Open sessions')).toBeInTheDocument();
   });
