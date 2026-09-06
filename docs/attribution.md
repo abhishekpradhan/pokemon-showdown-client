@@ -12,4 +12,6 @@ Pokémon and Pokémon character names are trademarks of Nintendo. This project i
 
 `/build-info.json` identifies the version, source revision, repository and license of the built client. Public deployments should point `VITE_SOURCE_URL` at their matching fork and make that revision available. A local modified checkout is development evidence, not proof that the committed tree exactly reproduces its uncommitted changes. Release only an identified reviewed commit and retain its build instructions/lockfile.
 
+The overall `modified` marker includes hosting configuration. Vercel rewrites `vercel.json` while materializing its deployment settings, so hosted builds separately report `applicationSourceModified` and `deploymentConfigurationModified`. A release must have an identified revision and unchanged application source; verify the deployed routes/headers as well as the hosting configuration marker. An unavailable Git checkout is conservatively reported as modified.
+
 When importing upstream regression fixtures, record the source path/revision and retain applicable notices; sanitize private player/account/team data. The audited comparison revision is listed in [compatibility](compatibility.md). Resolve unclear redistribution or media permissions before including the material.

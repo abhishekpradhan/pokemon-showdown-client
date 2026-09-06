@@ -21,13 +21,20 @@ export function buildArtifacts(env: Record<string, string>): Plugin {
       const sourceRoot = env.VITE_SOURCE_URL || 'https://github.com/abhishekpradhan/pokemon-showdown-client';
       const source = /^[a-f0-9]{40}$/i.test(revision) ? `${sourceRoot.replace(/\/$/, '')}/tree/${revision}` : sourceRoot;
       let modified = false;
+      let applicationSourceModified = false;
+      let deploymentConfigurationModified = false;
       try {
-        const status = execFileSync('git', ['status', '--porcelain', '--untracked-files=normal'], { encoding: 'utf8' }).trim();
-        modified = !!status;
-        if (modified) console.info('Source checkout has changes:', status.split('\n').slice(0, 20).join('\n'));
+        const entries = execFileSync('git', ['status', '--porcelain', '--untracked-files=normal'], { encoding: 'utf8' }).split('\n').filter(Boolean);
+        modified = !!entries.length;
+        // Vercel materializes deployment settings in vercel.json before the
+        // build. Retain the overall dirty marker and distinguish that observed
+        // hosting change from changes to the application source being released.
+        deploymentConfigurationModified = env.VERCEL === '1' && entries.some(entry => entry.slice(3) === 'vercel.json');
+        applicationSourceModified = entries.some(entry => !deploymentConfigurationModified || entry.slice(3) !== 'vercel.json');
+        if (modified) console.info('Source checkout has changes:', entries.slice(0, 20).join('\n'));
       }
-      catch { modified = true; }
-      const info = { name: metadata.name, version: metadata.version, revision, source, modified, upstream: 'https://github.com/smogon/pokemon-showdown-client', license: metadata.license };
+      catch { modified = true; applicationSourceModified = true; }
+      const info = { name: metadata.name, version: metadata.version, revision, source, modified, applicationSourceModified, deploymentConfigurationModified, upstream: 'https://github.com/smogon/pokemon-showdown-client', license: metadata.license };
       writeFileSync(resolve(outDir, 'build-info.json'), JSON.stringify(info, null, 2));
       const lock = JSON.parse(readFileSync('package-lock.json', 'utf8')) as { packages: Record<string, { version?: string; license?: string; dev?: boolean }> };
       const dependencies = Object.entries(lock.packages).filter(([key]) => key.startsWith('node_modules/')).map(([key, entry]) => ({
