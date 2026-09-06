@@ -4,6 +4,7 @@ import { PokemonTooltip, TooltipTrigger } from './battle-tooltip';
 import { genFromFormat } from '../data/dex';
 import { pokemonSprite } from '../data/sprites';
 import { STATUS_LABELS, typeStyle } from '../data/types';
+import { useWorkspaceStore } from '../stores/workspace-store';
 
 function HealthBar({ pokemon, hidden }: { pokemon: PokemonSet; hidden: boolean }) {
   const percent = Math.max(0, Math.min(100, pokemon.hp));
@@ -61,6 +62,7 @@ function SideConditions({ conditions, label, side }: {
       {conditions.map(condition => (
         <span key={condition.name}>
           {condition.name}{condition.layers > 1 && <i>×{condition.layers}</i>}
+          {condition.duration && <small> {condition.duration[0] === condition.duration[1] ? condition.duration[0] : condition.duration.join('–')} turns</small>}
         </span>
       ))}
     </div>
@@ -78,12 +80,14 @@ function Combatant({ battle, hideHealth = false, pokemon, side, position = 0, po
   event?: BattleEvent;
 }) {
   const eventHere = event && event.side === side && (event.slot ?? 0) === position;
+  const reducedMotion = useWorkspaceStore(state => state.reducedMotion);
   const eventClass = eventHere ? `is-${event.kind}` : '';
   const sprite = pokemonSprite(pokemon.species, {
     side,
-    gen: genFromFormat(battle.format),
+    gen: battle.generation || genFromFormat(battle.format),
     shiny: pokemon.shiny,
     gender: pokemon.gender,
+    still: reducedMotion,
   });
   const status = pokemon.status ? STATUS_LABELS[pokemon.status] : null;
 
@@ -95,7 +99,7 @@ function Combatant({ battle, hideHealth = false, pokemon, side, position = 0, po
     >
       <div className="combatant-nameplate">
         <div className="nameplate-row">
-          <TooltipTrigger content={() => <PokemonTooltip pokemon={pokemon} format={battle.format} />}>
+          <TooltipTrigger label={pokemon.name} content={() => <PokemonTooltip pokemon={pokemon} format={`gen${battle.generation || genFromFormat(battle.format)}`} />}>
             <strong tabIndex={0} className="nameplate-name">{pokemon.name}</strong>
           </TooltipTrigger>
           {pokemon.level && pokemon.level !== 100 && <span className="nameplate-level">L{pokemon.level}</span>}
@@ -137,21 +141,22 @@ function Combatant({ battle, hideHealth = false, pokemon, side, position = 0, po
   );
 }
 
-function RosterPips({ team, hidden, label }: { team: PokemonSet[]; hidden: boolean; label: string }) {
-  const remaining = team.filter(pokemon => !(pokemon.fainted || pokemon.hp <= 0)).length;
+function RosterPips({ team, total = team.length, hidden, label }: { team: PokemonSet[]; total?: number; hidden: boolean; label: string }) {
+  const remaining = total - team.filter(pokemon => pokemon.fainted || pokemon.hp <= 0).length;
   return (
     <span
       className="roster-pips"
       role="img"
-      aria-label={`${label}: ${remaining} of ${team.length} remaining`}
+      aria-label={`${label}: ${remaining} of ${total} remaining`}
     >
       {team.map(pokemon => (
         <i
           key={`${pokemon.slot}-${pokemon.species}`}
           data-fainted={pokemon.fainted || pokemon.hp <= 0}
-          title={hidden ? 'Unrevealed' : `${pokemon.name} · ${Math.round(pokemon.hp)}%`}
+          title={hidden ? 'Unrevealed' : `${pokemon.name} · ${pokemon.hpKnown === false ? 'HP unknown' : `${Math.round(pokemon.hp)}%`}`}
         />
       ))}
+      {Array.from({ length: Math.max(0, total - team.length) }, (_, index) => <i key={`unknown-${index}`} data-unrevealed title="Unrevealed Pokémon" />)}
     </span>
   );
 }
@@ -192,7 +197,7 @@ export function BattleField({ battle, hardcore = false, lastEvent }: {
         <span className="field-player">
           {farPlayer.name}
           {farPlayer.rating > 0 && <i>{farPlayer.rating}</i>}
-          <RosterPips team={battle.opponentTeam} hidden={hardcore} label={`${farPlayer.name}'s team`} />
+          <RosterPips team={battle.opponentTeam} total={battle.opponentTeamSize} hidden={hardcore} label={`${farPlayer.name}'s team`} />
         </span>
         <strong className="field-turn">Turn {battle.turn || '—'}</strong>
       </header>
@@ -239,7 +244,7 @@ export function BattleField({ battle, hardcore = false, lastEvent }: {
         <span className="field-player">
           {nearPlayer.name}
           {nearPlayer.rating > 0 && <i>{nearPlayer.rating}</i>}
-          <RosterPips team={battle.team} hidden={false} label="Your team" />
+          <RosterPips team={battle.team} total={battle.teamSize} hidden={false} label="Your team" />
         </span>
       </footer>
     </div>

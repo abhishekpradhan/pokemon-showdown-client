@@ -6,6 +6,7 @@ describe('arena store protocol integration', () => {
   beforeEach(() => {
     useArenaStore.setState({
       username: 'Guest',
+      connection: 'connected',
       named: false,
       challstr: '',
       rooms: {},
@@ -79,8 +80,8 @@ describe('arena store protocol integration', () => {
     if (after?.type !== 'battle') throw new Error('expected a battle room');
     expect(after.choiceDraft.pendingMove).toMatchObject({ slot: 1 });
 
-    store.submitBattleTarget(-1, battle.id);
-    expect(send).toHaveBeenCalledWith('/choose move 1 -1|8', battle.id);
+    store.submitBattleTarget(1, battle.id);
+    expect(send).toHaveBeenCalledWith('/choose move 1 +1|8', battle.id);
   });
 
   it('manages team CRUD and active-team deletion', () => {
@@ -181,7 +182,7 @@ describe('arena store protocol integration', () => {
     vi.unstubAllGlobals();
   });
 
-  it('prompts for a password when the name is registered', async () => {
+  it('directs registered names to provider authorization', async () => {
     const send = vi.fn();
     // A bare `;` means "registered account, needs a password", not a token.
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(';', { status: 200 })));
@@ -195,7 +196,8 @@ describe('arena store protocol integration', () => {
     await useArenaStore.getState().chooseName('Zarel');
 
     expect(send).not.toHaveBeenCalled();
-    expect(useArenaStore.getState()).toMatchObject({ needsPassword: true, loginPending: false });
+    expect(useArenaStore.getState()).toMatchObject({ needsPassword: false, loginPending: false });
+    expect(useArenaStore.getState().lastError).toContain('Sign in with Pokémon Showdown');
     vi.unstubAllGlobals();
   });
 
@@ -240,7 +242,7 @@ describe('arena store protocol integration', () => {
       '|queryresponse|userdetails|{"userid":"zarel","name":"Zarel","group":"~","avatar":167,"status":"coding","rooms":{"lobby":{},"dev":{}}}'
     ));
     expect(useArenaStore.getState().userCards.zarel).toEqual({
-      userid: 'zarel', name: 'Zarel', group: '~', avatar: '167', status: 'coding', rooms: ['lobby', 'dev'],
+      userid: 'zarel', name: 'Zarel', group: '~', avatar: '167', status: 'coding', rooms: ['lobby', 'dev'], online: true,
     });
   });
 

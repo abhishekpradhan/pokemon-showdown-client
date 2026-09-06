@@ -26,10 +26,20 @@ Examples of unacceptable behavior:
 
 ## Enforcement
 
-Instances of abusive, harassing, or otherwise unacceptable behavior may be
-reported to the project maintainer via GitHub. All complaints will be
-reviewed and investigated promptly and fairly. Maintainers who do not follow
-or enforce the Code of Conduct may be temporarily or permanently removed.
+Instances of abusive, harassing, or otherwise unacceptable behavior can be
+reported through a private channel already established with the maintainer.
+If none is available, open a [contact-only request](https://github.com/abhishekpradhan/pokemon-showdown-client/issues/new?title=Private%20maintainer%20contact%20requested)
+without incident details or personal information. The maintainer will arrange a
+private channel before receiving the report; see [SUPPORT.md](SUPPORT.md). Use
+GitHub's abuse-reporting tools for harassment on GitHub, including concerns about
+the maintainer when direct reporting would be inappropriate.
+
+The maintainer aims to acknowledge contact requests within 7 days and treat
+reports confidentially. Review the conduct, context and people affected; explain
+any correction, warning, temporary restriction or permanent removal to the
+parties privately where appropriate. No retaliation against good-faith reporters
+is acceptable. Maintainers who do not follow or enforce this policy can be
+removed from project responsibilities. These are volunteer response targets.
 
 ## Attribution
 

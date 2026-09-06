@@ -2,21 +2,15 @@
 .match-workspace {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 292px;
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas: "setup readiness" "live readiness";
   gap: 10px;
   height: 100%;
   min-height: 0;
 }
 
-.match-main {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  min-width: 0;
-  min-height: 0;
-  overflow-y: auto;
-}
-
 .match-stage {
+  grid-area: setup;
   position: relative;
   display: flex;
   flex: none;
@@ -257,6 +251,7 @@
 }
 
 .match-inspector {
+  grid-area: readiness;
   display: flex;
   flex-direction: column;
   padding: 15px;
@@ -521,6 +516,7 @@ a.inspector-section-link:hover { text-decoration: underline; }
 /* ── Live now (main content) ─────────────────────────────────────────────── */
 
 .live-now {
+  grid-area: live;
   display: flex;
   flex: 1;
   flex-direction: column;
@@ -617,3 +613,63 @@ a.inspector-section-link:hover { text-decoration: underline; }
 }
 
 .queue-cancel:hover { border-color: var(--arena-red); color: var(--arena-red-text); }
+
+/* Home owns its responsive layout. Scope these above the older battle.css
+   cockpit selectors so the mobile form never inherits a fixed-height stage. */
+@media (max-width: 1120px) {
+  .match-workspace .queue-controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .match-workspace .queue-action { grid-column: 1 / -1; }
+}
+
+@media (max-width: 820px) {
+  .match-workspace {
+    grid-template-rows: auto auto auto;
+    grid-template-areas: "setup" "readiness" "live";
+    align-content: start;
+  }
+
+  .match-workspace .match-stage,
+  .match-workspace .match-inspector {
+    min-height: 0;
+  }
+
+  .match-workspace .match-stage-copy { padding-block: 0; }
+
+  .match-workspace .match-stage-copy h1 {
+    font-size: clamp(24px, 5.6vw, 32px);
+    line-height: 1.12;
+  }
+
+  .match-workspace .readiness-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    padding-block: 10px;
+  }
+
+  .match-workspace .readiness-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 4px;
+    min-height: 0;
+    border: 0;
+  }
+
+  .match-workspace .readiness-row > span:first-child { display: none; }
+  .match-workspace .readiness-row strong { white-space: normal; overflow-wrap: anywhere; }
+  .match-workspace .readiness-state { margin-top: 2px; }
+  .match-workspace .match-inspector > .primary-action + .secondary-action { margin-top: 6px; }
+  .match-workspace .match-inspector-footer { margin-top: 16px; }
+  .match-workspace .live-grid { grid-template-columns: repeat(auto-fill, minmax(min(230px, 100%), 1fr)); }
+}
+
+@media (max-width: 560px) {
+  .match-workspace .match-stage { gap: 10px; padding: 14px; }
+  .match-workspace .queue-controls { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .match-workspace .queue-action { min-height: 44px; }
+  .match-workspace .queue-controls .format-trigger { min-height: 48px; }
+  .match-workspace .live-now-heading { gap: 12px; }
+  .match-workspace .stage-link { max-width: none; }
+}

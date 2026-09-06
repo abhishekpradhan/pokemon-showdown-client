@@ -16,14 +16,16 @@ import { FormatSelector } from '../components/format-selector';
 import { SearchableSelect } from '../components/searchable-select';
 import { useShallow } from 'zustand/react/shallow';
 import { useArenaStore } from '../stores/arena-store';
+import { battleSupport } from '../compat/battle-adapter';
+import { openChallenge } from '../compat/ui-events';
 
 export function HomeScreen() {
-  const { acceptChallenge, activeTeamId, cancelSearch, challenges, focusRoom, joinRoom, rejectChallenge, refreshRoomList, roomList, sendChallenge, connection, formats, lastError, named, searchFormats, searchState, selectTeam, selectedFormat, setSelectedFormat, startSearch, teams, username, validateTeamForFormat } = useArenaStore(
-    useShallow(state => ({ acceptChallenge: state.acceptChallenge, activeTeamId: state.activeTeamId, cancelSearch: state.cancelSearch, challenges: state.challenges, focusRoom: state.focusRoom, joinRoom: state.joinRoom, rejectChallenge: state.rejectChallenge, refreshRoomList: state.refreshRoomList, roomList: state.roomList, sendChallenge: state.sendChallenge, connection: state.connection, formats: state.formats, lastError: state.lastError, named: state.named, searchFormats: state.searchFormats, searchState: state.searchState, selectTeam: state.selectTeam, selectedFormat: state.selectedFormat, setSelectedFormat: state.setSelectedFormat, startSearch: state.startSearch, teams: state.teams, username: state.username, validateTeamForFormat: state.validateTeamForFormat }))
+  const { activeTeamId, cancelSearch, challenges, focusRoom, joinRoom, rejectChallenge, refreshRoomList, roomList, connection, formats, lastError, named, searchFormats, searchState, selectTeam, selectedFormat, setSelectedFormat, startSearch, teams, username, validateTeamForFormat } = useArenaStore(
+    useShallow(state => ({ activeTeamId: state.activeTeamId, cancelSearch: state.cancelSearch, challenges: state.challenges, focusRoom: state.focusRoom, joinRoom: state.joinRoom, rejectChallenge: state.rejectChallenge, refreshRoomList: state.refreshRoomList, roomList: state.roomList, connection: state.connection, formats: state.formats, lastError: state.lastError, named: state.named, searchFormats: state.searchFormats, searchState: state.searchState, selectTeam: state.selectTeam, selectedFormat: state.selectedFormat, setSelectedFormat: state.setSelectedFormat, startSearch: state.startSearch, teams: state.teams, username: state.username, validateTeamForFormat: state.validateTeamForFormat }))
   );
   const navigate = useNavigate();
   const [challengeTarget, setChallengeTarget] = useState('');
-  const liveBattles = roomList.rooms.slice(0, 12);
+  const liveBattles = roomList.rooms.filter(room => room.id.startsWith('battle-') && battleSupport(room.format || room.id.split('-')[1]).supported).slice(0, 12);
 
   useEffect(() => {
     if (connection === 'connected') refreshRoomList();
@@ -43,11 +45,12 @@ export function HomeScreen() {
     !named ? 'Choose a player name' : '',
     searchState === 'searching' ? 'Search in progress' : '',
     !selected?.searchShow ? 'Choose a searchable format' : '',
+    battleSupport(selectedFormat).reason || '',
     requiresTeam && !activeTeam ? 'Select a compatible team' : '',
     requiresTeam && activeTeam && !validation.ok ? validation.errors.join(' ') : '',
   ].filter(Boolean);
   const canSearch = blockers.filter(blocker => blocker !== 'Search in progress').length === 0;
-  const teamOptions = teams.map(team => ({
+  const teamOptions = teams.filter(team => team.format === selectedFormat || !team.format).map(team => ({
     value: team.id,
     label: team.name,
     group: team.format,
@@ -77,83 +80,57 @@ export function HomeScreen() {
 
   return (
     <section className="match-workspace" aria-label="Matchmaking">
-      <div className="match-main">
-        <section className={`match-stage is-${searchState}`}>
-          <div className="match-stage-toolbar">
-            <span className={`live-label is-${connection}`}>
-              <Signal size={13} aria-hidden />
-              {connection === 'connected' ? 'Battle server live' : `Server ${connection}`}
-            </span>
+      <section className={`match-stage is-${searchState}`}>
+        <div className="match-stage-toolbar">
+          <span className={`live-label is-${connection}`}>
+            <Signal size={13} aria-hidden />
+            {connection === 'connected' ? 'Battle server live' : `Server ${connection}`}
+          </span>
+        </div>
+
+        <div className="match-stage-copy">
+          <span className="eyebrow">Matchmaking</span>
+          <h1>{searchState === 'searching' ? 'Looking for an opponent.' : 'Ready when you are.'}</h1>
+          <p>
+            {searchState === 'searching' ?
+              `${formats.find(format => format.id === searchFormats[0])?.name || selected?.name || 'Selected format'} is in the queue.` :
+              'Choose the ruleset and team for your next battle.'}
+          </p>
+        </div>
+
+        {searchState === 'idle' ? (
+          <div className="queue-controls" key="setup">
+            <label className="control-field">
+              <span>Format</span>
+              <FormatSelector value={selectedFormat} formats={formats.filter(format => battleSupport(format.id).supported)} onValueChange={setSelectedFormat} />
+            </label>
+            <label className="control-field">
+              <span>Battle team</span>
+              <SearchableSelect
+                ariaLabel="Select active team"
+                emptyLabel="No saved teams"
+                options={teamOptions}
+                placeholder={requiresTeam ? 'Choose team' : 'Preset team'}
+                value={activeTeamId}
+                onValueChange={selectTeam}
+              />
+            </label>
+            <button className="queue-action" type="button" onClick={startSearch} disabled={!canSearch}>
+              <Radio size={17} aria-hidden />
+              Find battle
+            </button>
           </div>
-
-          <div className="match-stage-copy">
-            <span className="eyebrow">Matchmaking</span>
-            <h1>{searchState === 'searching' ? 'Looking for an opponent.' : 'Ready when you are.'}</h1>
-            <p>
-              {searchState === 'searching' ?
-                `${formats.find(format => format.id === searchFormats[0])?.name || selected?.name || 'Selected format'} is in the queue.` :
-                'Choose the ruleset and team for your next battle.'}
-            </p>
-          </div>
-
-          {searchState === 'idle' ? (
-            <div className="queue-controls" key="setup">
-              <label className="control-field">
-                <span>Format</span>
-                <FormatSelector value={selectedFormat} formats={formats} onValueChange={setSelectedFormat} />
-              </label>
-              <label className="control-field">
-                <span>Battle team</span>
-                <SearchableSelect
-                  ariaLabel="Select active team"
-                  emptyLabel="No saved teams"
-                  options={teamOptions}
-                  placeholder={requiresTeam ? 'Choose team' : 'Preset team'}
-                  value={activeTeamId}
-                  onValueChange={selectTeam}
-                />
-              </label>
-              <button className="queue-action" type="button" onClick={startSearch} disabled={!canSearch}>
-                <Radio size={17} aria-hidden />
-                Find battle
-              </button>
-            </div>
-          ) : (
-            <div className="searching-deck" key="searching" role="status" aria-live="polite">
-              <span className="searching-radar" aria-hidden><i /><i /><i /></span>
-              <span>
-                <strong>Searching {selected?.name || selectedFormat}</strong>
-                <small>Keep this workspace open. The battle will take focus when matched.</small>
-              </span>
-              <button className="queue-cancel" type="button" onClick={cancelSearch}>Cancel</button>
-            </div>
-          )}
-        </section>
-
-        <section className="live-now" aria-label="Live battles">
-          <div className="live-now-heading">
+        ) : (
+          <div className="searching-deck" key="searching" role="status" aria-live="polite">
+            <span className="searching-radar" aria-hidden><i /><i /><i /></span>
             <span>
-              <small>Spectate</small>
-              <h2>Live now</h2>
+              <strong>Searching {selected?.name || selectedFormat}</strong>
+              <small>Keep this workspace open. The battle will take focus when matched.</small>
             </span>
-            <Link to="/rooms" className="stage-link">
-              Browse rooms <ArrowUpRight size={13} aria-hidden />
-            </Link>
+            <button className="queue-cancel" type="button" onClick={cancelSearch}>Cancel</button>
           </div>
-          <div className="live-grid">
-            {liveBattles.map(room => (
-              <button type="button" className="live-card" key={room.id} onClick={() => watchBattle(room.id)}>
-                <small>{room.format || room.id.replace(/^battle-/, '').replace(/-\d+$/, '')}</small>
-                <strong>{room.p1 ? `${room.p1} vs ${room.p2 || '?'}` : room.title}</strong>
-                <span className="live-card-action"><Swords size={13} aria-hidden /> Watch</span>
-              </button>
-            ))}
-            {!liveBattles.length && (
-              <p className="pane-empty">{connection === 'connected' ? 'Loading live battles…' : 'Connect to browse battles.'}</p>
-            )}
-          </div>
-        </section>
-      </div>
+        )}
+      </section>
 
       <aside className="match-inspector" aria-label="Queue readiness">
         <div className="inspector-heading">
@@ -183,6 +160,9 @@ export function HomeScreen() {
             );
           })}
         </div>
+        {!named && <button type="button" className="primary-action" onClick={() => window.dispatchEvent(new Event('arena:open-account'))}>Choose name</button>}
+        {searchState === 'idle' && selectedFormat !== 'gen9randombattle' && formats.some(format => format.id === 'gen9randombattle') && <button type="button" className="secondary-action" onClick={() => setSelectedFormat('gen9randombattle')}>Try Random Battle · no team needed</button>}
+        {challenges.to && <div className="queue-notice" role="status"><span>Challenge sent to {challenges.to.to} · {challenges.to.format}</span><button type="button" className="secondary-action" onClick={() => useArenaStore.getState().cancelChallenge()}>Cancel challenge</button></div>}
 
         {(lastError || (blockers.length > 0 && searchState === 'idle')) && (
           <div className="queue-notice" role="status" aria-live="polite">
@@ -199,7 +179,7 @@ export function HomeScreen() {
           onSubmit={event => {
             event.preventDefault();
             if (!challengeTarget.trim()) return;
-            sendChallenge(challengeTarget);
+            openChallenge(challengeTarget, selectedFormat);
             setChallengeTarget('');
           }}
         >
@@ -228,7 +208,7 @@ export function HomeScreen() {
                     <small>{format}</small>
                   </span>
                   <span className="challenge-actions">
-                    <button type="button" className="primary-action" onClick={() => acceptChallenge(challenger)}>Accept</button>
+                    <button type="button" className="primary-action" onClick={() => openChallenge(challenger, format, true)}>Accept</button>
                     <button type="button" className="secondary-action" onClick={() => rejectChallenge(challenger)}>Reject</button>
                   </span>
                 </div>
@@ -243,6 +223,30 @@ export function HomeScreen() {
           <span>Battle decisions remain available in the bottom action deck.</span>
         </div>
       </aside>
+
+      <section className="live-now" aria-label="Live battles">
+        <div className="live-now-heading">
+          <span>
+            <small>Spectate</small>
+            <h2>Live now</h2>
+          </span>
+          <Link to="/battles" className="stage-link">
+            Browse battles <ArrowUpRight size={13} aria-hidden />
+          </Link>
+        </div>
+        <div className="live-grid">
+          {liveBattles.map(room => (
+            <button type="button" className="live-card" key={room.id} onClick={() => watchBattle(room.id)}>
+              <small>{room.format || room.id.replace(/^battle-/, '').replace(/-\d+$/, '')}</small>
+              <strong>{room.p1 ? `${room.p1} vs ${room.p2 || '?'}` : room.title}</strong>
+              <span className="live-card-action"><Swords size={13} aria-hidden /> Watch</span>
+            </button>
+          ))}
+          {!liveBattles.length && (
+            <p className="pane-empty">{connection === 'connected' ? 'No live battles available in the latest server snapshot.' : 'Connect to browse battles.'}</p>
+          )}
+        </div>
+      </section>
     </section>
   );
 }

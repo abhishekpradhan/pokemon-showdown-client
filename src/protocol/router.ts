@@ -1,18 +1,20 @@
 import {
   buildMoveDeck,
   createBattleChoiceSession,
+  restoreBattleChoiceSession,
+  normalizeBattleRequest,
+  defensiveTypes,
+  battleSupport,
+  isBattleRequest,
   requestFlags,
   type BattleRequest,
 } from '../compat/battle-adapter';
 import { createEngineBattle, feedLine, projectEngineBattle } from '../battle/engine';
 import { describeBattleLine } from '../compat/battle-text';
 import type { PsFrame, PsLine } from '../compat/protocol-client';
-import {
-  assertionFromToken, clearOAuthToken, oauthConfigured, refreshOAuthToken,
-  saveOAuthToken, storedOAuthToken,
-} from '../compat/ps-oauth';
 import { playCry, playTurnPing } from '../battle/sound';
 import { desktopNotify } from '../compat/desktop-notify';
+import { replayUploadUrl } from '../compat/replay-upload';
 import { useWorkspaceStore } from '../stores/workspace-store';
 import {
   parseChatRoomList,
@@ -122,47 +124,13 @@ const parseBattleRequest = (line: PsLine): BattleRequest | null => {
 };
 
 /** `|inactive|Time left: 150 sec this turn | 300 sec total` and friends. */
-const parseTimerLine = (text: string) => {
+const parseTimerLine = (text: string, username = ''): { secondsLeft?: number; totalLeft?: number } => {
+  if (!/^Time left:/i.test(text) && !(username && text.toLowerCase().startsWith(`${username.toLowerCase()} has `))) return {};
   const seconds = [...text.matchAll(/(\d+) sec/g)].map(match => Number(match[1]));
   return {
     secondsLeft: seconds[0],
     totalLeft: seconds[1] ?? seconds[0],
   };
-};
-
-/** Tokens last two weeks; rotate once past the half-life. */
-const OAUTH_REFRESH_AFTER = 7 * 24 * 60 * 60 * 1000;
-
-/**
- * Silent re-login from a stored OAuth token. Tokens last two weeks; past the
- * half-life we rotate before using, so an active user never gets logged out.
- */
-const resumeOAuthSession = async (challstr: string, store: ArenaStoreApi) => {
-  if (!oauthConfigured()) return;
-  const stored = storedOAuthToken();
-  if (!stored) return;
-  try {
-    let token = stored.token;
-    if (Date.now() - stored.issuedAt > OAUTH_REFRESH_AFTER) {
-      const rotated = await refreshOAuthToken(token);
-      if (rotated) {
-        token = rotated;
-        saveOAuthToken(token, stored.user);
-      }
-    }
-    const result = await assertionFromToken(challstr, token);
-    if (!result) {
-      clearOAuthToken();
-      store.setState({ oauthLinked: false });
-      return;
-    }
-    const name = result.user || stored.user;
-    if (!name) return;
-    store.setState({ loginPending: true, oauthLinked: true });
-    store.getState().protocol.send(`/trn ${name},0,${result.assertion}`);
-  } catch {
-    // Offline or the login server is down; the user can still sign in later.
-  }
 };
 
 // ── Global (roomless) commands ──────────────────────────────────────────────
@@ -176,7 +144,7 @@ const handleGlobal = (line: PsLine, store: ArenaStoreApi): boolean => {
     setState({ challstr });
     // A stored OAuth token means this browser is already authorized: mint an
     // assertion and sign in without prompting.
-    void resumeOAuthSession(challstr, store);
+    void getState().resumeSession(challstr);
     return true;
   }
 
@@ -234,7 +202,8 @@ const handleGlobal = (line: PsLine, store: ArenaStoreApi): boolean => {
         challengesFrom?: Record<string, string>;
         challengeTo?: { to: string; format: string } | null;
       };
-      const from = data.challengesFrom || {};
+      const preferences = useWorkspaceStore.getState();
+      const from = preferences.blockChallenges ? {} : Object.fromEntries(Object.entries(data.challengesFrom || {}).filter(([user]) => !preferences.ignoredUsers.includes(toId(user))));
       if (useWorkspaceStore.getState().notificationsEnabled) {
         const previous = getState().challenges.from;
         for (const [user, format] of Object.entries(from)) {
@@ -252,22 +221,19 @@ const handleGlobal = (line: PsLine, store: ArenaStoreApi): boolean => {
 
   case 'popup': {
     const text = line.args.join('|');
+    const validation = getState().teamValidation;
+    if (validation?.state === 'validating' && /team|valid|banned|pok.mon|move|ability|item/i.test(text)) {
+      const valid = /team (?:is )?valid|valid for|ready for/i.test(text) && !/invalid|not valid|rejected/i.test(text);
+      setState({ teamValidation: { ...validation, state: valid ? 'valid' : 'invalid', message: text } });
+      return true;
+    }
     // The main server uploads replays itself and answers /savereplay with a
     // popup; third-party servers hand the client a payload via queryresponse.
-    const saving = getState().replayStatus;
-    if (saving?.state === 'saving' && /replay/i.test(text)) {
-      if (/upload|saved|available/i.test(text)) {
-        const id = (saving.roomId || '').replace(/^battle-/, '');
-        setState({
-          replayStatus: {
-            ...saving,
-            state: 'uploaded',
-            url: `https://replay.pokemonshowdown.com/${id}`,
-          },
-        });
-      } else {
-        setState({ replayStatus: { ...saving, state: 'failed', error: text.replace(/\|\|/g, ' ').trim() } });
-      }
+    const pending = Object.values(getState().replayStatuses).filter(status => status.state === 'saving');
+    if (pending.length && /replay/i.test(text)) {
+      const url = replayUploadUrl(text);
+      const saving = pending.find(status => url && new URL(url).pathname.slice(1).startsWith(status.roomId.replace(/^battle-/, ''))) || (pending.length === 1 ? pending[0] : undefined);
+      if (saving) getState().finishReplay(saving.roomId, url ? { url } : { error: text.replace(/\|\|/g, ' ').trim() || 'No replay URL was returned. Retry saving.' });
       return true;
     }
     setState({ lastError: text || 'Server popup received.' });
@@ -280,12 +246,26 @@ const handleGlobal = (line: PsLine, store: ArenaStoreApi): boolean => {
     const message = line.args.slice(2).join('|');
     const state = getState();
     const partner = toId(from) === toId(state.username) ? to : from;
+    const preferences = useWorkspaceStore.getState();
+    const incoming = toId(from) !== toId(state.username);
+    if (incoming && (preferences.ignoredUsers.includes(toId(from)) || (message.startsWith('/challenge') ? preferences.blockChallenges : preferences.blockPms))) return true;
     const pmRoomId = `pm-${toId(partner) || 'system'}`;
     // Challenge plumbing rides over PMs; don't render it as chat.
-    if (message.startsWith('/challenge') || message.startsWith('/nonotify')) return true;
+    if (message.startsWith('/challenge')) {
+      const format = message.slice('/challenge'.length).trim().split('|')[0];
+      const self = toId(from) === toId(state.username);
+      setState(current => {
+        const challenges = { ...current.challenges, from: { ...current.challenges.from } };
+        if (self) challenges.to = format ? { to: partner, format } : null;
+        else if (format) challenges.from[partner.replace(/^[^A-Za-z0-9]/, '')] = format;
+        else delete challenges.from[partner.replace(/^[^A-Za-z0-9]/, '')];
+        return { challenges };
+      });
+      return true;
+    }
     setState(current => {
-      const existing = current.rooms[pmRoomId] || newPmRoom(pmRoomId, partner.replace(/^[^A-Za-z0-9]/, ''));
-      const focused = current.activeRoomId === pmRoomId;
+      const existing = { ...(current.rooms[pmRoomId] || newPmRoom(pmRoomId, partner.replace(/^[^A-Za-z0-9]/, ''))), connected: true } as Room;
+      const focused = current.activeRoomId === pmRoomId && !document.hidden;
       // Bots PM HTML and announcements through the same slash directives.
       const parsed = displayCommand(
         { user: from.replace(/^[^A-Za-z0-9]/, ''), timestamp: Date.now() },
@@ -296,6 +276,7 @@ const handleGlobal = (line: PsLine, store: ArenaStoreApi): boolean => {
         rooms: upsert(current.rooms, appendChat(existing, chatMessage, focused) as Room),
       };
     });
+    if (incoming && preferences.notificationsEnabled && !preferences.mutedRooms.includes(pmRoomId)) desktopNotify(`Message from ${partner}`, 'Open the conversation to read it.', `room-${pmRoomId}`, `/room/${pmRoomId}`);
     return true;
   }
 
@@ -326,8 +307,9 @@ const handleGlobal = (line: PsLine, store: ArenaStoreApi): boolean => {
           avatar: data.avatar !== undefined ? String(data.avatar) : undefined,
           status: data.status || undefined,
           rooms: data.rooms ? Object.keys(data.rooms) : [],
+          online: data.rooms !== false,
         };
-        setState(state => ({ userCards: { ...state.userCards, [card.userid]: card } }));
+        setState(state => ({ userCards: Object.fromEntries([...Object.entries(state.userCards).filter(([id]) => id !== card.userid).slice(-199), [card.userid, card]]) }));
       }
     }
     return true;
@@ -347,17 +329,14 @@ const handleLifecycle = (roomId: string, line: PsLine, store: ArenaStoreApi): bo
   case 'init': {
     const type = line.args[0] || (roomId.startsWith('battle-') ? 'battle' : 'chat');
     setState(state => {
-      const existing = state.rooms[roomId];
-      let room: Room = existing ?
-        ({ ...existing, connected: true } as Room) :
-        type === 'battle' ? newBattleRoom(roomId) : newChatRoom(roomId);
+      let room: Room = type === 'battle' ? newBattleRoom(roomId) : newChatRoom(roomId);
       if (room.type === 'battle' && !room.engine) {
         const engine = createEngineBattle(toId(state.username));
         if (engine) room = { ...room, engine };
       }
       return {
         rooms: upsert(state.rooms, room),
-        activeRoomId: roomId,
+        roomErrors: { ...state.roomErrors, [roomId]: '' },
       };
     });
     return true;
@@ -365,7 +344,7 @@ const handleLifecycle = (roomId: string, line: PsLine, store: ArenaStoreApi): bo
 
   case 'deinit':
     setState(state => ({
-      rooms: patchRoom(state.rooms, roomId, { connected: false }),
+      rooms: state.rooms[roomId]?.type === 'battle' ? upsert(state.rooms, { ...newBattleRoom(roomId), connected: false }) : patchRoom(state.rooms, roomId, { connected: false }),
       activeRoomId: state.activeRoomId === roomId ? undefined : state.activeRoomId,
     }));
     return true;
@@ -373,8 +352,19 @@ const handleLifecycle = (roomId: string, line: PsLine, store: ArenaStoreApi): bo
   case 'noinit':
     setState(state => ({
       lastError: line.args.join(' '),
+      roomErrors: { ...state.roomErrors, [roomId]: line.args.slice(1).join(' ') || line.args.join(' ') || 'This room is unavailable.' },
       rooms: patchRoom(state.rooms, roomId, { connected: false }),
     }));
+    return true;
+
+  case 'cantleave':
+    setState(state => ({
+      roomErrors: { ...state.roomErrors, [roomId]: 'You are still playing this battle. Finish it or forfeit before leaving.' },
+      rooms: patchRoom(state.rooms, roomId, { connected: true }),
+    }));
+    return true;
+  case 'allowleave':
+    setState(state => ({ roomErrors: { ...state.roomErrors, [roomId]: '' } }));
     return true;
 
   case 'tournament': {
@@ -415,6 +405,10 @@ const handleLifecycle = (roomId: string, line: PsLine, store: ArenaStoreApi): bo
           ...(data.bracketData !== undefined ? { bracketData: data.bracketData } : {}),
           ...(data.challenges !== undefined ? { challenges: data.challenges } : {}),
           ...(data.challengeBys !== undefined ? { challengeBys: data.challengeBys } : {}),
+          ...(data.challenged !== undefined ? { challenged: data.challenged } : {}),
+          ...(data.challenging !== undefined ? { challenging: data.challenging } : {}),
+          ...(data.teambuilderFormat !== undefined ? { teambuilderFormat: data.teambuilderFormat } : {}),
+          error: undefined,
         }));
       } catch { /* malformed update: keep the last good state */ }
       break;
@@ -422,11 +416,12 @@ const handleLifecycle = (roomId: string, line: PsLine, store: ArenaStoreApi): bo
       patchTournament(tour => ({
         ...tour,
         players: tour.players.includes(rest[0]) ? tour.players : [...tour.players, rest[0]],
+        isJoined: tour.isJoined || toId(rest[0] || '') === toId(getState().username),
       }));
       break;
     case 'leave':
     case 'disqualify':
-      patchTournament(tour => ({ ...tour, players: tour.players.filter(user => user !== rest[0]) }));
+      patchTournament(tour => ({ ...tour, players: tour.players.filter(user => user !== rest[0]), isJoined: toId(rest[0] || '') === toId(getState().username) ? false : tour.isJoined }));
       break;
     case 'start':
       patchTournament(tour => ({ ...tour, isStarted: true }));
@@ -446,7 +441,14 @@ const handleLifecycle = (roomId: string, line: PsLine, store: ArenaStoreApi): bo
       break;
     case 'end':
     case 'forceend':
-      patchTournament(tour => ({ ...tour, isStarted: false, ended: true, challenges: [], challengeBys: [], currentBattle: undefined }));
+      patchTournament(tour => {
+        let results = tour.results;
+        try { results = (JSON.parse(rest.join('|')) as { results?: string[][] }).results; } catch { /* forceend has no result payload */ }
+        return { ...tour, isStarted: false, ended: true, challenges: [], challengeBys: [], currentBattle: undefined, challenged: null, challenging: null, results };
+      });
+      break;
+    case 'error':
+      patchTournament(tour => ({ ...tour, error: rest.join(' ') || 'Tournament action failed. Refresh and retry.' }));
       break;
     default:
       break;
@@ -458,10 +460,10 @@ const handleLifecycle = (roomId: string, line: PsLine, store: ArenaStoreApi): bo
   case 'tempnotify': {
     // |notify|TITLE|MESSAGE(|highlight token)| — surface on the desktop when
     // the page is hidden; the in-app feed already shows the room activity.
-    if (useWorkspaceStore.getState().notificationsEnabled) {
+    if (useWorkspaceStore.getState().notificationsEnabled && !useWorkspaceStore.getState().mutedRooms.includes(roomId)) {
       const title = line.args[line.command === 'tempnotify' ? 1 : 0] || 'Showdown Arena';
       const body = line.args[line.command === 'tempnotify' ? 2 : 1] || roomId;
-      desktopNotify(title, body, `room-${roomId}`);
+      desktopNotify(title, body, `room-${roomId}`, `/${roomId.startsWith('battle-') ? 'battle' : 'room'}/${roomId}`);
     }
     return true;
   }
@@ -521,31 +523,46 @@ const handleBattleLine = (roomId: string, line: PsLine, store: ArenaStoreApi) =>
   if (line.command === 'inactive' || line.command === 'inactiveoff') {
     const text = line.args.join('|');
     setState(state => ({
-      rooms: updateBattleRoom(state.rooms, roomId, room => ({
+      rooms: updateBattleRoom(state.rooms, roomId, room => {
+        if (room.engine) feedLine(room.engine, line.raw);
+        const timing = parseTimerLine(text, username);
+        return ({
         ...room,
-        rawLog: [...room.rawLog, line.raw],
+        rawLog: [...room.rawLog.slice(-49_999), line.raw],
         timer: line.command === 'inactiveoff' ?
           { ...room.timer, on: false } :
-          { on: true, ...parseTimerLine(text), asOf: Date.now() },
+          { ...room.timer, on: true, ...timing, asOf: timing.secondsLeft !== undefined ? Date.now() : room.timer.asOf },
         battle: { ...room.battle, timerOn: line.command === 'inactive' },
-      })),
+      }); }),
     }));
     return;
   }
 
   const chat = parseChatLine(line);
   const pretty = chat ? '' : describeBattleLine(line);
-  const request = line.command === 'request' ? parseBattleRequest(line) : null;
+  const parsedRequest = line.command === 'request' ? parseBattleRequest(line) : null;
+  const request = isBattleRequest(parsedRequest) ? parsedRequest : null;
 
   setState(state => {
     let searchState = state.searchState;
-    let activeRoomId = state.activeRoomId;
 
     const rooms = updateBattleRoom(state.rooms, roomId, room => {
-      let next: typeof room = { ...room, rawLog: [...room.rawLog, line.raw] };
+      let next: typeof room = { ...room, rawLog: [...room.rawLog.slice(-49_999), line.raw],
+        battle: { ...room.battle, logTruncated: room.battle.logTruncated || room.rawLog.length >= 50_000 } };
+      if (line.command === 'request' && !request) {
+        const withdrawn = ['', 'null'].includes(line.args.join('|').trim());
+        return { ...next, lastRequest: undefined, choiceSession: undefined, choiceDraft: { choices: [] }, choicePending: false,
+          choiceError: withdrawn ? undefined : 'The server sent an invalid battle request. Synchronize the battle before choosing.',
+          battle: { ...next.battle, moves: [], requestType: 'wait', waiting: false, mode: withdrawn && !next.perspective ? 'spectator' : 'waiting' } };
+      }
+      if (request?.rqid !== undefined && next.lastRequest?.rqid !== undefined && request.rqid < next.lastRequest.rqid) return next;
+      if (line.command === 'gametype') next.battle = { ...next.battle, gameType: line.args[0], supportReason: battleSupport(next.battle.format, line.args[0]).reason };
+      if (line.command === 'teampreview') next.battle = { ...next.battle, teamPreviewCount: Number(line.args[0]) || undefined };
+      if (line.command === 'gen') next.battle = { ...next.battle, generation: Number(line.args[0]) || undefined };
 
       // Perspective and result are protocol facts the engine does not model.
       if (line.command === 'player') {
+        if (line.args[0] !== 'p1' && line.args[0] !== 'p2') return next;
         const side = line.args[0] === 'p2' ? 'p2' : 'p1';
         const name = toId(line.args[1] || '');
         const displayName = line.args[1] || '';
@@ -566,6 +583,29 @@ const handleBattleLine = (roomId: string, line: PsLine, store: ArenaStoreApi) =>
       }
       if (line.command === 'win') next = { ...next, result: { winner: line.args[0], ended: true } };
       if (line.command === 'tie') next = { ...next, result: { ended: true } };
+      if (next.result?.ended) next = { ...next, timer: { ...next.timer, on: false }, choicePending: false };
+
+      if (line.command === 'sentchoice' && next.lastRequest) {
+        const session = restoreBattleChoiceSession(next.lastRequest, line.args.join('|'));
+        next = { ...next, choiceSession: session, choiceDraft: session.draft, choicePending: session.status === 'submitted', choiceError: undefined };
+      }
+      if ((line.command === 'callback' || line.command === 'error') && next.lastRequest) {
+        const requestCopy: BattleRequest = { ...next.lastRequest, active: next.lastRequest.active?.map(active => active ? { ...active, moves: active.moves?.map(move => ({ ...move })) } : null) };
+        if (line.command === 'callback') {
+          const identSlot = /p[12]([a-z])/.exec(line.args[1] || '')?.[1];
+          const index = identSlot ? identSlot.charCodeAt(0) - 97 : Number(line.args[1]) || 0;
+          const active = requestCopy.active?.[index];
+          if (active && line.args[0] === 'trapped') active.trapped = true;
+          if (active && line.args[0] === 'cant') active.moves = active.moves?.map(move => toId(move.id || move.move) === toId(line.args[3] || '') ? { ...move, disabled: true } : move);
+        }
+        // Chat errors must not erase a submitted battle choice.
+        if (line.command === 'callback' || /\[(?:Invalid choice|Unavailable choice)\]|choice|trapped|disabled|can't undo|cannot undo/i.test(line.args.join('|'))) {
+          const undoDenied = /can't undo|cannot undo|can't cancel|cannot cancel/i.test(line.args.join('|'));
+          const session = undoDenied && next.choiceSession ? { ...next.choiceSession, status: 'submitted' as const, noCancel: true } : createBattleChoiceSession(requestCopy);
+          next = { ...next, lastRequest: requestCopy, choiceSession: session, choiceDraft: session.draft, choicePending: !!undoDenied,
+            choiceError: line.command === 'callback' ? line.args[0] === 'trapped' ? 'Your Pokémon is trapped. Choose a move.' : 'That move is unavailable. Choose again.' : line.args.join('|') };
+        }
+      }
 
       // Field choreography and the action banner: which side acted or got
       // hit (for CSS animation), plus the human-readable line the field
@@ -578,33 +618,34 @@ const handleBattleLine = (roomId: string, line: PsLine, store: ArenaStoreApi) =>
       // its cry (|switch|p1a: Nick|Species, details|hp).
       if (
         useWorkspaceStore.getState().soundEnabled &&
-        state.activeRoomId === roomId &&
+        state.activeRoomId === roomId && !document.hidden &&
         (line.command === 'switch' || line.command === 'drag')
       ) {
         const species = (line.args[1] || '').split(',')[0].trim();
-        if (species) playCry(species);
+        if (species) playCry(species, useWorkspaceStore.getState().volume / 100 * 0.9);
       }
 
       if (request) {
+        const normalizedRequest = normalizeBattleRequest(request, { ...next.battle, gameType: next.engine?.gameType || next.battle.gameType, teamPreviewCount: next.engine?.teamPreviewCount || next.battle.teamPreviewCount });
         // "Your move": two rising notes when a real decision arrives for the
         // battle you're looking at.
         if (
           useWorkspaceStore.getState().soundEnabled &&
-          state.activeRoomId === roomId &&
+          state.activeRoomId === roomId && !document.hidden &&
           !request.wait
         ) {
-          playTurnPing();
+          playTurnPing(useWorkspaceStore.getState().volume / 100 * 0.5);
         }
         const perspective = request.side?.id === 'p1' || request.side?.id === 'p2' ?
           request.side.id :
           next.perspective;
-        const flags = requestFlags(request);
+        const flags = requestFlags(normalizedRequest);
         const defender = next.battle.opponentActive;
         next = {
           ...next,
           perspective,
-          lastRequest: request,
-          choiceSession: createBattleChoiceSession(request),
+          lastRequest: normalizedRequest,
+          choiceSession: createBattleChoiceSession(normalizedRequest),
           choiceDraft: { choices: [] },
           choiceError: undefined,
           choicePending: false,
@@ -623,14 +664,13 @@ const handleBattleLine = (roomId: string, line: PsLine, store: ArenaStoreApi) =>
             mode: 'player',
             playerSide: perspective ?? next.battle.playerSide,
             moves: buildMoveDeck(
-              request,
-              defender?.terastallized ? [defender.terastallized] : defender?.types,
+              normalizedRequest,
+              defensiveTypes(defender),
               next.battle.format
             ),
           },
         };
         searchState = 'idle';
-        activeRoomId = roomId;
       }
 
       // The engine consumes every line, chat included — it ignores what it
@@ -640,18 +680,19 @@ const handleBattleLine = (roomId: string, line: PsLine, store: ArenaStoreApi) =>
         feedLine(next.engine, line.raw);
         next = {
           ...next,
-          battle: projectEngineBattle(next.engine, {
+          battle: { ...projectEngineBattle(next.engine, {
             roomId,
             perspective: next.perspective,
             result: next.result,
             lastRequest: next.lastRequest,
             waiting: next.choicePending || !!next.lastRequest?.wait,
             format: next.battle.format,
-          }),
+          }), timerOn: next.timer.on, logTruncated: next.battle.logTruncated },
         };
       }
 
-      if (chat) next = appendChat(next, chat, state.activeRoomId === roomId) as typeof next;
+      next.battle = { ...next.battle, waiting: next.choicePending || !!next.lastRequest?.wait, noCancel: next.choiceSession?.noCancel ?? next.battle.noCancel };
+      if (chat) next = appendChat(next, chat, state.activeRoomId === roomId && !document.hidden) as typeof next;
       if (pretty) next = appendLog(next, pretty) as typeof next;
       return next;
     });
@@ -659,7 +700,6 @@ const handleBattleLine = (roomId: string, line: PsLine, store: ArenaStoreApi) =>
     return {
       rooms,
       searchState,
-      activeRoomId,
       lastError: chat?.kind === 'error' ? chat.message : state.lastError,
     };
   });
@@ -722,7 +762,7 @@ export function routeFrame(frame: PsFrame, store: ArenaStoreApi) {
       store.setState(state => {
         const target = state.rooms[roomId] || newChatRoom(roomId, roomId === 'lobby' ? 'Lobby' : roomId);
         return {
-          rooms: upsert(state.rooms, appendChat(target, chat, state.activeRoomId === roomId) as Room),
+          rooms: upsert(state.rooms, appendChat(target, chat, state.activeRoomId === roomId && !document.hidden) as Room),
           lastError: chat.kind === 'error' ? chat.message : state.lastError,
         };
       });

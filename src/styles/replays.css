@@ -180,3 +180,31 @@
   font-weight: 600;
   line-height: 1.4;
 }
+
+.replay-source-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 10px 16px; font-size: 12px; }
+.replay-source-meta > span { flex: 1 1 100%; color: var(--arena-soft); }
+.replay-playback-options { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; padding: 12px 16px; }
+.replay-playback-options label, .replay-loader label, .replay-search label { display: grid; gap: 5px; font-size: 12px; }
+.replay-playback-options input { width: 70px; }
+.replay-playback-options input, .replay-playback-options select, .replay-search input { padding: 7px; border: 1px solid var(--arena-line); background: var(--arena-panel); color: var(--arena-text); border-radius: 6px; }
+.replay-narration { margin: 10px 16px; padding: 10px; border: 1px solid var(--arena-line); border-radius: 8px; }
+.replay-narration summary { cursor: pointer; }
+.replay-narration ol { max-height: 260px; overflow: auto; font-size: 12px; line-height: 1.7; }
+.replay-search, .replay-collection { display: grid; gap: 10px; padding: 16px; border-top: 1px solid var(--arena-line); }
+.replay-result-list { list-style: none; margin: 0; padding: 0 16px; max-height: 260px; overflow: auto; }
+.replay-result-list button, .replay-collection > button { width: 100%; padding: 9px; text-align: left; color: var(--arena-soft); background: transparent; border: 0; border-bottom: 1px solid var(--arena-line); cursor: pointer; }
+.replay-result-list small, .replay-collection small { display: block; margin-top: 3px; color: var(--arena-faint); }
+.replay-loader label, .replay-loader > small { margin-top: 12px; }
+.replay-inspector { overflow-y: auto; }
+
+/* Playback now has metadata and review panels in addition to the field. */
+.replay-workspace .replay-stage { display: flex; flex-direction: column; overflow-y: auto; }
+.replay-stage > * { flex-shrink: 0; }
+.replay-stage > .stage-heading { min-height: 64px; }
+.replay-canvas { height: clamp(320px, 36vw, 430px); min-height: 320px; }
+.replay-canvas .battle-field { height: 100%; min-height: 100%; }
+.replay-canvas:has(.combatant[data-positions="2"]) { height: 460px; }
+.replay-narration:last-child { margin-bottom: 16px; }
+.replay-workspace .replay-transport { grid-template-columns: repeat(4, 44px) minmax(60px, 1fr) auto; }
+.replay-workspace .replay-transport button { width: 44px; height: 44px; }
+@media (max-width: 560px) { .replay-workspace .replay-transport { grid-template-columns: repeat(4, 44px) minmax(60px, 1fr); } }

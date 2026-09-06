@@ -25,7 +25,7 @@ body:
     attributes:
       label: Protocol log (if battle-related)
       description: >
-        Settings → Protocol diagnostics keeps a redacted log of recent server
-        traffic. For battle bugs, the relevant lines make the difference
-        between a guess and a fix.
+        Use the share-safe export in Settings and review it before posting. Never
+        post raw private messages, teams, tokens, or private replay URLs. Include
+        the build revision from Settings or /build-info.json.
       render: text

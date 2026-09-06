@@ -6,6 +6,8 @@ import { useShallow } from 'zustand/react/shallow';
 import { toId } from '../compat/protocol-parsers';
 import { SPRITE_HOST } from '../data/sprites';
 import { useArenaStore } from '../stores/arena-store';
+import { useWorkspaceStore } from '../stores/workspace-store';
+import { openChallenge } from '../compat/ui-events';
 
 /**
  * The card behind every clickable username: identity from
@@ -25,21 +27,21 @@ const GROUP_LABELS: Record<string, string> = {
   '§': 'Section Leader',
 };
 
-export type UserCardAnchor = { name: string; x: number; y: number };
+export type UserCardAnchor = { name: string; x: number; y: number; trigger?: HTMLElement };
 
 export function UserCard({ anchor, onClose }: { anchor: UserCardAnchor; onClose: () => void }) {
   const userid = toId(anchor.name);
-  const { card, requestUserDetails, sendChallenge, openPmWith, selfName, named } = useArenaStore(
+  const { card, requestUserDetails, openPmWith, selfName, named } = useArenaStore(
     useShallow(state => ({
       card: state.userCards[userid],
       requestUserDetails: state.requestUserDetails,
-      sendChallenge: state.sendChallenge,
       openPmWith: state.openPmWith,
       selfName: state.username,
       named: state.named,
     }))
   );
   const navigate = useNavigate();
+  const { ignoredUsers, setPreference } = useWorkspaceStore();
   const cardRef = useRef<HTMLDivElement>(null);
   const [style, setStyle] = useState<CSSProperties>({ position: 'fixed', left: anchor.x, top: anchor.y });
 
@@ -48,6 +50,8 @@ export function UserCard({ anchor, onClose }: { anchor: UserCardAnchor; onClose:
   }, [anchor.name, requestUserDetails]);
 
   useLayoutEffect(() => {
+    const trigger = anchor.trigger || document.activeElement;
+    const cardElement = cardRef.current;
     const place = () => {
       const el = cardRef.current;
       if (!el) return;
@@ -70,8 +74,15 @@ export function UserCard({ anchor, onClose }: { anchor: UserCardAnchor; onClose:
     place();
     // Fonts and the avatar can change the card's size a frame later.
     const raf = requestAnimationFrame(place);
-    cardRef.current?.focus();
-    return () => cancelAnimationFrame(raf);
+    cardElement?.focus();
+    return () => {
+      cancelAnimationFrame(raf);
+      const focused = document.activeElement;
+      // Preserve focus that moved elsewhere (for example into a challenge
+      // dialog); Escape/Close returns keyboard users to the invoking name.
+      if (trigger instanceof HTMLElement && trigger.isConnected &&
+        (focused === document.body || focused === cardElement || cardElement?.contains(focused))) trigger.focus();
+    };
   }, [anchor]);
 
   useEffect(() => {
@@ -103,7 +114,7 @@ export function UserCard({ anchor, onClose }: { anchor: UserCardAnchor; onClose:
           <span className="user-card-fallback" aria-hidden>{displayName.charAt(0).toUpperCase()}</span>}
         <div>
           <strong>{group && <i className="user-card-rank">{group}</i>}{displayName}</strong>
-          <small>{card ? (card.status || groupLabel || 'Online') : 'Looking up…'}</small>
+          <small>{card ? (card.online === false ? 'Offline' : card.status || groupLabel || 'Online') : 'Looking up…'}</small>
         </div>
         <button type="button" className="icon-button user-card-close" aria-label="Close profile" onClick={onClose}>
           <X size={14} />
@@ -114,9 +125,9 @@ export function UserCard({ anchor, onClose }: { anchor: UserCardAnchor; onClose:
           <button
             type="button"
             className="secondary-action"
-            disabled={!named}
+            disabled={!named || card?.online === false}
             title={named ? undefined : 'Sign in to challenge players'}
-            onClick={() => { sendChallenge(displayName); onClose(); }}
+            onClick={() => { openChallenge(displayName); onClose(); }}
           >
             <Swords size={13} aria-hidden /> Challenge
           </button>
@@ -131,8 +142,14 @@ export function UserCard({ anchor, onClose }: { anchor: UserCardAnchor; onClose:
           >
             <MessageCircle size={13} aria-hidden /> Message
           </button>
+          <button type="button" className="secondary-action" onClick={() => setPreference('ignoredUsers', ignoredUsers.includes(userid) ? ignoredUsers.filter(id => id !== userid) : [...ignoredUsers, userid])}>{ignoredUsers.includes(userid) ? 'Unignore' : 'Ignore'}</button>
+          <a className="secondary-action" href="https://play.pokemonshowdown.com/view-help-request" target="_blank" rel="noopener noreferrer">Report to staff</a>
         </div>
       )}
+      <div className="user-card-rooms" aria-label="Public rooms">{card?.rooms.map(room => {
+        const id = room.replace(/^[^a-z0-9]/i, '');
+        return <button type="button" className="secondary-action" key={room} onClick={() => { onClose(); void navigate({ to: `/${id.startsWith('battle-') ? 'battle' : 'room'}/${id}` }); }}>{room}</button>;
+      })}</div>
     </div>,
     document.body
   );

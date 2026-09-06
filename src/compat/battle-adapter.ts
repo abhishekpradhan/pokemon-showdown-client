@@ -13,6 +13,7 @@ export type PokemonSet = {
   species: string;
   /** Percentage, always known. The opponent's exact HP never is. */
   hp: number;
+  hpKnown?: boolean;
   /** Exact HP, known only for your own side (the server sends `48/187`). */
   currentHp?: number;
   maxHp?: number;
@@ -28,6 +29,14 @@ export type PokemonSet = {
   volatiles?: string[];
   item?: string;
   ability?: string;
+  effectiveAbility?: string;
+  grounded?: boolean;
+  itemSuppressed?: boolean;
+  lastItem?: string;
+  stats?: Record<string, number>;
+  knownMoves?: { name: string; pp?: number; maxpp?: number; used?: number | [number, number] }[];
+  speedRange?: [number, number];
+  counters?: string[];
   active?: boolean;
   fainted?: boolean;
 };
@@ -40,7 +49,7 @@ export const BOOST_LABELS: Record<BoostId, string> = {
 };
 
 /** Entry hazards and screens, tracked per side with their layer count. */
-export type SideCondition = { name: string; layers: number };
+export type SideCondition = { name: string; layers: number; duration?: [number, number] };
 
 export type BattleRoomMode = 'player' | 'spectator' | 'waiting' | 'ended';
 
@@ -69,11 +78,23 @@ export type BattleChoice = {
   canZMove?: boolean;
   canDynamax?: boolean;
   canTerastallize?: boolean;
+  zMove?: BattleChoice;
+  maxMove?: BattleChoice;
+  modifier?: 'zmove' | 'dynamax';
+  notes?: string[];
 };
 
 export type ArenaBattle = {
   id: string;
   format: string;
+  gameType?: string;
+  generation?: number;
+  teamPreviewCount?: number;
+  teamSize?: number;
+  opponentTeamSize?: number;
+  supportReason?: string;
+  engineWarning?: string;
+  logTruncated?: boolean;
   turn: number;
   playerSide?: 'p1' | 'p2';
   p1: { name: string; rating: number };
@@ -133,9 +154,13 @@ export type BattleRequestPokemon = {
   item?: string;
   ability?: string;
   baseAbility?: string;
+  reviving?: boolean;
+  commanding?: boolean;
 };
 
 export type BattleRequest = {
+  gameType?: string;
+  teamPreviewCount?: number;
   rqid?: number;
   wait?: boolean;
   forceSwitch?: boolean | boolean[];
@@ -169,6 +194,7 @@ export type BattleChoiceState =
   | { kind: 'move'; slot: number; activeIndex?: number; target?: number; mega?: boolean; ultra?: boolean; z?: boolean; max?: boolean; tera?: boolean }
   | { kind: 'switch'; slot: number }
   | { kind: 'team'; order: number[] }
+  | { kind: 'confirm' }
   | { kind: 'pass' }
   | { kind: 'shift' };
 
@@ -232,7 +258,50 @@ export type BattleChoiceSession = {
   alreadyMax: boolean;
   alreadyZ: boolean;
   alreadyTera: boolean;
+  status?: 'drafting' | 'submitted' | 'cancelling';
 };
+
+/** Only advertise game types whose complete choice/field model is implemented. */
+export function battleSupport(formatId = '', gameType?: string): { supported: boolean; reason?: string } {
+  const unsupported = gameType && !['singles', 'doubles'].includes(gameType) ||
+    /triples|rotation|freeforall|free-for-all|(?:^|gen\d+)multi/.test(formatId.toLowerCase());
+  return unsupported ? {
+    supported: false,
+    reason: 'This client supports singles and doubles. Play this game type in the original Pokémon Showdown client.',
+  } : { supported: true };
+}
+
+/** Stellar preserves the Pokémon's original defensive typing. */
+export function defensiveTypes(pokemon: Pick<PokemonSet, 'types' | 'terastallized'>): TypeName[] | undefined {
+  return pokemon.terastallized && pokemon.terastallized !== 'Stellar' ? [pokemon.terastallized] : pokemon.types;
+}
+
+/** Runtime validation protects the decision boundary; TS types do not validate server JSON. */
+export function isBattleRequest(value: unknown): value is BattleRequest {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const request = value as BattleRequest;
+  if (request.rqid !== undefined && (!Number.isSafeInteger(request.rqid) || request.rqid < 0)) return false;
+  if (request.forceSwitch !== undefined && typeof request.forceSwitch !== 'boolean' &&
+    (!Array.isArray(request.forceSwitch) || request.forceSwitch.some(flag => typeof flag !== 'boolean'))) return false;
+  if (request.side !== undefined && (!request.side || typeof request.side !== 'object' ||
+    !Array.isArray(request.side.pokemon) || request.side.pokemon.some(pokemon => !pokemon ||
+      typeof pokemon.ident !== 'string' || typeof pokemon.details !== 'string' || typeof pokemon.condition !== 'string'))) return false;
+  if (request.active !== undefined && (!Array.isArray(request.active) || request.active.some(active => active !== null &&
+    (!active || typeof active !== 'object' || !Array.isArray(active.moves) || active.moves.some(move =>
+      !move || typeof move !== 'object' || typeof move.move !== 'string' || move.target !== undefined && typeof move.target !== 'string'))))) return false;
+  const specialMovesValid = (moves: unknown, nullable: boolean): boolean => Array.isArray(moves) && moves.every(move =>
+    nullable && move === null || !!move && typeof move === 'object' &&
+    (typeof move.move === 'string' || typeof move.name === 'string') &&
+    (move.target === undefined || typeof move.target === 'string'));
+  for (const active of request.active || []) {
+    if (!active) continue;
+    if (active.zMoves !== undefined && !specialMovesValid(active.zMoves, true)) return false;
+    if (active.canZMove !== undefined && typeof active.canZMove !== 'boolean' && !specialMovesValid(active.canZMove, true)) return false;
+    if (active.maxMoves !== undefined && (!active.maxMoves || !specialMovesValid(
+      Array.isArray(active.maxMoves) ? active.maxMoves : active.maxMoves.maxMoves, false))) return false;
+  }
+  return true;
+}
 
 export type ChoiceBuilderAdapter = {
   request: BattleRequest;
@@ -394,10 +463,12 @@ const canChooseTarget = (target?: string) => ['normal', 'any', 'adjacentAlly', '
  * positive numbers are foe slots, negative are your own side's slots.
  * `normal` moves can hit an ally in doubles, which is why they list both.
  */
-const defaultTargetOptions = (target?: string): number[] => {
-  if (target === 'adjacentAlly' || target === 'adjacentAllyOrSelf') return [-1, -2];
-  if (target === 'any' || target === 'normal') return [1, 2, -1, -2];
-  if (target === 'adjacentFoe') return [1, 2];
+export const moveTargetOptions = (target: string | undefined, slots = 2, activeIndex = 0): number[] => {
+  const foes = Array.from({ length: slots }, (_, index) => index + 1);
+  const allies = foes.map(slot => -slot).filter(slot => target === 'adjacentAllyOrSelf' || -slot !== activeIndex + 1);
+  if (target === 'adjacentAlly' || target === 'adjacentAllyOrSelf') return allies;
+  if (target === 'any' || target === 'normal') return [...foes, ...allies];
+  if (target === 'adjacentFoe') return foes;
   return [];
 };
 
@@ -409,8 +480,8 @@ const normalizeSpecialMoves = (active: NonNullable<BattleRequest['active']>[numb
 
 export function normalizeBattleRequest(request: BattleRequest, previousBattle?: ArenaBattle): BattleRequestNormalized {
   const normalizedType = requestType(request) || 'wait';
-  const active = request.active?.map(entry => {
-    if (!entry) return null;
+  const active = request.active?.map((entry, index) => {
+    if (!entry || request.side?.pokemon?.[index]?.condition.includes('fnt') || request.side?.pokemon?.[index]?.commanding) return null;
     const moves = (entry.moves || []).map(move => ({
       ...move,
       id: move.id || speciesId(move.move || ''),
@@ -429,17 +500,26 @@ export function normalizeBattleRequest(request: BattleRequest, previousBattle?: 
   }) || [];
   const forceSwitch = Array.isArray(request.forceSwitch) ? request.forceSwitch :
     request.forceSwitch ? [true] : undefined;
-  const sideSize = request.side?.pokemon?.length || previousBattle?.team.length || 1;
-  const chosenTeamSize = normalizedType === 'team' ? request.chosenTeamSize || request.maxChosenTeamSize || 1 : request.chosenTeamSize;
+  const knownSideSize = request.side?.pokemon?.length || previousBattle?.team.length;
+  const sideSize = knownSideSize || 1;
+  const gameType = request.gameType || previousBattle?.gameType;
+  const previewCount = request.teamPreviewCount || previousBattle?.teamPreviewCount;
+  const illusion = request.side?.pokemon?.some(pokemon => speciesId(pokemon.baseAbility || pokemon.ability || '') === 'illusion');
+  const chosenTeamSize = normalizedType === 'team' ? Math.min(knownSideSize || Infinity,
+    request.chosenTeamSize || request.maxChosenTeamSize || previewCount ||
+    (illusion ? sideSize : gameType === 'doubles' ? 2 : gameType === 'triples' ? 3 : 1)
+  ) : request.chosenTeamSize;
 
   return {
     ...request,
+    gameType,
+    teamPreviewCount: previewCount,
     active,
     forceSwitch,
     requestType: normalizedType,
     chosenTeamSize,
     noCancel: !!request.noCancel || normalizedType === 'wait',
-    targetable: request.targetable ?? (active.length > 1 || (sideSize > 1 && active.length > 1)),
+    targetable: request.targetable ?? (active.length > 1 || gameType === 'doubles'),
   };
 }
 
@@ -453,23 +533,55 @@ export function buildMoveDeck(
   request: BattleRequest,
   defenderTypes: TypeName[] | undefined,
   formatId?: string,
-  activeIndex = 0
+  activeIndex = 0,
+  defender?: PokemonSet,
+  attacker?: PokemonSet,
+  weather?: string,
 ): BattleChoice[] {
   const generation = genFromFormat(formatId);
   const normalized = normalizeBattleRequest(request);
   const activeRequest = normalized.active?.[activeIndex];
   const requestMoves = activeRequest?.moves || [];
 
+  const hintFor = (type: TypeName, category: BattleChoice['category'], id: string): { effectiveness?: string; notes: string[] } => {
+    if (category === 'Status' || !defenderTypes?.length) return { notes: [] };
+    const groundHitsAir = type === 'Ground' && (defender?.grounded || id === 'thousandarrows');
+    const types = groundHitsAir ? defenderTypes.filter(entry => entry !== 'Flying') : defenderTypes;
+    let multiplier = types.length ? effectiveness(type, types, generation) : 1;
+    const notes: string[] = [];
+    const attackAbility = attacker?.effectiveAbility ?? attacker?.ability ?? '';
+    const defendAbility = defender?.effectiveAbility ?? defender?.ability ?? '';
+    const ignoresAbility = ['moldbreaker', 'teravolt', 'turboblaze'].includes(speciesId(attackAbility)) ||
+      ['sunsteelstrike', 'moongeistbeam', 'photongeyser', 'searingsunrazesmash', 'menacingmoonrazemaelstrom', 'lightthatburnsthesky'].includes(id);
+    const immunityAbilities: Partial<Record<TypeName, string[]>> = {
+      Ground: ['levitate'], Water: ['waterabsorb', 'stormdrain', 'dryskin'], Electric: ['voltabsorb', 'lightningrod', 'motordrive'],
+      Fire: ['flashfire', 'wellbakedbody'], Grass: ['sapsipper'],
+    };
+    const balloon = type === 'Ground' && !defender?.itemSuppressed && speciesId(defender?.item || '') === 'airballoon';
+    const abilityImmune = !ignoresAbility && immunityAbilities[type]?.includes(speciesId(defendAbility));
+    if (!(type === 'Ground' && groundHitsAir) && (balloon || abilityImmune)) {
+      multiplier = 0;
+      notes.push(`Immune through known ${balloon ? 'Air Balloon' : defender?.ability}.`);
+    }
+    if (type === 'Stellar' && defender) multiplier = defender.terastallized ? 2 : 1;
+    if (id === 'freezedry' && defenderTypes.includes('Water') && multiplier !== null) multiplier *= 4;
+    if (id === 'flyingpress' && multiplier !== null) multiplier *= effectiveness('Flying', defenderTypes, generation) ?? 1;
+    return { effectiveness: formatEffectiveness(multiplier) ?? undefined, notes };
+  };
+
   return requestMoves.map((move, index): BattleChoice => {
     const name = move.move || idToName(move.id || `Move ${index + 1}`);
     const data = getMove(move.id || name, generation);
-    const type = (move.type || data?.type || 'Normal') as TypeName;
+    let type = (move.type || data?.type || 'Normal') as TypeName;
+    const id = speciesId(move.id || name);
+    if (id === 'terablast' && attacker?.terastallized) type = attacker.terastallized;
+    if (id === 'revelationdance' && attacker?.types?.length) type = attacker.types[0];
+    if (id === 'weatherball' && weather) type = ({ sunnyday: 'Fire', desolateland: 'Fire', raindance: 'Water', primordialsea: 'Water', sandstorm: 'Rock', hail: 'Ice', snow: 'Ice' } as Record<string, TypeName>)[speciesId(weather)] || type;
     const isStatus = (data?.category || 'Status') === 'Status';
-    const multiplier = isStatus || !defenderTypes?.length ?
-      null :
-      effectiveness(type, defenderTypes, generation);
-
-    return {
+    const hint = hintFor(type, data?.category, id);
+    const notes = hint.notes;
+    if (data?.basePower === 0 && !isStatus) notes.push('Power varies with battle state.');
+    const card: BattleChoice = {
       slot: index + 1,
       activeIndex,
       name,
@@ -478,7 +590,7 @@ export function buildMoveDeck(
       ppLeft: move.pp,
       ppMax: move.maxpp ?? data?.pp,
       cmd: `/choose move ${index + 1}${request.rqid ? `|${request.rqid}` : ''}`,
-      effectiveness: formatEffectiveness(multiplier) ?? undefined,
+      effectiveness: hint.effectiveness,
       category: data?.category,
       basePower: data?.basePower || undefined,
       accuracy: data?.accuracy,
@@ -487,13 +599,34 @@ export function buildMoveDeck(
       target: move.target || data?.target,
       requiresTarget: normalized.targetable && canChooseTarget(move.target || data?.target),
       targetOptions: normalized.targetable && canChooseTarget(move.target || data?.target) ?
-        defaultTargetOptions(move.target || data?.target) : undefined,
+        moveTargetOptions(move.target || data?.target, normalized.active?.length || 2, activeIndex) : undefined,
       canMegaEvo: !!activeRequest?.canMegaEvo,
       canUltraBurst: !!activeRequest?.canUltraBurst,
       canZMove: Array.isArray(activeRequest?.zMoves) ? !!activeRequest.zMoves[index] : !!activeRequest?.canZMove,
       canDynamax: !!activeRequest?.canDynamax,
       canTerastallize: !!activeRequest?.canTerastallize,
+      notes,
     };
+    const specialCard = (special: BattleRequestSpecialMove, modifier: 'zmove' | 'dynamax'): BattleChoice => {
+      const specialData = getMove(special.id || special.move, generation);
+      const specialType = (special.type || specialData?.type || type) as TypeName;
+      const target = special.target || specialData?.target || card.target;
+      const power = modifier === 'zmove' ? data?.zMove?.basePower : data?.maxMove?.basePower;
+      return {
+        ...card, name: special.move || specialData?.name || card.name, type: specialType,
+        disabled: !!special.disabled, modifier,
+        cmd: card.cmd.replace(/(\|\d+)?$/, suffix => ` ${modifier}${suffix}`),
+        category: specialData?.category || card.category,
+        ...hintFor(specialType, specialData?.category || card.category, speciesId(special.id || special.move)),
+        basePower: power || (specialData?.basePower && specialData.basePower > 1 ? specialData.basePower : undefined),
+        accuracy: specialData?.accuracy, description: specialData?.shortDesc || specialData?.desc,
+        target, requiresTarget: normalized.targetable && canChooseTarget(target),
+        targetOptions: normalized.targetable ? moveTargetOptions(target, normalized.active?.length || 2, activeIndex) : undefined,
+      };
+    };
+    if (activeRequest?.zMoves?.[index]) card.zMove = specialCard(activeRequest.zMoves[index]!, 'zmove');
+    if (activeRequest?.maxMoves?.[index]) card.maxMove = specialCard(activeRequest.maxMoves[index], 'dynamax');
+    return card.maxMove && !activeRequest?.canDynamax ? { ...card.maxMove, modifier: undefined, cmd: card.cmd, canDynamax: false } : card;
   });
 }
 
@@ -526,6 +659,7 @@ export function commandForChoice(choice: BattleChoice | PokemonSet, rqid?: numbe
 
 export function buildChooseCommand(choice: BattleChoiceState, rqid?: number) {
   const suffix = rqid ? `|${rqid}` : '';
+  if (choice.kind === 'confirm') return '';
   if (choice.kind === 'pass') return `/choose pass${suffix}`;
   if (choice.kind === 'shift') return `/choose shift${suffix}`;
   if (choice.kind === 'switch') return `/choose switch ${choice.slot}${suffix}`;
@@ -556,6 +690,7 @@ const requestLength = (request: BattleRequestNormalized) => {
 };
 
 const stringChoice = (choice: BattleChoiceState) => {
+  if (choice.kind === 'confirm') return '';
   if (choice.kind === 'pass') return 'pass';
   if (choice.kind === 'shift') return 'shift';
   if (choice.kind === 'switch') return `switch ${choice.slot}`;
@@ -581,8 +716,8 @@ const currentMoveRequest = (session: BattleChoiceSession, index = choiceIndex(se
 const currentMove = (session: BattleChoiceSession, choice: BattleChoiceState & { kind: 'move' }) => {
   const active = currentMoveRequest(session, choice.activeIndex ?? choiceIndex(session));
   if (!active) return null;
-  if (choice.max && active.maxMoves?.length) return active.maxMoves[choice.slot - 1] || null;
-  if (choice.z && active.zMoves?.length) return active.zMoves[choice.slot - 1] || null;
+  if (choice.max || (active.maxMoves?.length && !active.canDynamax)) return active.maxMoves?.[choice.slot - 1] || null;
+  if (choice.z) return active.zMoves?.[choice.slot - 1] || null;
   return active.moves?.[choice.slot - 1] || null;
 };
 
@@ -593,11 +728,30 @@ const fillPasses = (session: BattleChoiceSession) => {
     }
   }
   if (session.request.requestType === 'switch') {
-    while (session.draft.choices.length < (session.request.forceSwitch?.length || 0) && !session.request.forceSwitch?.[session.draft.choices.length]) {
+    while (session.draft.choices.length < (session.request.forceSwitch?.length || 0) &&
+      (!session.request.forceSwitch?.[session.draft.choices.length] || !availableSwitches(session).length)) {
       session.draft.choices.push('pass');
     }
   }
 };
+
+export function isReviving(session: BattleChoiceSession): boolean {
+  return session.request.requestType === 'switch' && !!session.request.side?.pokemon?.[choiceIndex(session)]?.reviving;
+}
+
+export function availableSwitches(session: BattleChoiceSession): number[] {
+  const revival = isReviving(session);
+  return (session.request.side?.pokemon || []).flatMap((pokemon, index) => {
+    const fainted = pokemon.condition.includes('fnt');
+    return (!revival && index < requestLength(session.request)) || fainted !== revival || session.alreadySwitchingIn.includes(index + 1) ? [] : [index + 1];
+  });
+}
+
+export function canPassBattleChoice(session: BattleChoiceSession): boolean {
+  if (session.status === 'submitted' || session.request.requestType !== 'switch' || isReviving(session)) return false;
+  const remaining = (session.request.forceSwitch || []).slice(choiceIndex(session)).filter(Boolean).length;
+  return remaining > availableSwitches(session).length;
+}
 
 const cloneSession = (session: BattleChoiceSession): BattleChoiceSession => ({
   ...session,
@@ -618,6 +772,7 @@ export function createBattleChoiceSession(request: BattleRequest): BattleChoiceS
     alreadyMax: false,
     alreadyZ: false,
     alreadyTera: false,
+    status: 'drafting',
   };
   fillPasses(session);
   return session;
@@ -629,12 +784,19 @@ export function isBattleChoiceComplete(session: BattleChoiceSession) {
 
 export function addBattleChoice(session: BattleChoiceSession, choice: BattleChoiceState): BattleCommandResult {
   const next = cloneSession(session);
+  const reject = (error: string): BattleCommandResult => ({ ok: false, complete: false, error, draft: next.draft, session: next });
+
+  if (next.status === 'submitted' || next.status === 'cancelling') return reject('Your choice is already submitted. Cancel it before choosing again.');
+  if (isBattleChoiceComplete(next) && choice.kind !== 'confirm' && choice.kind !== 'team') return reject('All positions already have a choice.');
 
   if (next.request.requestType === 'wait') {
     return { ok: false, complete: false, error: "It's not your turn to choose.", draft: next.draft, session: next };
   }
 
-  if (choice.kind === 'pass') {
+  if (choice.kind === 'confirm') {
+    if (next.request.requestType !== 'team' || !isBattleChoiceComplete(next)) return reject('Choose the required team order before confirming.');
+  } else if (choice.kind === 'pass') {
+    if (!canPassBattleChoice(next)) return reject('This position needs a Pokémon.');
     next.draft.choices.push('pass');
   } else if (choice.kind === 'shift') {
     if (next.request.requestType !== 'move') {
@@ -645,14 +807,24 @@ export function addBattleChoice(session: BattleChoiceSession, choice: BattleChoi
     if (next.request.requestType !== 'team') {
       return { ok: false, complete: false, error: 'Team preview is not active.', draft: next.draft, session: next };
     }
-    const targetSlots = choice.order.length ? choice.order : [];
+    // A preview click toggles a slot. An explicit order replaces the draft,
+    // allowing the preview editor to reorder without submitting prematurely.
+    const targetSlots = choice.order;
+    if (targetSlots.length !== 1) {
+      next.draft.choices = [];
+      next.alreadySwitchingIn = [];
+    }
     for (const slot of targetSlots) {
       const pokemon = next.request.side?.pokemon?.[slot - 1];
       if (!pokemon) return { ok: false, complete: false, error: `Team slot ${slot} is unavailable.`, draft: next.draft, session: next };
       if (pokemon.condition.includes('fnt')) return { ok: false, complete: false, error: `${pokemon.ident} has fainted.`, draft: next.draft, session: next };
       if (next.alreadySwitchingIn.includes(slot)) {
-        return { ok: false, complete: false, error: `${pokemon.ident} is already selected.`, draft: next.draft, session: next };
+        const index = next.alreadySwitchingIn.indexOf(slot);
+        next.alreadySwitchingIn.splice(index, 1);
+        next.draft.choices.splice(index, 1);
+        continue;
       }
+      if (isBattleChoiceComplete(next)) return reject('Your selection is full. Remove a Pokémon to choose another.');
       next.alreadySwitchingIn.push(slot);
       next.draft.choices.push(`team ${slot}`);
       if (isBattleChoiceComplete(next)) break;
@@ -666,10 +838,12 @@ export function addBattleChoice(session: BattleChoiceSession, choice: BattleChoi
     }
     const pokemon = next.request.side?.pokemon?.[choice.slot - 1];
     if (!pokemon) return { ok: false, complete: false, error: `Switch slot ${choice.slot} is unavailable.`, draft: next.draft, session: next };
-    if (choice.slot - 1 < requestLength(next.request)) {
+    const revival = isReviving(next);
+    if (!revival && choice.slot - 1 < requestLength(next.request)) {
       return { ok: false, complete: false, error: 'That Pokemon is already active.', draft: next.draft, session: next };
     }
-    if (pokemon.condition.includes('fnt')) {
+    if (pokemon.condition.includes('fnt') !== revival) {
+      if (revival) return reject('Choose a fainted Pokémon to revive.');
       return { ok: false, complete: false, error: `${pokemon.ident} has fainted.`, draft: next.draft, session: next };
     }
     if (next.alreadySwitchingIn.includes(choice.slot)) {
@@ -677,16 +851,22 @@ export function addBattleChoice(session: BattleChoiceSession, choice: BattleChoi
     }
     next.alreadySwitchingIn.push(choice.slot);
     next.draft.choices.push(`switch ${choice.slot}`);
+    if (currentMoveRequest(session)?.maybeTrapped && next.draft.choices.length >= requestLength(next.request)) next.noCancel = true;
   } else if (choice.kind === 'move') {
     if (next.request.requestType !== 'move') {
       return { ok: false, complete: false, error: 'You must switch, not move.', draft: next.draft, session: next };
     }
-    const active = currentMoveRequest(next, choice.activeIndex ?? choiceIndex(next));
+    if (choice.activeIndex !== undefined && choice.activeIndex !== choiceIndex(next)) return reject('This move belongs to an earlier position. Choose the current Pokémon’s action.');
+    const active = currentMoveRequest(next);
     const move = currentMove(next, choice);
     if (!active || !move || move.disabled) {
       return { ok: false, complete: false, error: `Move ${move?.move || choice.slot} is disabled.`, draft: next.draft, session: next };
     }
     if (choice.max && !active.canDynamax) choice = { ...choice, max: false };
+    if (choice.mega && !active.canMegaEvo) return reject('Mega Evolution is unavailable.');
+    if (choice.ultra && !active.canUltraBurst) return reject('Ultra Burst is unavailable.');
+    if (choice.tera && !active.canTerastallize) return reject('Terastallization is unavailable.');
+    if ([choice.mega, choice.ultra, choice.z, choice.max, choice.tera].filter(Boolean).length > 1) return reject('Choose one transformation for this action.');
     if (choice.mega && next.alreadyMega) return { ok: false, complete: false, error: 'Mega Evolution is already selected.', draft: next.draft, session: next };
     if (choice.z && next.alreadyZ) return { ok: false, complete: false, error: 'A Z-Move is already selected.', draft: next.draft, session: next };
     if (choice.max && next.alreadyMax) return { ok: false, complete: false, error: 'Dynamax is already selected.', draft: next.draft, session: next };
@@ -695,19 +875,31 @@ export function addBattleChoice(session: BattleChoiceSession, choice: BattleChoi
       next.draft.pendingMove = choice;
       return { ok: true, complete: false, draft: next.draft, session: next, message: 'Choose a target.' };
     }
+    if (choice.target && (!next.request.targetable || !moveTargetOptions(move.target, next.request.active?.length || 2, choiceIndex(next)).includes(choice.target))) return reject('That target is unavailable for this move.');
     if (choice.mega) next.alreadyMega = true;
     if (choice.z) next.alreadyZ = true;
     if (choice.max) next.alreadyMax = true;
     if (choice.tera) next.alreadyTera = true;
     next.draft.pendingMove = undefined;
     next.draft.choices.push(stringChoice(choice) as string);
+    if (active.maybeDisabled && !next.request.targetable && next.draft.choices.length >= requestLength(next.request)) next.noCancel = true;
   }
 
   fillPasses(next);
   const complete = isBattleChoiceComplete(next);
   const choiceString = next.draft.choices.join(', ').replace(/, team /g, ', ');
-  const command = complete ? `/choose ${choiceString}${next.request.rqid ? `|${next.request.rqid}` : ''}` : undefined;
+  const command = complete && (next.request.requestType !== 'team' || choice.kind === 'confirm') ? `/choose ${choiceString}${next.request.rqid ? `|${next.request.rqid}` : ''}` : undefined;
+  if (command) next.status = 'submitted';
   return { ok: true, complete, command, draft: next.draft, session: next };
+}
+
+/** The server's saved choice is authoritative after reconnect or /undo. */
+export function restoreBattleChoiceSession(request: BattleRequest, serialized: string): BattleChoiceSession {
+  const session = createBattleChoiceSession(request);
+  if (!serialized.trim()) return session;
+  session.draft.choices = serialized.trim().split(',').map(choice => choice.trim());
+  session.status = 'submitted';
+  return session;
 }
 
 export function battleDecisionState(roomId: string, battle: ArenaBattle, session?: BattleChoiceSession, error?: string): BattleDecisionState {

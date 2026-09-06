@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import {
   addBattleChoice,
   battleDecisionState,
+  battleSupport,
   buildBattleCommand,
   createBattleChoiceSession,
   demoBattle,
@@ -13,10 +14,12 @@ import {
 } from '../compat/battle-adapter';
 import {
   getAssertion,
-  loginWithPassword,
-  logout,
   type AssertionOutcome,
 } from '../compat/login-server';
+import { beginAuthentication, cancelAuthentication } from '../compat/auth-session';
+import { sanitizeProtocolLog } from '../compat/diagnostics';
+import { replayUploadUrl } from '../compat/replay-upload';
+import { useWorkspaceStore } from './workspace-store';
 import {
   getDefaultServerConfig,
   loadStoredServer,
@@ -38,6 +41,13 @@ import {
   importPackedTeam,
   importTeams,
   loadStoredTeams,
+  hasStoredTeamLibrary,
+  importTeamLibrary,
+  packTeam,
+  createTeamId,
+  saveTeamDraft,
+  type TeamDraft,
+  type TeamSet,
   saveStoredTeams,
   validateStoredTeam,
   validateTeamSets,
@@ -48,10 +58,9 @@ import {
 import { createEngineBattle, feedLine, onEngineReady, projectEngineBattle } from '../battle/engine';
 import { battleEventFromLine, routeFrame } from '../protocol/router';
 import {
-  clearOAuthToken, oauthConfigured, requestOAuthGrant, saveOAuthToken, storedOAuthToken,
+  assertionFromToken, clearOAuthToken, currentOAuthToken, OAUTH_STORAGE_KEY, oauthConfigured, requestOAuthGrant, saveOAuthToken, storedOAuthToken,
 } from '../compat/ps-oauth';
 import {
-  appendChat,
   appendLog,
   newBattleRoom,
   newPmRoom,
@@ -93,6 +102,7 @@ export type UserCardDetails = {
   avatar?: string;
   status?: string;
   rooms: string[];
+  online?: boolean;
 };
 
 export type ArenaState = {
@@ -106,9 +116,11 @@ export type ArenaState = {
   connection: ConnectionState;
   connectionReason?: string;
   loginPending: boolean;
+  loginStage?: 'authorization' | 'confirmation';
   /** Set when the login server reports the chosen name is registered. */
   needsPassword: boolean;
   lastError?: string;
+  sessionNotice?: string;
   server: ServerConfig;
   protocol: ProtocolClient;
 
@@ -124,12 +136,18 @@ export type ArenaState = {
   // ── Rooms (the registry: chat, PMs and battles in one map) ──
   rooms: Record<string, Room>;
   activeRoomId?: string;
+  roomErrors: Record<string, string>;
 
   // ── Teams ──
   activeTeam: PackedTeam;
   teams: StoredTeam[];
   activeTeamId?: string;
   teamNotice?: string;
+  teamValidation?: { state: 'validating' | 'valid' | 'invalid'; format: string; message?: string; requestedAt: number };
+  saveTeamDraftToLibrary: (draft: TeamDraft) => StoredTeam | undefined;
+  replaceTeamLibrary: (teams: StoredTeam[]) => boolean;
+  reloadTeamLibrary: () => void;
+  validateTeamOnServer: (sets: TeamSet[], format: string) => void;
 
   // ── Preferences / diagnostics ──
   hardcoreMode: boolean;
@@ -137,6 +155,8 @@ export type ArenaState = {
   rawProtocolLog: string[];
   /** Replay publish flow: /savereplay → server payload → upload proxy. */
   replayStatus?: { roomId?: string; state: 'saving' | 'uploaded' | 'failed'; url?: string; error?: string };
+  replayStatuses: Record<string, { roomId: string; state: 'saving' | 'uploaded' | 'failed'; url?: string; error?: string; requestedAt: number }>;
+  finishReplay: (roomId: string, result: { url?: string; error?: string }) => void;
 
   // ── Actions ──
   connect: () => void;
@@ -152,16 +172,18 @@ export type ArenaState = {
   openPmWith: (name: string) => string;
   /** OAuth2 sign-in: the password is only ever typed on play.pokemonshowdown.com. */
   loginWithOAuth: () => Promise<void>;
+  cancelLogin: () => void;
+  resumeSession: (challstr: string) => Promise<void>;
   oauthAvailable: boolean;
   oauthLinked: boolean;
   login: (credentials: LoginCredentials) => Promise<void>;
   logout: () => Promise<void>;
   joinRoom: (roomId: string) => void;
-  leaveRoom: (roomId: string) => void;
+  leaveRoom: (roomId: string) => boolean;
   focusRoom: (roomId?: string) => void;
   refreshRoomList: (format?: string) => void;
   refreshChatRooms: () => void;
-  sendRoomMessage: (roomId: string, message: string) => void;
+  sendRoomMessage: (roomId: string, message: string) => boolean;
   setSelectedFormat: (format: string) => void;
   setActiveTeam: (team: PackedTeam) => void;
   importTeamText: (text: string, name?: string, format?: string) => void;
@@ -179,7 +201,7 @@ export type ArenaState = {
   acceptChallenge: (user: string) => void;
   rejectChallenge: (user: string) => void;
   cancelChallenge: () => void;
-  submitBattleChoice: (choice: BattleChoice | PokemonSet, roomId?: string) => void;
+  submitBattleChoice: (choice: BattleChoice | PokemonSet | BattleChoiceState, roomId?: string) => void;
   submitBattleTarget: (target: number, roomId?: string) => void;
   getBattleDecision: (roomId?: string) => BattleDecisionState;
   resetBattleChoiceSession: (roomId?: string) => void;
@@ -187,7 +209,7 @@ export type ArenaState = {
   toggleBattleTimer: (roomId?: string) => void;
   forfeitBattle: (roomId?: string) => void;
   recordBattleEvent: (event: string, roomId?: string) => void;
-  sendBattleChat: (message: string, roomId?: string) => void;
+  sendBattleChat: (message: string, roomId?: string) => boolean;
   saveReplay: (roomId?: string) => void;
   toggleHardcore: (checked: boolean) => void;
   toggleProtocolLog: (checked: boolean) => void;
@@ -219,7 +241,7 @@ const sampleStoredTeam: StoredTeam = {
 
 const initialTeams = () => {
   const stored = loadStoredTeams();
-  return stored.length ? stored : [sampleStoredTeam];
+  return hasStoredTeamLibrary() ? stored : [sampleStoredTeam];
 };
 const bootstrappedTeams = initialTeams();
 
@@ -251,6 +273,7 @@ const scheduleLoginTimeout = () => {
   loginTimeout = window.setTimeout(() => {
     const state = useArenaStore.getState();
     if (state.loginPending) {
+      cancelAuthentication();
       useArenaStore.setState({
         loginPending: false,
         lastError: 'The server did not confirm that name. Try again or reconnect.',
@@ -277,8 +300,8 @@ const applyAssertion = (name: string, outcome: AssertionOutcome) => {
   if (outcome.kind === 'needs-password') {
     useArenaStore.setState({
       loginPending: false,
-      needsPassword: true,
-      lastError: `${name} is a registered account. Enter its password to log in.`,
+      needsPassword: false,
+      lastError: `${name} is registered. Use “Sign in with Pokémon Showdown” to authorize your account.`,
     });
     return;
   }
@@ -286,16 +309,13 @@ const applyAssertion = (name: string, outcome: AssertionOutcome) => {
     useArenaStore.setState({
       loginPending: false,
       needsPassword: false,
-      lastError: `${name} is linked to a Google account, which this client does not support yet. Choose a different name.`,
+      lastError: `${name} uses Google sign-in. Use “Sign in with Pokémon Showdown” and sign in there.`,
     });
     return;
   }
   useArenaStore.setState({ loginPending: false, needsPassword: false, lastError: outcome.message });
 };
 
-const sanitizeProtocolLog = (raw: string) => raw
-  .replace(/(\|challstr\|)[^\r\n]*/g, '$1[redacted]')
-  .replace(/(\/trn\s+[^,\r\n|]+,0,)[^\r\n|]+/g, '$1[redacted]');
 
 /** Resolves an optional room id to the battle room it names, if any. */
 const battleRoomFor = (state: ArenaState, roomId?: string): BattleRoom | undefined => {
@@ -306,6 +326,7 @@ const battleRoomFor = (state: ArenaState, roomId?: string): BattleRoom | undefin
 
 export const useArenaStore = create<ArenaState>((set, get) => ({
   username: 'Guest',
+  replayStatuses: {},
   userGroup: '',
   named: false,
   challstr: '',
@@ -327,6 +348,7 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
   challenges: { from: {}, to: null },
 
   rooms: demoRooms(),
+  roomErrors: {},
   activeRoomId: undefined,
 
   activeTeam: bootstrappedTeams[0]?.packed || sampleTeam,
@@ -347,16 +369,25 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
       return false;
     }
     saveStoredServer(server);
+    cancelAuthentication();
+    clearLoginTimeout();
     // Rooms belong to the old server; drop them rather than show stale
     // sessions against a server that has never heard of them.
     set({
       server,
       rooms: {},
+      roomErrors: {},
+      userCards: {},
       roomList: { rooms: [] },
       chatRoomList: { rooms: [], sectionTitles: [] },
       challenges: { from: {}, to: null },
       activeRoomId: undefined,
       named: false,
+      username: 'Guest',
+      loginPending: false,
+      searchState: 'idle',
+      searchFormats: [],
+      replayStatus: undefined, replayStatuses: {},
       challstr: '',
       lastError: undefined,
     });
@@ -365,9 +396,47 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
   },
   resetServer: () => {
     const server = getDefaultServerConfig();
+    get().setServer(`${server.secure ? 'wss' : 'ws'}://${server.host}:${server.port}${server.prefix}`);
     saveStoredServer(null);
-    set({ server, named: false, challstr: '', lastError: undefined });
-    get().protocol.setServer(server);
+  },
+
+  cancelLogin: () => {
+    cancelAuthentication();
+    clearLoginTimeout();
+    set({ loginPending: false });
+  },
+  resumeSession: async challstr => {
+    const attempt = beginAuthentication();
+    const current = () => attempt.current() && get().challstr === challstr && get().connection === 'connected';
+    try {
+      const stored = oauthConfigured() ? await currentOAuthToken(attempt.signal) : null;
+      if (!current()) return;
+      if (stored) {
+        const result = await assertionFromToken(challstr, stored.token, attempt.signal);
+        if (!current()) return;
+        if (!result) {
+          if (storedOAuthToken()?.token === stored.token) clearOAuthToken();
+          set({ oauthLinked: false });
+          return;
+        }
+        const name = result.user || stored.user;
+        if (!name) return;
+        set({ loginPending: true, oauthLinked: true });
+        scheduleLoginTimeout();
+        get().protocol.send(`/trn ${name},0,${result.assertion}`);
+      } else {
+        let name = '';
+        try { name = sessionStorage.getItem('arena-guest-name') || ''; } catch { /* optional */ }
+        if (!name) return;
+        const outcome = await getAssertion(toId(name), challstr, attempt.signal);
+        if (!current()) return;
+        set({ loginPending: true });
+        scheduleLoginTimeout();
+        applyAssertion(name, outcome);
+      }
+    } catch (error) {
+      if (current()) set({ loginPending: false, sessionNotice: error instanceof Error ? error.message : 'Sign-in could not be restored. Try signing in again.' });
+    }
   },
 
   chooseName: async name => {
@@ -388,11 +457,18 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
       return;
     }
 
-    set({ loginPending: true, lastError: undefined, needsPassword: false });
+    set({ loginPending: true, loginStage: 'confirmation', lastError: undefined, needsPassword: false });
+    const attempt = beginAuthentication();
     scheduleLoginTimeout();
     try {
-      applyAssertion(trimmed, await getAssertion(userid, challstr));
+      const outcome = await getAssertion(userid, challstr, attempt.signal);
+      if (!attempt.current() || get().challstr !== challstr) return;
+      if (outcome.kind === 'assertion') {
+        try { sessionStorage.setItem('arena-guest-name', trimmed); } catch { /* optional */ }
+      }
+      applyAssertion(trimmed, outcome);
     } catch (error) {
+      if (!attempt.current()) return;
       clearLoginTimeout();
       set({
         loginPending: false,
@@ -410,14 +486,19 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
       set({ lastError: 'Still handshaking with the server. Try again in a moment.' });
       return;
     }
-    set({ loginPending: true, lastError: undefined, needsPassword: false });
-    scheduleLoginTimeout();
+    set({ loginPending: true, loginStage: 'authorization', lastError: undefined, needsPassword: false });
+    const attempt = beginAuthentication();
+    clearLoginTimeout();
     try {
-      const grant = await requestOAuthGrant(challstr);
-      saveOAuthToken(grant.token, grant.user);
-      set({ oauthLinked: true });
+      const grant = await requestOAuthGrant(challstr, attempt.signal);
+      if (!attempt.current() || get().challstr !== challstr) return;
+      const saved = saveOAuthToken(grant.token, grant.user);
+      try { sessionStorage.removeItem('arena-guest-name'); } catch { /* optional */ }
+      set({ oauthLinked: true, loginStage: 'confirmation', sessionNotice: saved ? undefined : 'Signed in for this session. Browser storage is blocked, so sign-in cannot be remembered.' });
+      scheduleLoginTimeout();
       get().protocol.send(`/trn ${grant.user || get().username},0,${grant.assertion}`);
     } catch (error) {
+      if (!attempt.current()) return;
       clearLoginTimeout();
       set({
         loginPending: false,
@@ -427,54 +508,58 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
   },
 
   login: async ({ name, password }) => {
-    const trimmed = name.trim();
-    if (!trimmed) return;
-    if (!password) return get().chooseName(trimmed);
-    const { challstr, connection } = get();
-    if (connection !== 'connected') {
-      set({ lastError: 'Connect to the server before logging in.' });
-      return;
-    }
-    if (!challstr) {
-      set({ lastError: 'Still handshaking with the server. Try again in a moment.' });
-      return;
-    }
-
-    set({ loginPending: true, lastError: undefined, needsPassword: false });
-    scheduleLoginTimeout();
-    try {
-      applyAssertion(trimmed, await loginWithPassword(trimmed, password, challstr));
-    } catch (error) {
-      clearLoginTimeout();
-      set({
-        loginPending: false,
-        lastError: error instanceof Error ? error.message : 'Login failed.',
-      });
-    }
+    if (!password) return get().chooseName(name);
+    set({ lastError: 'Use “Sign in with Pokémon Showdown”. Passwords are entered only on Pokémon Showdown.' });
   },
   logout: async () => {
-    const { username, protocol: client } = get();
+    get().cancelLogin();
+    const { protocol: client } = get();
     client.send('/logout');
     clearOAuthToken();
+    try { sessionStorage.removeItem('arena-guest-name'); } catch { /* optional */ }
     set({ named: false, username: 'Guest', needsPassword: false, oauthLinked: false, lastError: undefined });
-    await logout(toId(username));
   },
 
   joinRoom: roomId => {
     const id = toId(roomId) ? roomId.trim().toLowerCase().replace(/[^a-z0-9-]/g, '') : '';
     if (!id) return;
-    set({ activeRoomId: id });
+    if (id.startsWith('pm-')) { get().openPmWith(id.slice(3)); return; }
+    if (id.startsWith('battle-') && !battleSupport(id.split('-')[1]).supported) {
+      set(state => ({ roomErrors: { ...state.roomErrors, [id]: battleSupport(id.split('-')[1]).reason || 'Unsupported battle format. Open this battle in the official client.' } })); return;
+    }
+    if (get().connection !== 'connected') {
+      set(state => ({ roomErrors: { ...state.roomErrors, [id]: 'Reconnect to join this room.' } }));
+      return;
+    }
+    set(state => ({ activeRoomId: id, roomErrors: { ...state.roomErrors, [id]: '' } }));
     get().protocol.send(`/join ${id}`);
   },
   leaveRoom: roomId => {
     const id = roomId.trim().toLowerCase();
-    get().protocol.send('/leave', id);
+    const room = get().rooms[id];
+    if (!room) return false;
+    if (room.type === 'battle' && room.battle.mode === 'player' && !room.battle.ended) {
+      if (!window.confirm('Forfeit this battle and leave? This counts as a loss.')) return false;
+      get().forfeitBattle(id);
+    }
+    if (room.type !== 'pm') get().protocol.send('/leave', id);
     set(state => ({
       activeRoomId: state.activeRoomId === id ? undefined : state.activeRoomId,
-      rooms: patchRoom(state.rooms, id, { connected: false }),
+      rooms: upsert(state.rooms, room.type === 'battle' ? {
+        ...newBattleRoom(id), title: room.title, connected: false,
+      } : { ...room, connected: false }),
     }));
+    set(state => {
+      const closed = Object.values(state.rooms).filter(item => !item.connected);
+      if (closed.length <= 12) return state;
+      const rooms = { ...state.rooms };
+      for (const item of closed.slice(0, -12)) delete rooms[item.id];
+      return { rooms };
+    });
+    return true;
   },
   focusRoom: activeRoomId => set(state => {
+    if (document.hidden) activeRoomId = undefined;
     // No-op when nothing changes — components call this from effects, and a
     // fresh state object here would re-fire them forever.
     const room = activeRoomId ? state.rooms[activeRoomId] : undefined;
@@ -496,144 +581,108 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
   },
   sendRoomMessage: (roomId, message) => {
     const trimmed = message.trim();
-    if (!trimmed) return;
+    if (!trimmed) return false;
+    const ignore = trimmed.match(/^\/(unignore|ignore)\s+(.+)$/i);
+    if (ignore) {
+      const preferences = useWorkspaceStore.getState(); const id = toId(ignore[2]);
+      preferences.setPreference('ignoredUsers', ignore[1].toLowerCase() === 'unignore' ? preferences.ignoredUsers.filter(user => user !== id) : [...new Set([...preferences.ignoredUsers, id])]);
+      return true;
+    }
     const state = get();
+    if (state.connection !== 'connected' || (!state.named && !trimmed.startsWith('/'))) {
+      set({ lastError: 'Not sent. Connect and choose a name before sending a message.' });
+      return false;
+    }
     const room = state.rooms[roomId];
     if (room?.type === 'pm') {
-      state.protocol.send(`/pm ${room.partner}, ${trimmed}`);
-      set(current => ({
-        rooms: upsert(current.rooms, appendChat(room, {
-          kind: 'pm',
-          user: current.username,
-          message: trimmed,
-          timestamp: Date.now(),
-        }, true) as Room),
-      }));
-      return;
+      return state.protocol.send(`/pm ${room.partner}, ${trimmed}`) !== false;
     }
-    state.protocol.send(trimmed, roomId.trim().toLowerCase());
+    return state.protocol.send(trimmed, roomId.trim().toLowerCase()) !== false;
   },
 
   setSelectedFormat: selectedFormat => set({ selectedFormat }),
   setActiveTeam: activeTeam => set({ activeTeam: importPackedTeam(activeTeam), activeTeamId: undefined }),
+  replaceTeamLibrary: teams => {
+    const result = saveStoredTeams(teams);
+    if (!result.ok) { set({ teamNotice: undefined, lastError: result.error }); return false; }
+    const active = teams.find(team => team.id === get().activeTeamId) || teams[0];
+    set({ teams, activeTeamId: active?.id, activeTeam: active?.packed || '', lastError: undefined });
+    return true;
+  },
+  reloadTeamLibrary: () => {
+    const teams = loadStoredTeams();
+    const active = teams.find(team => team.id === get().activeTeamId) || teams[0];
+    set({ teams, activeTeamId: active?.id, activeTeam: active?.packed || '', teamNotice: 'Library reloaded. Open drafts are preserved.', lastError: undefined });
+  },
+  saveTeamDraftToLibrary: draft => {
+    const existing = get().teams.find(team => team.id === draft.teamId);
+    if (existing && draft.baseUpdatedAt !== undefined && draft.baseUpdatedAt !== existing.updatedAt) {
+      set({ lastError: 'The saved team changed since this draft was opened. Duplicate your draft to save a copy, or reload the saved version before replacing it.', teamNotice: undefined });
+      return;
+    }
+    const team: StoredTeam = { id: draft.teamId || createTeamId(), name: draft.name.trim() || 'Untitled team', format: draft.format, folder: draft.folder.trim(), sets: structuredClone(draft.sets), packed: packTeam(draft.sets), updatedAt: Date.now() };
+    const previous = get().teams;
+    const teams = previous.some(entry => entry.id === team.id) ? previous.map(entry => entry.id === team.id ? team : entry) : [team, ...previous];
+    if (!get().replaceTeamLibrary(teams)) return;
+    set({ activeTeamId: team.id, activeTeam: team.packed, teamNotice: `${team.name} saved in this browser.` });
+    return team;
+  },
   importTeamText: (text, name, format) => {
-    const imported = importTeams(text, format || get().selectedFormat);
-    if (!imported.length) {
-      set({ teamNotice: 'No Pokemon sets were found in that import.', lastError: 'Team import failed.' });
-      return;
-    }
-    const invalid = imported.find(team => !validateTeamSets(team.sets).ok);
-    if (invalid) {
-      const validation = validateTeamSets(invalid.sets);
-      set({ teamNotice: undefined, lastError: validation.errors.join(' ') || 'Team import failed validation.' });
-      return;
-    }
-    const teams = imported.map((team, index) => ({ ...team, name: name?.trim() || team.name || `Imported team ${index + 1}` }));
-    set(state => {
-      const nextTeams = [...teams, ...state.teams.filter(existing => !teams.some(team => team.id === existing.id))];
-      saveStoredTeams(nextTeams);
-      return {
-        teams: nextTeams,
-        activeTeamId: teams[0].id,
-        activeTeam: teams[0].packed,
-        teamNotice: `${teams.length} team${teams.length === 1 ? '' : 's'} imported.`,
-        lastError: undefined,
-      };
-    });
+    try {
+      const imported = importTeamLibrary(text, format || get().selectedFormat).map(team => ({ ...team, name: name?.trim() || team.name }));
+      if (!imported.length) { set({ lastError: 'No teams were found in that import.', teamNotice: undefined }); return; }
+      if (!get().replaceTeamLibrary([...imported, ...get().teams])) return;
+      set({ activeTeamId: imported[0].id, activeTeam: imported[0].packed, teamNotice: `${imported.length} team(s) imported.` });
+    } catch (error) { set({ lastError: error instanceof Error ? error.message : 'Team import failed.', teamNotice: undefined }); }
   },
   selectTeam: teamId => {
     const team = get().teams.find(entry => entry.id === teamId);
-    if (!team) return;
-    set({ activeTeamId: team.id, activeTeam: team.packed, teamNotice: `${team.name} selected.` });
+    if (team) set({ activeTeamId: team.id, activeTeam: team.packed });
   },
   deleteTeam: teamId => {
-    set(state => {
-      const deleted = state.teams.find(team => team.id === teamId);
-      const teams = state.teams.filter(team => team.id !== teamId);
-      const activeTeam = state.activeTeamId === teamId ? teams[0] : state.teams.find(team => team.id === state.activeTeamId);
-      saveStoredTeams(teams);
-      return {
-        teams,
-        activeTeamId: activeTeam?.id,
-        activeTeam: activeTeam?.packed || '',
-        teamNotice: deleted ? `${deleted.name} deleted.` : 'Team deleted.',
-        lastError: undefined,
-      };
-    });
+    const deleted = get().teams.find(team => team.id === teamId);
+    if (!deleted) return;
+    const recovery = saveTeamDraft({ key: `deleted-${createTeamId()}`, name: `${deleted.name} (deleted)`, format: deleted.format, folder: deleted.folder || '', sets: deleted.sets, updatedAt: Date.now() });
+    if (!recovery.ok) { set({ lastError: recovery.error }); return; }
+    if (get().replaceTeamLibrary(get().teams.filter(team => team.id !== teamId))) set({ teamNotice: `${deleted.name} moved to recoverable drafts.` });
   },
   renameTeam: (teamId, name) => {
-    const trimmed = name.trim();
-    if (!trimmed) {
-      set({ lastError: 'Team name cannot be empty.' });
-      return;
-    }
-    set(state => {
-      const teams = state.teams.map(team => team.id === teamId ? { ...team, name: trimmed, updatedAt: Date.now() } : team);
-      saveStoredTeams(teams);
-      return { teams, teamNotice: 'Team renamed.', lastError: undefined };
-    });
+    if (!name.trim()) { set({ lastError: 'Team name cannot be empty.' }); return; }
+    if (get().replaceTeamLibrary(get().teams.map(team => team.id === teamId ? { ...team, name: name.trim(), updatedAt: Date.now() } : team))) set({ teamNotice: 'Team renamed.' });
   },
   duplicateTeam: teamId => {
     const team = get().teams.find(entry => entry.id === teamId);
-    if (!team) return;
-    const copy: StoredTeam = {
-      ...team,
-      id: `${toId(team.name)}-copy-${Date.now()}`,
-      name: `${team.name} copy`,
-      updatedAt: Date.now(),
-    };
-    set(state => {
-      const teams = [copy, ...state.teams];
-      saveStoredTeams(teams);
-      return { teams, activeTeamId: copy.id, activeTeam: copy.packed, teamNotice: `${copy.name} created.`, lastError: undefined };
-    });
+    if (team) get().saveTeamDraftToLibrary({ key: '', name: `${team.name} copy`, format: team.format, folder: team.folder || '', sets: team.sets, updatedAt: Date.now() });
   },
   updateTeamFormat: (teamId, format) => {
-    set(state => {
-      const teams = state.teams.map(team => team.id === teamId ? { ...team, format, updatedAt: Date.now() } : team);
-      saveStoredTeams(teams);
-      return { teams, teamNotice: 'Team format updated.', lastError: undefined };
-    });
+    if (get().replaceTeamLibrary(get().teams.map(team => team.id === teamId ? { ...team, format, updatedAt: Date.now() } : team))) set({ teamNotice: 'Team format updated.' });
   },
   replaceTeamFromText: (teamId, text) => {
     const current = get().teams.find(team => team.id === teamId);
-    if (!current) {
-      get().importTeamText(text);
-      return;
-    }
-    const imported = importTeams(text, current.format);
-    const replacement = imported[0];
-    if (!replacement) {
-      set({ lastError: 'No Pokemon sets were found in that import.', teamNotice: undefined });
-      return;
-    }
-    const validation = validateTeamSets(replacement.sets);
-    if (!validation.ok) {
-      set({ lastError: validation.errors.join(' '), teamNotice: undefined });
-      return;
-    }
-    set(state => {
-      const updatedTeam: StoredTeam = {
-        ...current,
-        sets: replacement.sets,
-        packed: replacement.packed,
-        updatedAt: Date.now(),
-      };
-      const teams = state.teams.map(team => team.id === teamId ? updatedTeam : team);
-      saveStoredTeams(teams);
-      return {
-        teams,
-        activeTeam: state.activeTeamId === teamId ? updatedTeam.packed : state.activeTeam,
-        teamNotice: `${current.name} updated.`,
-        lastError: undefined,
-      };
-    });
+    if (!current) { get().importTeamText(text); return; }
+    try {
+      const replacement = importTeamLibrary(text, current.format)[0];
+      if (!replacement) { set({ lastError: 'No team found in the import.' }); return; }
+      get().saveTeamDraftToLibrary({ key: teamId, teamId, name: current.name, format: current.format, folder: current.folder || '', sets: replacement.sets, updatedAt: Date.now() });
+    } catch (error) { set({ lastError: error instanceof Error ? error.message : 'Team import failed.' }); }
+  },
+  validateTeamOnServer: (sets, format) => {
+    if (get().connection !== 'connected') { set({ lastError: 'Connect to validate this team with the server.' }); return; }
+    if (get().teamValidation?.state === 'validating') return;
+    const requestedAt = Date.now();
+    set({ teamValidation: { state: 'validating', format, requestedAt }, lastError: undefined });
+    get().protocol.send(`/utm ${packTeam(sets)}`);
+    get().protocol.send(`/vtm ${format}`);
+    window.setTimeout(() => {
+      const current = get().teamValidation;
+      if (current?.state === 'validating' && current.requestedAt === requestedAt) set({ teamValidation: { ...current, state: 'invalid', message: 'No validation response received. Reconnect and retry.' } });
+    }, 15_000);
   },
   validateTeamForFormat: (teamId, formatId) => {
     const team = get().teams.find(entry => entry.id === (teamId || get().activeTeamId));
     const selectedFormat = get().formats.find(format => format.id === (formatId || get().selectedFormat));
     if (selectedFormat?.team === false) return { ok: true, errors: [], warnings: [] };
-    return validateStoredTeam(team);
+    return team ? validateTeamSets(team.sets, formatId || get().selectedFormat) : validateStoredTeam(team);
   },
   exportActiveTeam: () => {
     const team = get().teams.find(entry => entry.id === get().activeTeamId);
@@ -649,6 +698,7 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
       !named ? 'Choose a name before searching.' : '',
       searchState === 'searching' ? 'You are already searching.' : '',
       !format?.searchShow ? 'This format is not available for ladder search.' : '',
+      battleSupport(selectedFormat).reason || '',
       format?.team !== false && !activeTeamId ? 'Select or import a team before searching this format.' : '',
       format?.team !== false && !validation.ok ? validation.errors.join(' ') : '',
     ].filter(Boolean);
@@ -656,8 +706,9 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
       set({ lastError: blockers.join(' ') });
       return;
     }
-    if (format?.team !== false && activeTeam) client.send(`/utm ${exportPackedTeam(activeTeam)}`);
-    client.send(`/search ${selectedFormat}`);
+    if (format?.team !== false && activeTeam && client.send(`/utm ${exportPackedTeam(activeTeam)}`) === false) return;
+    if (useWorkspaceStore.getState().privateBattles) client.send('/hidenext');
+    if (client.send(`/search ${selectedFormat}`) === false) return;
     set({ searchState: 'searching', searchFormats: [selectedFormat], lastError: undefined });
   },
   cancelSearch: () => {
@@ -679,6 +730,8 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
     const { protocol: client, selectedFormat, formats, activeTeam, named, connection } = get();
     const formatId = format || selectedFormat;
     const entry = formats.find(item => item.id === formatId);
+    if (!toId(user) || toId(user) === toId(get().username)) { set({ lastError: 'Choose another player to challenge.' }); return; }
+    if (!battleSupport(formatId).supported || entry?.challengeShow === false || !entry) { set({ lastError: battleSupport(formatId).reason || 'This format is not available for challenges.' }); return; }
     if (connection !== 'connected' || !named) {
       set({ lastError: 'Connect and choose a name before challenging.' });
       return;
@@ -689,10 +742,11 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
         set({ lastError: validation.errors.join(' ') || 'Select a valid team for this format first.' });
         return;
       }
-      client.send(`/utm ${exportPackedTeam(activeTeam)}`);
+      if (client.send(`/utm ${exportPackedTeam(activeTeam)}`) === false) return;
     }
-    client.send(`/challenge ${toId(user)}, ${formatId}`);
-    set({ lastError: undefined });
+    if (useWorkspaceStore.getState().privateBattles) client.send('/hidenext');
+    if (client.send(`/challenge ${toId(user)}, ${formatId}`) === false) return;
+    set(state => ({ lastError: undefined, challenges: { ...state.challenges, to: { to: user, format: formatId } } }));
   },
   requestUserDetails: name => {
     const userid = toId(name);
@@ -702,15 +756,17 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
   openPmWith: name => {
     const partner = name.replace(/^[^A-Za-z0-9]/, '');
     const pmRoomId = `pm-${toId(partner) || 'system'}`;
-    set(state => state.rooms[pmRoomId] ? {} : {
-      rooms: upsert(state.rooms, newPmRoom(pmRoomId, partner) as Room),
-    });
+    set(state => ({
+      rooms: state.rooms[pmRoomId] ? patchRoom(state.rooms, pmRoomId, { connected: true }) : upsert(state.rooms, newPmRoom(pmRoomId, partner) as Room),
+    }));
     get().focusRoom(pmRoomId);
     return pmRoomId;
   },
   acceptChallenge: user => {
     const { challenges, formats, activeTeam } = get();
     const formatId = challenges.from[user] || challenges.from[toId(user)];
+    if (get().connection !== 'connected' || !get().named || !formatId) { set({ lastError: 'Connect and choose a name before accepting an active challenge.' }); return; }
+    if (!battleSupport(formatId).supported) { set({ lastError: battleSupport(formatId).reason }); return; }
     const entry = formats.find(item => item.id === toId(formatId || ''));
     if (entry?.team !== false && formatId) {
       const validation = get().validateTeamForFormat(get().activeTeamId, toId(formatId));
@@ -718,22 +774,35 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
         set({ lastError: `That challenge needs a valid team: ${validation.errors.join(' ')}` });
         return;
       }
-      get().protocol.send(`/utm ${exportPackedTeam(activeTeam)}`);
+      if (get().protocol.send(`/utm ${exportPackedTeam(activeTeam)}`) === false) {
+        set({ lastError: 'The team was not sent. Reconnect before accepting this challenge.' });
+        return;
+      }
     }
-    get().protocol.send(`/accept ${toId(user)}`);
+    if (get().protocol.send(`/accept ${toId(user)}`) === false) {
+      set({ lastError: 'The challenge acceptance was not sent. Reconnect and retry.' });
+      return;
+    }
+    set({ lastError: undefined });
   },
   rejectChallenge: user => {
-    get().protocol.send(`/reject ${toId(user)}`);
+    if (get().connection !== 'connected' || get().protocol.send(`/reject ${toId(user)}`) === false) {
+      set({ lastError: 'The challenge rejection was not sent. Reconnect and retry.' });
+      return;
+    }
     set(state => {
       const from = { ...state.challenges.from };
       delete from[user];
       delete from[toId(user)];
-      return { challenges: { ...state.challenges, from } };
+      return { lastError: undefined, challenges: { ...state.challenges, from } };
     });
   },
   cancelChallenge: () => {
-    get().protocol.send('/cancelchallenge');
-    set(state => ({ challenges: { ...state.challenges, to: null } }));
+    if (get().connection !== 'connected' || get().protocol.send('/cancelchallenge') === false) {
+      set({ lastError: 'The challenge cancellation was not sent. Reconnect and retry.' });
+      return;
+    }
+    set(state => ({ lastError: undefined, challenges: { ...state.challenges, to: null } }));
   },
 
   submitBattleChoice: (choice, roomId) => {
@@ -741,8 +810,12 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
     const room = battleRoomFor(state, roomId);
     if (!room) return;
     const { battle, choiceSession: session } = room;
+    if (state.connection !== 'connected' || !room.connected || battle.ended || battle.mode !== 'player' || battle.supportReason || battle.engineWarning) {
+      set(current => ({ rooms: updateBattleRoom(current.rooms, room.id, target => ({ ...target, choiceError: battle.supportReason || 'Reconnect to your active battle before choosing.' })) }));
+      return;
+    }
 
-    const choiceState: BattleChoiceState = 'cmd' in choice ? {
+    const choiceState: BattleChoiceState = 'kind' in choice ? choice : 'cmd' in choice ? {
       kind: 'move',
       slot: choice.slot,
       activeIndex: choice.activeIndex,
@@ -782,13 +855,16 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
       return;
     }
 
-    if (result.command) state.protocol.send(result.command, room.id);
-    const logLine = result.message || buildBattleCommand(choice, battle.rqid);
+    if (result.command && state.protocol.send(result.command, room.id) === false) {
+      set(current => ({ rooms: updateBattleRoom(current.rooms, room.id, target => ({ ...target, choiceError: 'Your choice was not sent. Reconnect and try again.' })) }));
+      return;
+    }
+    const logLine = result.message || ('kind' in choice ? result.command ? 'Battle choice sent.' : 'Team selection updated.' : buildBattleCommand(choice, battle.rqid));
     set(current => ({
       rooms: updateBattleRoom(current.rooms, room.id, target => appendLog({
         ...target,
-        battle: { ...target.battle, waiting: result.complete },
-        choicePending: result.complete,
+        battle: { ...target.battle, waiting: !!result.command, noCancel: result.session.noCancel },
+        choicePending: !!result.command,
         choiceSession: result.session,
         choiceDraft: result.draft,
         choiceError: undefined,
@@ -799,6 +875,7 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
     const state = get();
     const room = battleRoomFor(state, roomId);
     if (!room) return;
+    if (state.connection !== 'connected' || !room.connected || room.battle.mode !== 'player' || room.battle.ended || room.battle.supportReason || room.battle.engineWarning) return;
     const pending = room.choiceSession?.draft.pendingMove;
     if (!room.choiceSession || !pending) {
       set(current => ({
@@ -810,12 +887,15 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
       return;
     }
     const result = addBattleChoice(room.choiceSession, { ...pending, target });
-    if (result.command) state.protocol.send(result.command, room.id);
+    if (result.command && state.protocol.send(result.command, room.id) === false) {
+      set(current => ({ rooms: updateBattleRoom(current.rooms, room.id, item => ({ ...item, choiceError: 'Your choice was not sent. Reconnect and try again.' })) }));
+      return;
+    }
     set(current => ({
       rooms: updateBattleRoom(current.rooms, room.id, item => appendLog({
         ...item,
-        battle: { ...item.battle, waiting: result.complete },
-        choicePending: result.complete,
+        battle: { ...item.battle, waiting: !!result.command, noCancel: result.session.noCancel },
+        choicePending: !!result.command,
         choiceSession: result.session,
         choiceDraft: result.draft,
         choiceError: result.error,
@@ -838,6 +918,10 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
     const state = get();
     const room = battleRoomFor(state, roomId);
     if (!room) return;
+    if (room.choicePending || room.choiceSession?.status === 'submitted' || room.choiceSession?.status === 'cancelling') {
+      state.undoBattleChoice(room.id);
+      return;
+    }
     set(current => ({
       rooms: updateBattleRoom(current.rooms, room.id, item => ({
         ...item,
@@ -851,32 +935,30 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
     const state = get();
     const room = battleRoomFor(state, roomId);
     if (!room) return;
-    if (room.battle.noCancel) {
+    if (!room.choicePending && room.choiceSession?.status !== 'submitted' && room.choiceSession?.status !== 'cancelling') {
+      state.resetBattleChoiceSession(room.id);
+      return;
+    }
+    if (room.battle.noCancel || room.choiceSession?.noCancel) {
       state.recordBattleEvent('This request cannot be cancelled.', room.id);
       return;
     }
-    state.protocol.send('/undo', room.id);
+    if (state.connection !== 'connected' || state.protocol.send('/undo', room.id) === false) return;
+    set(current => ({ rooms: updateBattleRoom(current.rooms, room.id, item => ({ ...item, choiceSession: item.choiceSession ? { ...item.choiceSession, status: 'cancelling' } : undefined })) }));
     state.recordBattleEvent('Choice cancellation sent.', room.id);
   },
   toggleBattleTimer: roomId => {
     const state = get();
     const room = battleRoomFor(state, roomId);
-    if (!room) return;
-    const timerOn = !room.battle.timerOn;
+    if (!room || state.connection !== 'connected' || room.battle.mode !== 'player' || room.battle.ended) return;
+    const timerOn = !room.timer.on;
     state.protocol.send(`/timer ${timerOn ? 'on' : 'off'}`, room.id);
-    set(current => ({
-      rooms: updateBattleRoom(current.rooms, room.id, item => ({
-        ...item,
-        timer: { ...item.timer, on: timerOn },
-        battle: { ...item.battle, timerOn },
-      })),
-    }));
   },
   forfeitBattle: roomId => {
     const state = get();
     const room = battleRoomFor(state, roomId);
-    if (!room) return;
-    state.protocol.send('/forfeit', room.id);
+    if (!room || state.connection !== 'connected' || room.battle.ended || room.battle.mode !== 'player') return;
+    if (state.protocol.send('/forfeit', room.id) === false) return;
     state.recordBattleEvent('Forfeit command sent.', room.id);
   },
   recordBattleEvent: (event, roomId) => {
@@ -889,36 +971,35 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
   },
   sendBattleChat: (message, roomId) => {
     const trimmed = message.trim();
-    if (!trimmed) return;
+    if (!trimmed) return false;
     const state = get();
     const room = battleRoomFor(state, roomId);
-    if (!room) return;
-    state.protocol.send(trimmed, room.id);
-    set(current => ({
-      rooms: updateBattleRoom(current.rooms, room.id, item => appendChat(item, {
-        user: current.username,
-        message: trimmed,
-        timestamp: Date.now(),
-      }, true) as BattleRoom),
-    }));
+    if (!room || !room.connected || state.connection !== 'connected') return false;
+    return state.protocol.send(trimmed, room.id) !== false;
   },
   saveReplay: roomId => {
     const state = get();
     const room = battleRoomFor(state, roomId);
     if (!room) return;
+    if (state.connection !== 'connected' || !room.connected) { set({ lastError: 'Reconnect before saving this replay.' }); return; }
+    if (state.replayStatuses[room.id]?.state === 'saving') return;
+    const requestedAt = Date.now();
     set({ replayStatus: { roomId: room.id, state: 'saving' } });
+    set(current => ({ replayStatuses: { ...current.replayStatuses, [room.id]: { roomId: room.id, state: 'saving', requestedAt } } }));
     state.protocol.send('/savereplay', room.id);
     // Neither response path arriving within a sane window is a failure the
     // user can retry, not a spinner forever.
     window.setTimeout(() => {
-      const current = useArenaStore.getState().replayStatus;
-      if (current?.roomId === room.id && current.state === 'saving') {
-        useArenaStore.setState({
-          replayStatus: { ...current, state: 'failed', error: 'The server did not confirm the save.' },
-        });
-      }
-    }, 10_000);
+      const current = useArenaStore.getState().replayStatuses[room.id];
+      if (current?.requestedAt === requestedAt && current.state === 'saving') get().finishReplay(room.id, { error: 'The server did not confirm the save. Retry when connected.' });
+    }, 30_000);
   },
+  finishReplay: (roomId, result) => set(state => {
+    const current = state.replayStatuses[roomId];
+    if (!current || current.state !== 'saving') return state;
+    const status = { ...current, ...result, state: result.url ? 'uploaded' as const : 'failed' as const };
+    return { replayStatuses: { ...state.replayStatuses, [roomId]: status }, replayStatus: state.replayStatus?.roomId === roomId ? status : state.replayStatus };
+  }),
 
   toggleHardcore: hardcoreMode => set({ hardcoreMode }),
   toggleProtocolLog: protocolLogEnabled => set({ protocolLogEnabled }),
@@ -932,32 +1013,43 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
     routeFrame(frame, useArenaStore);
   },
 
-  onLoginSettled: () => clearLoginTimeout(),
+  onLoginSettled: () => {
+    clearLoginTimeout();
+    const state = get();
+    Object.values(state.rooms)
+      .filter(room => room.connected && room.type !== 'pm' && room.id !== 'lobby' && room.id !== demoBattle.id)
+      .forEach(room => state.protocol.send(`/join ${room.id}`));
+    if (state.named) {
+      const preferences = useWorkspaceStore.getState();
+      for (const id of preferences.autojoinRooms.filter(id => /^[a-z0-9-]+$/.test(id) && !id.startsWith('battle-')).slice(0, 20)) state.protocol.send(`/join ${id}`);
+      if (preferences.blockPms) state.protocol.send('/blockpms');
+      if (preferences.blockChallenges) state.protocol.send('/blockchallenges');
+    }
+  },
   onSearchSettled: () => clearCancelSearchTimeout(),
   onReplaySaved: data => {
     const { id, log, password } = data;
-    if (!id || !log) {
-      set({ replayStatus: { state: 'failed', error: 'The server did not return a replay payload.' } });
-      return;
-    }
+    if (!id || !log) return;
+    const roomId = `battle-${id.replace(/^battle-/, '')}`;
+    const pending = get().replayStatuses[roomId];
+    if (!pending || pending.state !== 'saving') return;
+    const serverId = get().server.id;
+    const replayId = serverId !== 'showdown' ? `${toId(serverId.split(':')[0])}-${id}` : id;
+    const current = () => get().server.id === serverId && get().replayStatuses[roomId]?.requestedAt === pending.requestedAt;
     void (async () => {
       try {
-        const body = new URLSearchParams({ id, log });
+        const body = new URLSearchParams({ id: replayId, log, serverid: toId(serverId.split(':')[0]) });
         if (password) body.set('password', password);
-        const response = await fetch('/api/replay', { method: 'POST', body });
+        const response = await fetch('/api/replay', { method: 'POST', body, signal: AbortSignal.timeout(25_000) });
         const text = await response.text();
         if (!response.ok || /error|invalid/i.test(text.slice(0, 80))) {
           throw new Error(text.slice(0, 120) || `HTTP ${response.status}`);
         }
-        const url = `https://replay.pokemonshowdown.com/${id}${password ? `-${password}pw` : ''}`;
-        set(state => ({ replayStatus: { ...state.replayStatus, state: 'uploaded', url } }));
+        const url = replayUploadUrl(text, `${replayId}${password ? `-${password}pw` : ''}`);
+        if (!url) throw new Error('The replay service did not return a confirmed replay URL.');
+        if (current()) get().finishReplay(roomId, { url });
       } catch (error) {
-        set({
-          replayStatus: {
-            state: 'failed',
-            error: error instanceof Error ? error.message : 'Upload failed.',
-          },
-        });
+        if (current()) get().finishReplay(roomId, { error: error instanceof Error ? error.message : 'Upload failed.' });
       }
     })();
   },
@@ -965,22 +1057,28 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
 
 // ── Protocol wiring ─────────────────────────────────────────────────────────
 
+useWorkspaceStore.subscribe((preferences, previous) => {
+  const state = useArenaStore.getState();
+  if (!state.named || state.connection !== 'connected') return;
+  if (preferences.blockPms !== previous.blockPms) state.protocol.send(preferences.blockPms ? '/blockpms' : '/unblockpms');
+  if (preferences.blockChallenges !== previous.blockChallenges) state.protocol.send(preferences.blockChallenges ? '/blockchallenges' : '/unblockchallenges');
+});
+
 protocol.subscribe(event => {
   if (event.type === 'state') {
+    if (event.state !== 'connected') {
+      cancelAuthentication();
+      clearLoginTimeout();
+    }
     useArenaStore.setState(state => ({
       connection: event.state,
       connectionReason: event.reason,
-      loginPending: event.state === 'offline' || event.state === 'error' ? false : state.loginPending,
+      loginPending: event.state !== 'connected' ? false : state.loginPending,
+      ...(event.state !== 'connected' ? { named: false, challstr: '' } : {}),
       lastError: state.loginPending && (event.state === 'offline' || event.state === 'error') ?
         'Connection closed before the name was confirmed.' :
         state.lastError,
     }));
-    if (event.state === 'connected') {
-      const state = useArenaStore.getState();
-      Object.values(state.rooms)
-        .filter(room => room.connected && room.type !== 'pm' && room.id !== 'lobby' && room.id !== demoBattle.id)
-        .forEach(room => state.protocol.send(`/join ${room.id}`));
-    }
   } else if (event.type === 'frame') {
     useArenaStore.getState().handleFrame(event.frame);
   } else if (event.type === 'send') {
@@ -990,16 +1088,31 @@ protocol.subscribe(event => {
         state.rawProtocolLog,
     }));
   } else if (event.type === 'error') {
-    useArenaStore.setState({ lastError: event.error.message, connection: 'error' });
+    useArenaStore.setState({ lastError: event.error.message, connection: protocol.state });
   }
 });
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', event => {
+    if (event.key !== OAUTH_STORAGE_KEY) return;
+    const token = storedOAuthToken();
+    useArenaStore.setState({ oauthLinked: !!token });
+    if (!token) {
+      useArenaStore.getState().cancelLogin();
+      if (useArenaStore.getState().named) {
+        protocol.send('/logout');
+        useArenaStore.setState({ named: false, username: 'Guest' });
+      }
+    }
+  });
+}
 
 // Battles that opened before the engine chunk resolved buffered their raw
 // lines. Replay them through fresh engine instances the moment it is ready.
 onEngineReady(() => {
   const state = useArenaStore.getState();
   const pending = Object.values(state.rooms)
-    .filter((room): room is BattleRoom => room.type === 'battle' && !room.engine && room.id !== demoBattle.id);
+    .filter((room): room is BattleRoom => room.type === 'battle' && room.connected && !room.engine && room.id !== demoBattle.id);
   if (!pending.length) return;
   useArenaStore.setState(current => {
     let rooms = current.rooms;
@@ -1023,14 +1136,14 @@ onEngineReady(() => {
           ...item,
           lastEvent,
           engine,
-          battle: projectEngineBattle(engine, {
+          battle: { ...projectEngineBattle(engine, {
             roomId: item.id,
             perspective: item.perspective,
             result: item.result,
             lastRequest: item.lastRequest,
             waiting: item.choicePending || !!item.lastRequest?.wait,
             format: item.battle.format,
-          }),
+          }), timerOn: item.timer.on, logTruncated: item.battle.logTruncated, noCancel: item.choiceSession?.noCancel ?? item.battle.noCancel },
         };
       });
     }

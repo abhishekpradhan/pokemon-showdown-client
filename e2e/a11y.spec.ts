@@ -1,5 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 import { installMockPs } from './mock-ps';
 
 /**
@@ -43,7 +43,7 @@ test('the battle console is accessible mid-battle', async ({ page }) => {
   await page.getByRole('button', { name: /Use guest name/i }).click();
   await page.getByRole('button', { name: 'Find battle' }).click();
   await expect(page).toHaveURL(/\/battle\//);
-  await expect(page.getByRole('button', { name: /Moonblast/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Moonblast/ })).toBeVisible();
   // Audit the settled UI: the combatant entrance fade briefly blends every
   // nameplate toward the backdrop, and axe would measure that transient.
   await page.waitForFunction(() =>
@@ -70,9 +70,9 @@ test('light theme applies and passes the contrast audit', async ({ page }) => {
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
 
   // …and pinning Dark/Light in Settings overrides it.
-  await page.getByRole('button', { name: 'Dark' }).click();
+  await page.getByRole('button', { name: 'Dark', exact: true }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-  await page.getByRole('button', { name: 'Light' }).click();
+  await page.getByRole('button', { name: 'Light', exact: true }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
 
   for (const route of ['/', '/rooms', '/teambuilder']) {

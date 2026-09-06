@@ -6,6 +6,12 @@ import {
   normalizeBattleRequest,
   parseHpPercent,
   requestFlags,
+  availableSwitches,
+  battleSupport,
+  canPassBattleChoice,
+  defensiveTypes,
+  isReviving,
+  restoreBattleChoiceSession,
   type BattleRequest,
 } from './battle-adapter';
 
@@ -98,7 +104,7 @@ describe('move deck', () => {
     expect(slotB[0]).toMatchObject({ name: 'Fake Out', activeIndex: 1, requiresTarget: true });
     // PS convention: positive slots are foes, negative are allies — and a
     // normal-target move may hit either in doubles.
-    expect(slotB[0].targetOptions).toEqual([1, 2, -1, -2]);
+    expect(slotB[0].targetOptions).toEqual([1, 2, -1]);
   });
 
   it('marks effectiveness against the defender typing when the dex is ready', async () => {
@@ -140,9 +146,9 @@ describe('choice sessions', () => {
     expect(first.complete).toBe(false);
     expect(first.draft.pendingMove).toMatchObject({ slot: 1 });
 
-    const second = addBattleChoice(first.session, { kind: 'move', slot: 1, target: -1 });
+    const second = addBattleChoice(first.session, { kind: 'move', slot: 1, target: 1 });
     expect(second.complete).toBe(true);
-    expect(second.command).toBe('/choose move 1 -1|8');
+    expect(second.command).toBe('/choose move 1 +1|8');
   });
 
   it('rejects fainted switches and supports team preview choices', () => {
@@ -166,7 +172,8 @@ describe('choice sessions', () => {
     const teamSession = createBattleChoiceSession(preview);
     const lead = addBattleChoice(teamSession, { kind: 'team', order: [2] });
     expect(lead.complete).toBe(true);
-    expect(lead.command).toBe('/choose team 2|2');
+    expect(lead.command).toBeUndefined();
+    expect(addBattleChoice(lead.session, { kind: 'confirm' }).command).toBe('/choose team 2|2');
   });
 
   it('refuses moves while a switch is forced', () => {
@@ -188,5 +195,118 @@ describe('choice sessions', () => {
     const switched = addBattleChoice(session, { kind: 'switch', slot: 2 });
     expect(switched.complete).toBe(true);
     expect(switched.command).toBe('/choose switch 2|5');
+  });
+});
+
+describe('battle request regression corpus', () => {
+  const pokemon = (name: string, condition = '100/100', extra = {}) => ({ ident: `p1: ${name}`, details: name, condition, ...extra });
+  const singles = (): BattleRequest => ({ rqid: 10, active: [{ moves: [{ move: 'Tackle', target: 'normal' }] }], side: { id: 'p1', pokemon: [pokemon('Pikachu', '100/100', { active: true }), pokemon('Bulbasaur')] } });
+
+  it('derives double leads, Illusion order and server preview counts without losing explicit counts', () => {
+    const side = { pokemon: [pokemon('Pikachu'), pokemon('Bulbasaur'), pokemon('Zoroark')] };
+    expect(normalizeBattleRequest({ teamPreview: true, gameType: 'doubles', side }).chosenTeamSize).toBe(2);
+    expect(normalizeBattleRequest({ teamPreview: true, side: { pokemon: [...side.pokemon, pokemon('Zoroark', '100/100', { baseAbility: 'illusion' })] } }).chosenTeamSize).toBe(4);
+    expect(normalizeBattleRequest({ teamPreview: true, side, teamPreviewCount: 2 }).chosenTeamSize).toBe(2);
+    expect(normalizeBattleRequest({ teamPreview: true, side, chosenTeamSize: 3, teamPreviewCount: 2 }).chosenTeamSize).toBe(3);
+  });
+
+  it('allows active slots during preview and reviews, reorders and removes selections before confirming', () => {
+    const request = { ...singles(), active: undefined, teamPreview: true, chosenTeamSize: 2 };
+    const first = addBattleChoice(createBattleChoiceSession(request), { kind: 'team', order: [1] });
+    const second = addBattleChoice(first.session, { kind: 'team', order: [2] });
+    expect(second.complete).toBe(true);
+    expect(second.command).toBeUndefined();
+    const reordered = addBattleChoice(second.session, { kind: 'team', order: [2, 1] });
+    expect(reordered.draft.choices).toEqual(['team 2', 'team 1']);
+    const removed = addBattleChoice(reordered.session, { kind: 'team', order: [2] });
+    expect(removed.draft.choices).toEqual(['team 1']);
+    expect(addBattleChoice(removed.session, { kind: 'confirm' }).ok).toBe(false);
+    expect(addBattleChoice(reordered.session, { kind: 'confirm' }).command).toBe('/choose team 2, 1|10');
+  });
+
+  it('completes scarce replacements in either position and rejects an unnecessary pass', () => {
+    const request: BattleRequest = { rqid: 11, forceSwitch: [true, true], side: { pokemon: [pokemon('A', '0 fnt'), pokemon('B', '0 fnt'), pokemon('C')] } };
+    const session = createBattleChoiceSession(request);
+    expect(canPassBattleChoice(session)).toBe(true);
+    expect(addBattleChoice(session, { kind: 'switch', slot: 3 }).command).toBe('/choose switch 3, pass|11');
+    const skipped = addBattleChoice(session, { kind: 'pass' });
+    expect(addBattleChoice(skipped.session, { kind: 'switch', slot: 3 }).command).toBe('/choose pass, switch 3|11');
+    expect(addBattleChoice(createBattleChoiceSession({ ...request, forceSwitch: [true] }), { kind: 'pass' }).ok).toBe(false);
+  });
+
+  it('selects only fainted targets for revival, including a fainted active position', () => {
+    const request: BattleRequest = { rqid: 12, forceSwitch: [true, false], side: { pokemon: [pokemon('Pawmot', '100/100', { reviving: true }), pokemon('Pikachu', '0 fnt'), pokemon('Bulbasaur')] } };
+    const session = createBattleChoiceSession(request);
+    expect(isReviving(session)).toBe(true);
+    expect(availableSwitches(session)).toEqual([2]);
+    expect(addBattleChoice(session, { kind: 'switch', slot: 3 }).ok).toBe(false);
+    expect(addBattleChoice(session, { kind: 'switch', slot: 2 }).command).toBe('/choose switch 2, pass|12');
+  });
+
+  it('automatically skips Commander and fainted non-null active requests', () => {
+    const request: BattleRequest = { rqid: 13, active: [{ moves: [{ move: 'Splash' }] }, { moves: [{ move: 'Protect', target: 'self' }] }], side: { pokemon: [pokemon('Tatsugiri', '100/100', { commanding: true }), pokemon('Dondozo')] } };
+    const session = createBattleChoiceSession(request);
+    expect(session.draft.choices).toEqual(['pass']);
+    expect(addBattleChoice(session, { kind: 'move', slot: 1, activeIndex: 1 }).command).toBe('/choose pass, move 1|13');
+    request.side!.pokemon![0] = pokemon('Tatsugiri', '0 fnt');
+    expect(createBattleChoiceSession(request).draft.choices).toEqual(['pass']);
+  });
+
+  it('rejects submitted, stale-position and illegal self-target choices', () => {
+    const chosen = addBattleChoice(createBattleChoiceSession(singles()), { kind: 'move', slot: 1, activeIndex: 0 });
+    expect(chosen.command).toBe('/choose move 1|10');
+    expect(addBattleChoice(chosen.session, { kind: 'move', slot: 1, activeIndex: 0 }).ok).toBe(false);
+    expect(addBattleChoice(createBattleChoiceSession(singles()), { kind: 'move', slot: 1, activeIndex: 1 }).ok).toBe(false);
+    expect(addBattleChoice(createBattleChoiceSession({ ...singles(), targetable: true }), { kind: 'move', slot: 1, target: -1 }).ok).toBe(false);
+    expect(addBattleChoice(restoreBattleChoiceSession(singles(), 'move 1'), { kind: 'move', slot: 1 }).ok).toBe(false);
+    expect(restoreBattleChoiceSession(singles(), '').status).toBe('drafting');
+  });
+
+  it('honors cancellation restrictions revealed by the last choice', () => {
+    const request = singles(); request.active![0]!.maybeTrapped = true;
+    expect(addBattleChoice(createBattleChoiceSession(request), { kind: 'switch', slot: 2 }).session.noCancel).toBe(true);
+    request.active![0]!.maybeDisabled = true;
+    expect(addBattleChoice(createBattleChoiceSession(request), { kind: 'move', slot: 1 }).session.noCancel).toBe(true);
+  });
+
+  it('uses legal ongoing Max moves even when base moves are disabled', () => {
+    const request = singles();
+    request.active = [{ moves: [{ move: 'Protect', disabled: true, target: 'self' }], maxMoves: { maxMoves: [{ move: 'Max Guard', target: 'self' }] } }];
+    const deck = buildMoveDeck(request, undefined, 'gen8ou');
+    expect(deck[0]).toMatchObject({ name: 'Max Guard', disabled: false, target: 'self', canDynamax: false });
+    expect(addBattleChoice(createBattleChoiceSession(request), { kind: 'move', slot: 1 }).command).toBe('/choose move 1|10');
+  });
+
+  it('uses transformed targeting and rejects an ineligible Z move', () => {
+    const request = singles(); request.targetable = true;
+    request.active = [{ moves: [{ move: 'Surf', target: 'allAdjacent' }, { move: 'Tackle', target: 'normal' }], canZMove: [null, { move: 'Breakneck Blitz', target: 'normal' }], canDynamax: true, maxMoves: { maxMoves: [{ move: 'Max Geyser', target: 'adjacentFoe' }, { move: 'Max Strike', target: 'adjacentFoe' }] } }];
+    const deck = buildMoveDeck(request, undefined, 'gen8ou');
+    expect(deck[0].canZMove).toBe(false); expect(deck[1].zMove?.name).toBe('Breakneck Blitz');
+    expect(deck[0].maxMove?.targetOptions).toEqual([1]);
+    expect(addBattleChoice(createBattleChoiceSession(request), { kind: 'move', slot: 1, z: true }).ok).toBe(false);
+    const pending = addBattleChoice(createBattleChoiceSession(request), { kind: 'move', slot: 1, max: true });
+    expect(pending.draft.pendingMove?.max).toBe(true);
+    expect(addBattleChoice(pending.session, { kind: 'move', slot: 1, max: true, target: 1 }).command).toBe('/choose move 1 max +1|10');
+  });
+
+  it('preserves Stellar defenses and communicates unsupported game types', () => {
+    expect(defensiveTypes({ types: ['Water'], terastallized: 'Stellar' })).toEqual(['Water']);
+    expect(defensiveTypes({ types: ['Water'], terastallized: 'Fire' })).toEqual(['Fire']);
+    expect(battleSupport('gen9ou').supported).toBe(true);
+    expect(battleSupport('gen9freeforall').supported).toBe(false);
+    expect(battleSupport('customgame', 'multi').supported).toBe(false);
+  });
+
+  it('uses effective abilities, grounded states and transformed move types for matchup hints', async () => {
+    const { loadDex } = await import('../data/dex'); await loadDex();
+    const request = singles();
+    request.active = [{ moves: [{ move: 'Earthquake' }], canDynamax: true, maxMoves: { maxMoves: [{ move: 'Max Geyser', type: 'Water' }] } }];
+    const defender = { slot: 1, name: 'Rotom', species: 'Rotom', hp: 100, ability: 'Levitate' };
+    const immune = buildMoveDeck(request, ['Electric', 'Ghost'], 'gen8ou', 0, defender)[0];
+    expect(immune.effectiveness).toBe('0x');
+    expect(immune.maxMove?.effectiveness).toBe('1x');
+    expect(immune.maxMove?.notes).toEqual([]);
+    expect(buildMoveDeck(request, ['Electric', 'Ghost'], 'gen8ou', 0, { ...defender, effectiveAbility: '' })[0].effectiveness).toBe('2x');
+    expect(buildMoveDeck(request, ['Flying'], 'gen8ou', 0, { ...defender, grounded: true })[0].effectiveness).toBe('1x');
   });
 });

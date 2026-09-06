@@ -1,6 +1,27 @@
-import { sanitizeChatHtml } from './chat-html';
+import { isSafeChatCommand, normalizeChatHref, sanitizeChatHtml } from './chat-html';
 
 describe('sanitizeChatHtml', () => {
+  it('keeps safe navigation and poll controls without allowing consequential commands', () => {
+    expect(normalizeChatHref('/lobby')).toBe('/room/lobby');
+    expect(normalizeChatHref('https://play.pokemonshowdown.com/battle-gen9ou-123')).toBe('/battle/battle-gen9ou-123');
+    expect(normalizeChatHref('#help')).toBe('/room/help');
+    expect(normalizeChatHref('javascript:alert(1)')).toBeNull();
+    expect(normalizeChatHref('https://user:pass@example.com/')).toBeNull();
+    const out = sanitizeChatHtml('<a href="/lobby">Lobby</a><button data-href="battle-gen9ou-123">Watch</button><button data-cmd="/poll vote 1">Vote</button><button data-cmd="/forfeit" value="/logout">Bad</button>');
+    expect(out).toContain('href="/room/lobby"');
+    expect(out).toContain('data-href="/battle/battle-gen9ou-123"');
+    expect(out).toContain('data-cmd="/poll vote 1"');
+    expect(out).not.toContain('/forfeit');
+    expect(out).not.toContain('/logout');
+    expect(isSafeChatCommand('/join lobby\n/forfeit')).toBe(false);
+  });
+
+  it('rejects escaped/commented CSS and oversized or excessively complex markup', () => {
+    expect(sanitizeChatHtml('<div style="position:f\\69xed;inset:0">escape</div>')).not.toContain('style=');
+    expect(sanitizeChatHtml('<div style="position:/*hidden*/fixed">comment</div>')).not.toContain('style=');
+    expect(sanitizeChatHtml('x'.repeat(256 * 1024 + 1))).toContain('too large');
+    expect(sanitizeChatHtml('<span>x</span>'.repeat(3001))).toContain('too complex');
+  });
   it('strips scripts and event handlers but keeps PS content structure', () => {
     const out = sanitizeChatHtml(
       '<div class="infobox"><script>alert(1)</script><table><tr><td onclick="x()">cell</td></tr></table></div>'

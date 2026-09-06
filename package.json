@@ -1,16 +1,16 @@
 {
   "name": "showdown-arena",
-  "version": "1.0.0",
-  "description": "A modern, standalone Pokémon Showdown battle client",
+  "version": "1.1.0",
+  "description": "A modern, standalone Pok\u00e9mon Showdown battle client",
   "license": "AGPL-3.0-or-later",
   "private": true,
   "type": "module",
   "engines": {
-    "node": ">=20"
+    "node": "^22.13.0 || ^24.0.0"
   },
   "scripts": {
     "dev": "vite --host 0.0.0.0",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && node scripts/check-bundle.mjs",
     "preview": "vite preview --host 0.0.0.0",
     "typecheck": "tsc -b --pretty false",
     "lint": "eslint . --max-warnings 0",
@@ -18,7 +18,12 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:live": "node scripts/live-smoke.mjs",
-    "check": "npm run typecheck && npm run lint && npm run test"
+    "test:integration": "node scripts/test-local-server.mjs",
+    "check": "npm run typecheck && npm run lint && npm run test",
+    "test:production": "playwright test --config playwright.production.config.ts",
+    "test:visual": "playwright test e2e/visual.spec.ts --project=chromium --project=mobile",
+    "check:licenses": "node scripts/check-licenses.mjs",
+    "audit:dependencies": "npm audit --audit-level=low"
   },
   "dependencies": {
     "@pkmn/client": "^0.7.3",
@@ -33,7 +38,7 @@
     "@radix-ui/react-tooltip": "^1.2.8",
     "@tanstack/react-router": "^1.133.20",
     "clsx": "^2.1.1",
-    "dompurify": "^3.4.12",
+    "dompurify": "^3.4.14",
     "lucide-react": "^0.468.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",

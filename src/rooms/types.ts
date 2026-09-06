@@ -57,6 +57,11 @@ export type TournamentState = {
   /** Opponents you can /tour challenge right now, and those challenging you. */
   challenges: string[];
   challengeBys: string[];
+  challenged?: string | null;
+  challenging?: string | null;
+  teambuilderFormat?: string;
+  error?: string;
+  results?: string[][];
   /** Your live tournament battle, from |tournament|battlestart|. */
   currentBattle?: string;
   ended?: boolean;

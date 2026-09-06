@@ -1,8 +1,10 @@
 import { Link, useNavigate, useParams } from '@tanstack/react-router';
-import { Hash, LogOut, MessageCircle, Send, Swords, Users } from 'lucide-react';
-import { type FormEvent, useEffect, useRef, useState } from 'react';
+import { Hash, LogOut, MessageCircle, Swords, Users } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { ChatFeed } from '../components/chat-feed';
+import { ChatComposer } from '../components/chat-composer';
+import { openChallenge } from '../compat/ui-events';
 import { TournamentBanner } from '../components/tournament-banner';
 import { UserCard, type UserCardAnchor } from '../components/user-card';
 import { JoiningState } from '../components/joining-state';
@@ -16,7 +18,7 @@ import { useArenaStore } from '../stores/arena-store';
 export function RoomScreen() {
   const params = useParams({ from: '/room/$roomId' });
   const navigate = useNavigate();
-  const { connection, focusRoom, formats, joinRoom, leaveRoom, rooms, selectedFormat, sendChallenge, sendRoomMessage, username } = useArenaStore(
+  const { connection, focusRoom, formats, joinRoom, leaveRoom, rooms, selectedFormat, sendRoomMessage, username } = useArenaStore(
     useShallow(state => ({
       connection: state.connection,
       focusRoom: state.focusRoom,
@@ -25,13 +27,17 @@ export function RoomScreen() {
       leaveRoom: state.leaveRoom,
       rooms: state.rooms,
       selectedFormat: state.selectedFormat,
-      sendChallenge: state.sendChallenge,
       sendRoomMessage: state.sendRoomMessage,
       username: state.username,
     }))
   );
   const room = rooms[params.roomId];
-  const [message, setMessage] = useState('');
+  const joinError = useArenaStore(state => state.roomErrors[params.roomId]);
+  const [filter, setFilter] = useState('');
+  const [roster, setRoster] = useState(false);
+  const [atBottom, setAtBottom] = useState(true);
+  const [lastSeen, setLastSeen] = useState<unknown>();
+  const newMessages = !!room?.chat.length && room.chat.at(-1) !== lastSeen;
   const [userCard, setUserCard] = useState<UserCardAnchor | null>(null);
   const feedRef = useRef<HTMLDivElement>(null);
 
@@ -45,12 +51,15 @@ export function RoomScreen() {
     // Join only rooms we have no record of. A room that exists with
     // connected=false was left on purpose — rejoining it here would make
     // Leave a no-op (the trap this guard exists for).
-    if (!roomId && !params.roomId.startsWith('pm-') && connection === 'connected') joinRoom(params.roomId);
-  }, [connection, focusRoom, joinRoom, params.roomId, roomId, roomConnected]);
+    if (!roomId && (params.roomId.startsWith('pm-') || connection === 'connected') && !joinError) joinRoom(params.roomId);
+  }, [connection, focusRoom, joinRoom, params.roomId, roomId, roomConnected, joinError]);
 
   useEffect(() => {
-    feedRef.current?.scrollTo({ top: feedRef.current.scrollHeight });
-  }, [room?.chat.length]);
+    if (atBottom) feedRef.current?.scrollTo({ top: feedRef.current.scrollHeight });
+  }, [room?.chat, atBottom]);
+
+  if (joinError) return <section className="empty-state" role="alert"><h1>Unable to open this room</h1><p>{joinError}</p>
+    <div className="button-row"><button type="button" className="secondary-action" onClick={() => joinRoom(params.roomId)}>Retry</button><Link to="/rooms">Browse rooms</Link></div></section>;
 
   if (room && !room.connected) {
     return (
@@ -79,13 +88,6 @@ export function RoomScreen() {
     );
   }
 
-  const submit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!message.trim()) return;
-    sendRoomMessage(room.id, message);
-    setMessage('');
-  };
-
   return (
     <section className="room-surface" aria-label={`Room ${room.title}`}>
       <header className="room-surface-heading">
@@ -105,20 +107,20 @@ export function RoomScreen() {
               type="button"
               className="secondary-action"
               title={`Challenge to ${formats.find(format => format.id === selectedFormat)?.name || selectedFormat}`}
-              onClick={() => sendChallenge(room.partner)}
+              onClick={() => openChallenge(room.partner)}
             >
               <Swords size={14} aria-hidden /> Challenge
             </button>
           )}
           {room.type !== 'pm' && room.users.length > 0 && (
-            <span className="room-user-count"><Users size={14} aria-hidden /> {room.users.length.toLocaleString()}</span>
+            <button type="button" className="secondary-action" aria-expanded={roster} onClick={() => setRoster(value => !value)}><Users size={14} aria-hidden /> {room.users.length.toLocaleString()} users</button>
           )}
           <button
             type="button"
             className="secondary-action"
             onClick={() => {
               const next = nextRouteAfterClose(rooms, room.id);
-              leaveRoom(room.id);
+              if (!leaveRoom(room.id)) return;
               void navigate({ to: next });
             }}
           >
@@ -126,6 +128,16 @@ export function RoomScreen() {
           </button>
         </div>
       </header>
+
+      <div className="room-history-tools">
+        <input type="search" aria-label={roster ? 'Search room users' : 'Search chat history'} placeholder={roster ? 'Search users' : 'Search retained chat'} value={filter} onChange={event => setFilter(event.currentTarget.value)} />
+        <button type="button" className="secondary-action" onClick={() => {
+          const blob = new Blob([room.chat.map(entry => `${new Date(entry.timestamp || Date.now()).toISOString()} ${entry.user}: ${entry.kind === 'html' ? '[rich content]' : entry.message}`).join('\n')], { type: 'text/plain' });
+          const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = `${room.id}-chat.txt`; link.click(); URL.revokeObjectURL(url);
+        }}>Export chat</button>
+        <small>Latest 2,000 messages retained locally in this session.</small>
+      </div>
+      {roster && <div className="room-roster" aria-label="Room users">{room.users.filter(user => user.toLowerCase().includes(filter.toLowerCase())).map(user => <button type="button" className="secondary-action" key={user} onClick={event => { const rect = event.currentTarget.getBoundingClientRect(); setUserCard({ name: user, x: rect.left, y: rect.bottom, trigger: event.currentTarget }); }}>{user}</button>)}</div>}
 
       {room.type === 'chat' && room.tournament && (
         <TournamentBanner
@@ -135,25 +147,22 @@ export function RoomScreen() {
         />
       )}
 
-      <div className="room-surface-feed" ref={feedRef}>
+      <div className="room-surface-feed" ref={feedRef} onScroll={event => {
+        const el = event.currentTarget; const bottom = el.scrollHeight - el.scrollTop - el.clientHeight < 60;
+        setAtBottom(bottom); if (bottom) setLastSeen(room.chat.at(-1));
+      }}>
         <ChatFeed
-          messages={room.chat}
+          key={room.id}
+          announce={connection === 'connected' && (roster || !filter)}
+          label={`${room.title} chat history`}
+          messages={!roster && filter ? room.chat.filter(entry => `${entry.user} ${entry.message}`.toLowerCase().includes(filter.toLowerCase())) : room.chat}
           selfName={username}
           onCommand={command => sendRoomMessage(room.id, command)}
           onUserClick={(name, at) => setUserCard({ name, ...at })}
         />
       </div>
-
-      <form className="chat-entry room-surface-entry" onSubmit={submit}>
-        <MessageCircle size={16} aria-hidden />
-        <input
-          aria-label={`Message ${room.title}`}
-          placeholder={room.type === 'pm' ? `Message ${room.title}` : `Message ${room.title}`}
-          value={message}
-          onChange={event => setMessage(event.currentTarget.value)}
-        />
-        <button type="submit" aria-label="Send"><Send size={15} /></button>
-      </form>
+      {!atBottom && newMessages && <button type="button" className="secondary-action new-message-jump" onClick={() => { setAtBottom(true); setLastSeen(room.chat.at(-1)); }}>New messages · Jump to latest</button>}
+      <ChatComposer key={room.id} roomId={room.id} title={room.title} users={room.users} send={message => sendRoomMessage(room.id, message)} />
       {userCard && <UserCard anchor={userCard} onClose={() => setUserCard(null)} />}
     </section>
   );

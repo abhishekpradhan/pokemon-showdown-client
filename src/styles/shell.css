@@ -150,6 +150,8 @@ textarea:focus-visible,
 }
 
 .arena-main {
+  display: flex;
+  flex-direction: column;
   grid-column: 2;
   grid-row: 1;
   min-width: 0;
@@ -159,6 +161,7 @@ textarea:focus-visible,
 }
 
 .topbar {
+  flex-shrink: 0;
   position: relative;
   top: auto;
   display: grid;
@@ -457,7 +460,7 @@ textarea:focus-visible,
 .workspace {
   flex: 1;
   min-height: 0;
-  height: calc(100svh - 56px);
+  height: auto;
   padding: 14px;
   overflow: auto;
   overscroll-behavior: contain;
@@ -576,7 +579,7 @@ textarea:focus-visible,
   }
 
   .workspace {
-    height: calc(100dvh - 52px);
+    height: auto;
     padding: 10px 10px 70px;
   }
 }
@@ -587,6 +590,7 @@ textarea:focus-visible,
    anything is open. */
 
 .session-tabs {
+  flex-shrink: 0;
   display: flex;
   gap: 2px;
   align-items: stretch;

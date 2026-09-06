@@ -1,8 +1,13 @@
-import { createRootRoute, createRoute, createRouter, lazyRouteComponent } from '@tanstack/react-router';
+import { createRootRoute, createRoute, createRouter, lazyRouteComponent, redirect } from '@tanstack/react-router';
 import { AppRoot } from './screens/app-root';
 
 const rootRoute = createRootRoute({
   component: AppRoot,
+  beforeLoad: ({ location }) => {
+    if (/^\/battle-[a-z0-9-]+$/.test(location.pathname)) throw redirect({ to: '/battle/$battleId', params: { battleId: location.pathname.slice(1) }, replace: true });
+    if (/^\/pm-[a-z0-9]+$/.test(location.pathname)) throw redirect({ to: '/room/$roomId', params: { roomId: location.pathname.slice(1) }, replace: true });
+    if (location.pathname === '/lobby') throw redirect({ to: '/room/$roomId', params: { roomId: 'lobby' }, replace: true });
+  },
 });
 
 const indexRoute = createRoute({
@@ -20,6 +25,7 @@ const battleRoute = createRoute({
 const teambuilderRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/teambuilder',
+  validateSearch: (search: Record<string, unknown>): { team?: string } => ({ team: typeof search.team === 'string' ? search.team : undefined }),
   component: lazyRouteComponent(() => import('./screens/team-workspace'), 'TeamWorkspace'),
 });
 
@@ -35,15 +41,23 @@ const roomsRoute = createRoute({
   component: lazyRouteComponent(() => import('./screens/rooms-screen'), 'RoomsScreen'),
 });
 
+const battlesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/battles',
+  component: lazyRouteComponent(() => import('./screens/battles-screen'), 'BattlesScreen'),
+});
+
 const ladderRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/ladder',
+  validateSearch: (search: Record<string, unknown>): { format?: string; user?: string; exact?: boolean } => ({ format: typeof search.format === 'string' ? search.format.replace(/[^a-z0-9]/gi, '').toLowerCase() : undefined, user: typeof search.user === 'string' ? search.user : undefined, exact: search.exact === true || search.exact === 'true' }),
   component: lazyRouteComponent(() => import('./screens/ladder-screen'), 'LadderScreen'),
 });
 
 const replaysRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/replays',
+  validateSearch: (search: Record<string, unknown>): { replay?: string; turn?: number; step?: number; side?: 'p1' | 'p2' } => ({ replay: typeof search.replay === 'string' ? search.replay : undefined, turn: Number.isFinite(Number(search.turn)) ? Math.max(0, Math.floor(Number(search.turn))) : undefined, step: Number.isFinite(Number(search.step)) ? Math.max(0, Math.floor(Number(search.step))) : undefined, side: search.side === 'p2' ? 'p2' : search.side === 'p1' ? 'p1' : undefined }),
   component: lazyRouteComponent(() => import('./screens/replays-screen'), 'ReplaysScreen'),
 });
 
@@ -59,6 +73,7 @@ const routeTree = rootRoute.addChildren([
   roomRoute,
   teambuilderRoute,
   roomsRoute,
+  battlesRoute,
   ladderRoute,
   replaysRoute,
   settingsRoute,

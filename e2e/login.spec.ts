@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 import { installMockPs } from './mock-ps';
 
 /**
@@ -55,6 +55,7 @@ test('never sends an unsigned /trn', async ({ page }) => {
 
 test('never collects a Showdown password; registered names go through OAuth', async ({ page }) => {
   await page.goto('/');
+  await expect(page.getByText('Online', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: /Unnamed guest/i }).click();
   const dialog = page.getByRole('dialog');
 
@@ -70,7 +71,7 @@ test('never collects a Showdown password; registered names go through OAuth', as
   const oauth = dialog.getByRole('button', { name: /Sign in with Pok/i });
   await expect(oauth).toBeVisible();
   if (await oauth.isDisabled()) {
-    await expect(dialog.getByText(/OAuth client ID/i)).toBeVisible();
+    await expect(dialog.getByText(/Registered sign-in is unavailable on this installation/i)).toBeVisible();
   }
 
   // A registered name refused by the login server must not send a bare /trn.
@@ -124,9 +125,14 @@ test('spectating renders a true spectator view', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Undo choice' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Reset choice draft' })).toHaveCount(0);
 
-  // Actions announce themselves on the field. The mock's turn ends on a
-  // super-effective note, which is the label the banner settles on.
-  await expect(page.locator('.field-announce')).toHaveText("It's super effective!");
+  // Joining a running match starts at its latest state. Earlier action
+  // narration remains available in the history, including effectiveness.
+  await expect(page.locator('.field-turn')).toContainText('2');
+  await page.getByRole('button', { name: 'Play history', exact: true }).click();
+  await page.getByRole('combobox', { name: 'Playback speed' }).selectOption('0.5');
+  await expect(page.locator('.field-announce')).toHaveText("It's super effective on Reuniclus.", { timeout: 15_000 });
+  await page.getByRole('button', { name: 'Live', exact: true }).click();
+  await expect(page.locator('.field-turn')).toContainText('2');
 
   // Spectating must not trap navigation: the battle takes focus once when it
   // opens, and after that every other surface stays reachable.

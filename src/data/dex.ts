@@ -16,6 +16,7 @@ export type { TypeName, StatusName };
 export const DEFAULT_GEN = 9;
 
 let generations: Generations | null = null;
+let unrestrictedGenerations: Generations | null = null;
 let loading: Promise<Generations> | null = null;
 const listeners = new Set<() => void>();
 
@@ -28,9 +29,10 @@ export function loadDex(): Promise<Generations> {
       import('@pkmn/data'),
     ]);
     generations = new Generations(Dex);
+    unrestrictedGenerations = new Generations(Dex, entry => !!entry.exists && (!('isNonstandard' in entry) || entry.isNonstandard !== 'Future'));
     listeners.forEach(listener => listener());
     return generations;
-  })();
+  })().catch(error => { loading = null; throw error; });
   return loading;
 }
 
@@ -97,4 +99,24 @@ export function formatEffectiveness(multiplier: number | null) {
   if (multiplier === 0.25) return '¼x';
   if (multiplier === 0.5) return '½x';
   return `${multiplier}x`;
+}
+
+/** Keep generation-specific formulas in the dex implementation, including old-generation DVs. */
+export function calculateSetStats(set: import('../compat/team-store').TeamSet, generationNumber: number, defaultLevel = 100) {
+  const generation = gen(generationNumber);
+  const species = generation?.species.get(set.species);
+  if (!generation || !species) return null;
+  return Object.fromEntries((['hp', 'atk', 'def', 'spa', 'spd', 'spe'] as const).map(stat => [stat,
+    generation.stats.calc(stat, species.baseStats[stat], set.ivs?.[stat] ?? 31, set.evs?.[stat] ?? (generationNumber <= 2 ? 252 : 0), set.level ?? defaultLevel, set.nature ? generation.natures.get(set.nature) : undefined),
+  ])) as Record<'hp' | 'atk' | 'def' | 'spa' | 'spd' | 'spe', number>;
+}
+
+/** National Dex/CAP/custom formats keep past and mod data selectable; server validation owns clauses. */
+export function genForFormat(formatId: string, showAll = false): Generation | null {
+  const number = Math.min(9, Math.max(1, genFromFormat(formatId))) as 1;
+  return showAll || /nationaldex|cap|hackmons|customgame/.test(formatId) ? unrestrictedGenerations?.get(number) || null : gen(number);
+}
+
+export function defaultAbilityForSpecies(name: string, formatId: string) {
+  return genForFormat(formatId, true)?.species.get(name)?.abilities['0'];
 }

@@ -837,6 +837,33 @@ button.chat-author:hover { text-decoration: underline; }
   font-size: 12px;
 }
 
+.room-surface { display: flex; flex-direction: column; min-block-size: 0; }
+.room-surface-feed { flex: 1; min-block-size: 100px; overflow-anchor: auto; }
+.room-history-tools { display: flex; gap: 8px; align-items: center; padding: 8px 16px; flex-wrap: wrap; border-block-end: 1px solid var(--arena-line); }
+.room-history-tools input { min-inline-size: 0; max-inline-size: 240px; }
+.room-history-tools small, .chat-keyboard-help { color: var(--arena-muted); font-size: 11px; }
+.room-roster { display: flex; flex-wrap: wrap; gap: 6px; max-block-size: 180px; overflow: auto; padding: 10px 16px; }
+.chat-composer { flex: none; min-inline-size: 0; }
+.chat-entry textarea { flex: 1; inline-size: 100%; min-inline-size: 0; border: 0; background: transparent; color: var(--arena-text); font: inherit; resize: vertical; max-block-size: 140px; line-height: 1.5; }
+.chat-keyboard-help { display: block; padding: 2px 16px 6px; }
+.chat-compose-error { margin: 4px 16px; color: var(--arena-warning); font-size: 12px; }
+.chat-line.is-html { position: relative; contain: layout paint; isolation: isolate; max-inline-size: 100%; }
+.chat-rich-content { max-inline-size: 100%; max-block-size: 640px; overflow: auto; }
+.chat-line.is-highlight { background: rgb(230 184 62 / 12%); }
+.new-message-jump { align-self: center; margin: 4px; }
+.user-card-rooms { display: flex; gap: 6px; flex-wrap: wrap; max-block-size: 140px; overflow: auto; margin-block-start: 8px; }
+.global-notice { display: flex; align-items: center; gap: 10px; padding: 8px 16px; font-size: 12px; background: var(--arena-panel-raised); flex-wrap: wrap; }
+.battle-directory-tools { flex-wrap: wrap; gap: 12px; }
+.battle-directory-tools label { display: grid; gap: 5px; }
+.directory-room-entry { display: grid; gap: 4px; }
+.directory-room-entry .directory-card { inline-size: 100%; block-size: 100%; }
+@media (max-width: 600px) {
+  .room-history-tools { padding: 6px 10px; }
+  .room-history-tools small { display: none; }
+  .chat-entry textarea { font-size: 16px; }
+  .room-surface-actions { flex-wrap: wrap; }
+}
+
 @media (max-width: 900px) {
   .directory-battles { max-block-size: 300px; }
 }

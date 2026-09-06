@@ -4,8 +4,9 @@ dist/
 *.tsbuildinfo
 
 # Test output
-test-results/
-playwright-report/
+test-results*/
+playwright-report*/
+test-results-local-server.json
 blob-report/
 coverage/
 
@@ -22,3 +23,4 @@ npm-debug.log*
 # Local agent tooling
 .claude/
 .env*
+!.env.example

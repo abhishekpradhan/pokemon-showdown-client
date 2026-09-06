@@ -1,73 +1,45 @@
 # Contributing
 
-Thanks for helping out. This is a standalone client for Pokémon Showdown
-servers — it is not the official client and does not track it.
+Contributions should make this client easier to use while preserving Pokémon Showdown protocol compatibility. Read the [current compatibility map](docs/compatibility.md), [architecture](docs/architecture.md) and [roadmap](docs/roadmap.md) before a substantial change.
 
-## Getting set up
+## Reproducible setup
 
-```bash
+Use Node 24 (`nvm use`), or Node 22 LTS from 22.13 onward. CI checks both 22.x and 24.x; Node 26 is not supported. Use the committed lockfile:
+
+```sh
 npm ci
+npx playwright install chromium firefox webkit
 npm run dev
 ```
 
-Requires Node 20+ (22 recommended — the live smoke test uses the built-in
-`WebSocket`).
+On Linux, `npx playwright install --with-deps chromium firefox webkit` also installs browser system dependencies. Copy `.env.example` to `.env.local` when customizing endpoints. Existing shell variables override env files; restart Vite after changes. Never post `.env.local`, an OAuth token, a private replay URL, or a raw private-message transcript.
 
-## Before opening a pull request
+## Validation before a pull request
 
-```bash
-npm run check     # typecheck + lint + unit tests
-npm run test:e2e  # browser tests
+```sh
+npm run check
+npm run check:licenses
+npm run build
+npm run test:e2e -- --grep-invert 'visual baseline'
+npm run test:production
 ```
 
-CI runs the same commands plus a production build. Lint runs with
-`--max-warnings 0`; warnings are errors here.
+Screenshot baselines are maintained on macOS with the locked Playwright Chromium version. Run `npm run test:visual`; review actual/diff images before intentionally updating them using `npm run test:visual -- --update-snapshots`. CI gates those screenshots on `macos-15` and browser/mobile flows on Ubuntu. Never update snapshots merely to hide a regression.
 
-## The one rule that matters
+`npm run audit:dependencies` checks current registry advisories. A new license or advisory requires maintainer triage; changing the lockfile is part of the change and must be reviewed. Bundle budgets are enforced by every build, covering startup gzip bytes and the entire offline asset set.
 
-**Protocol compatibility is the constraint everything else bends around.** We
-do not run a server. If the client stops speaking the wire protocol correctly,
-it stops working entirely, and no amount of interface polish compensates.
+## Protocol changes
 
-So, for anything touching `src/compat/`:
+Use fixtures from the documented upstream baseline and record what the official client does. When fixing a protocol bug, change the mock so it rejects the incorrect behavior, then add a regression covering the real transition. Include singles/doubles, player/spectator and affected generations where relevant. A mock that agrees with the same false assumption is not independent evidence.
 
-- Say in the PR how you verified it. "Tests pass" is not enough on its own —
-  the suites are mocked, and a mock that agrees with a wrong assumption will
-  agree with it forever. That is exactly how a completely broken login once
-  shipped green.
-- Run the live smoke test:
+For connection/auth/protocol changes, run `npm run test:integration` for the [pinned loopback server](docs/local-integration.md) and retain the generated evidence. `LIVE_PS_TESTS=1 npm run test:live` is an additional public guest-handshake check when network access is available; report any infrastructure limitation. Do not use rated public battles or send public chat as automated tests. See the [release checklist](docs/releases.md).
 
-  ```bash
-  LIVE_PS_TESTS=1 npm run test:live
-  ```
+## Scope, style and reviews
 
-- If you change the handshake, matchmaking, or choice submission, actually play
-  a battle against a real server and say so.
+Keep PRs focused on one behavior or cohesive prerequisite, with reproduction, user impact, tests and remaining limitations. Discuss broad redesigns through an issue first. Match surrounding TypeScript and token-based CSS; use dex data instead of guessing mechanics. Subscribe to state slices, keep network/room lifecycle ownership explicit, and preserve keyboard, reduced-motion and mobile behavior.
 
-When you fix a protocol bug, make the mock in `e2e/mock-ps.ts` reject the wrong
-behaviour too. A test that could not have failed is not coverage.
+The repository owner in [CODEOWNERS](CODEOWNERS) reviews protocol, deployment and data migrations. Reviewers check behavior, security boundaries, privacy-safe diagnostics and backward compatibility. Contributions and review times depend on maintainer availability; [SUPPORT.md](SUPPORT.md) documents triage expectations.
 
-## Style
+## License and community
 
-There is no separate style guide; match the surrounding code. A few things
-that are specific to this repo:
-
-- **Never guess at game data.** Move types, species typings, sprite filenames
-  and the type chart come from `src/data/dex.ts` and `src/data/sprites.ts`,
-  which wrap `@pkmn`. String-matching a move name to infer its type is how
-  "Knock Off" ended up rendering as a Normal-type move.
-- **CSS is layered.** `src/styles/tokens.css` owns colour, spacing and motion;
-  each surface owns one file; `src/styles.css` is imports only and its order is
-  the cascade order. Do not hardcode a colour — if a token is missing, add one.
-- **Subscribe to slices.** Components select the store fields they use via
-  `useShallow`. Subscribing to the whole store re-renders the app on every
-  protocol frame.
-- Comments should explain why, especially where the protocol is surprising.
-
-## Licence
-
-AGPL-3.0-or-later. By contributing you agree your work is licensed under it.
-
-If you deploy a modified version publicly, the AGPL requires you to offer users
-the corresponding source. Keep the source link in Settings pointing at your
-fork.
+Contributions are licensed under AGPL-3.0-or-later. Include attribution and license information for copied upstream code, fixtures and assets. Deployments should link to their matching source revision; see [attribution](docs/attribution.md). Follow [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md), and send security reports through [SECURITY.md](SECURITY.md).

@@ -56,7 +56,9 @@ export function loadStoredServer(): ServerConfig {
     const raw = localStorage.getItem(SERVER_STORAGE_KEY);
     if (!raw) return getDefaultServerConfig();
     const parsed = JSON.parse(raw) as Partial<ServerConfig>;
-    if (!parsed.host) return getDefaultServerConfig();
+    if (!parsed || typeof parsed.host !== 'string' || !/^[a-z0-9.:[\]-]+$/i.test(parsed.host)) return getDefaultServerConfig();
+    if (typeof parsed.port !== 'number' || !Number.isInteger(parsed.port) || parsed.port < 1 || parsed.port > 65535) return getDefaultServerConfig();
+    if (typeof parsed.secure !== 'boolean' || typeof parsed.prefix !== 'string' || !/^\/[a-z0-9/_-]*$/i.test(parsed.prefix)) return getDefaultServerConfig();
     return { ...getDefaultServerConfig(), ...parsed };
   } catch {
     return getDefaultServerConfig();
@@ -85,7 +87,7 @@ export function parseServerInput(input: string, base = getDefaultServerConfig())
   } catch {
     return null;
   }
-  if (!url.hostname) return null;
+  if (!url.hostname || !['ws:', 'wss:', 'http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash) return null;
 
   const secure = url.protocol === 'wss:' || url.protocol === 'https:';
   const path = url.pathname.replace(/\/websocket\/?$/, '').replace(/\/$/, '');
@@ -146,6 +148,7 @@ export class ProtocolClient {
   private reconnectDelay = 1_000;
   private readonly reconnectCap = 15_000;
   private manualClose = false;
+  private generation = 0;
   state: ConnectionState = 'offline';
 
   constructor(
@@ -154,7 +157,7 @@ export class ProtocolClient {
   ) {}
 
   connect() {
-    if (this.socket && (this.state === 'connected' || this.state === 'connecting')) return;
+    if (this.socket) return;
     this.manualClose = false;
     this.setState(this.state === 'offline' ? 'connecting' : 'reconnecting');
 
@@ -162,8 +165,11 @@ export class ProtocolClient {
       if (!this.WebSocketImpl) throw new Error('WebSocket is not available in this environment');
       const socket = new this.WebSocketImpl(serverWebSocketUrl(this.server));
       this.socket = socket;
+      const generation = ++this.generation;
+      const current = () => this.socket === socket && generation === this.generation;
 
       socket.onopen = () => {
+        if (!current()) return;
         this.reconnectDelay = 1_000;
         this.setState('connected');
         const queued = [...this.queue];
@@ -175,15 +181,18 @@ export class ProtocolClient {
       };
 
       socket.onmessage = event => {
+        if (!current()) return;
         this.emit({ type: 'frame', frame: parsePsFrame(String(event.data)) });
       };
 
       socket.onerror = () => {
+        if (!current()) return;
         this.setState('error', 'WebSocket error');
         this.emit({ type: 'error', error: new Error('WebSocket error') });
       };
 
       socket.onclose = () => {
+        if (!current()) return;
         this.socket = null;
         if (this.manualClose) {
           this.setState('offline');
@@ -199,12 +208,18 @@ export class ProtocolClient {
 
   disconnect() {
     this.manualClose = true;
+    ++this.generation;
+    this.queue = [];
     if (this.reconnectTimer) {
       window.clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
-    this.socket?.close();
+    const socket = this.socket;
     this.socket = null;
+    if (socket) {
+      socket.onopen = socket.onmessage = socket.onerror = socket.onclose = null;
+      socket.close();
+    }
     this.setState('offline');
   }
 
@@ -215,16 +230,32 @@ export class ProtocolClient {
   }
 
   send(message: string, roomId = '') {
+    if (/[\r\n|]/.test(roomId) || /[\r\n]/.test(message)) {
+      this.emit({ type: 'error', error: new Error('Commands must contain a single line.') });
+      return false;
+    }
     const payload = `${roomId}|${message}`;
     if (this.state !== 'connected' || !this.socket) {
-      this.queue.push(payload);
-      return;
+      // Only replaceable, public read queries survive a temporary disconnect.
+      // Chat, identity, teams and choices require a current authenticated session.
+      if (!roomId && /^\/cmd (?:rooms|roomlist|userdetails)(?: |$)/.test(message)) {
+        if (!this.queue.includes(payload)) this.queue = [...this.queue, payload].slice(-20);
+      } else {
+        this.emit({ type: 'error', error: new Error('Not sent: reconnect before sending messages or battle commands.') });
+      }
+      return false;
     }
-    this.socket.send(payload);
-    this.emit({ type: 'send', message: payload });
+    try {
+      this.socket.send(payload);
+      this.emit({ type: 'send', message: payload });
+      return true;
+    } catch {
+      this.emit({ type: 'error', error: new Error('The connection closed before the command could be sent. Reconnect and try again.') });
+      return false;
+    }
   }
 
-  subscribe(handler: ProtocolMessageHandler) {
+  subscribe(handler: ProtocolMessageHandler): () => void {
     this.handlers.add(handler);
     return () => this.handlers.delete(handler);
   }

@@ -3,7 +3,7 @@ import type { BattleRoom, ChatMessage, ChatRoom, PmRoom, Room } from './types';
 
 /** Pure helpers over the room map. All return new objects; nothing mutates. */
 
-const CHAT_LIMIT = 200;
+const CHAT_LIMIT = 2000;
 const LOG_LIMIT = 400;
 
 export const newChatRoom = (id: string, title = ''): ChatRoom => ({

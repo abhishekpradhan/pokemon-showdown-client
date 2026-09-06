@@ -12,18 +12,19 @@ import {
   MessageSquare,
   PanelRightClose,
   RotateCcw,
-  Send,
   TimerReset,
   Volume2,
   VolumeX,
   X,
 } from 'lucide-react';
-import { type FormEvent, useEffect, useState } from 'react';
-import { buildMoveDeck } from '../compat/battle-adapter';
+import { useEffect, useRef, useState } from 'react';
+import { availableSwitches, buildMoveDeck, canPassBattleChoice, defensiveTypes, isBattleChoiceComplete, isReviving } from '../compat/battle-adapter';
 import { BattleField } from '../components/battle-field';
 import { JoiningState } from '../components/joining-state';
 import { BattleTimerChip } from '../components/battle-timer';
 import { ChatFeed } from '../components/chat-feed';
+import { ChatComposer } from '../components/chat-composer';
+import { createBattleHistory, flipBattleView, type BattleHistoryPoint } from '../battle/engine';
 import { UserCard, type UserCardAnchor } from '../components/user-card';
 import { MoveControls } from '../components/move-controls';
 import { TeamBench } from '../components/team-bench';
@@ -36,26 +37,69 @@ type InspectorTab = 'log' | 'chat' | 'info';
 export function BattleScreen() {
   const params = useParams({ from: '/battle/$battleId' });
   const { replayStatus, rooms, saveReplay, username, connection, focusRoom, forfeitBattle, getBattleDecision, hardcoreMode, joinRoom, resetBattleChoiceSession, sendBattleChat, submitBattleChoice, submitBattleTarget, toggleBattleTimer, toggleHardcore, undoBattleChoice } = useArenaStore(
-    useShallow(state => ({ replayStatus: state.replayStatus, rooms: state.rooms, saveReplay: state.saveReplay, username: state.username, connection: state.connection, focusRoom: state.focusRoom, forfeitBattle: state.forfeitBattle, getBattleDecision: state.getBattleDecision, hardcoreMode: state.hardcoreMode, joinRoom: state.joinRoom, resetBattleChoiceSession: state.resetBattleChoiceSession, sendBattleChat: state.sendBattleChat, submitBattleChoice: state.submitBattleChoice, submitBattleTarget: state.submitBattleTarget, toggleBattleTimer: state.toggleBattleTimer, toggleHardcore: state.toggleHardcore, undoBattleChoice: state.undoBattleChoice }))
+    useShallow(state => ({ replayStatus: state.replayStatuses[params.battleId], rooms: state.rooms, saveReplay: state.saveReplay, username: state.username, connection: state.connection, focusRoom: state.focusRoom, forfeitBattle: state.forfeitBattle, getBattleDecision: state.getBattleDecision, hardcoreMode: state.hardcoreMode, joinRoom: state.joinRoom, resetBattleChoiceSession: state.resetBattleChoiceSession, sendBattleChat: state.sendBattleChat, submitBattleChoice: state.submitBattleChoice, submitBattleTarget: state.submitBattleTarget, toggleBattleTimer: state.toggleBattleTimer, toggleHardcore: state.toggleHardcore, undoBattleChoice: state.undoBattleChoice }))
   );
-  const [chatMessage, setChatMessage] = useState('');
   const [forfeitOpen, setForfeitOpen] = useState(false);
   const [inspectorTab, setInspectorTab] = useState<InspectorTab>('log');
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const [userCard, setUserCard] = useState<UserCardAnchor | null>(null);
-  const { soundEnabled, setSoundEnabled } = useWorkspaceStore(
-    useShallow(state => ({ soundEnabled: state.soundEnabled, setSoundEnabled: state.setSoundEnabled }))
+  const { soundEnabled, reducedMotion, setSoundEnabled } = useWorkspaceStore(
+    useShallow(state => ({ soundEnabled: state.soundEnabled, reducedMotion: state.reducedMotion, setSoundEnabled: state.setSoundEnabled }))
   );
   const demoFixturesEnabled = import.meta.env.MODE === 'test' || import.meta.env.VITE_ENABLE_DEMO_FIXTURES === 'true';
   const room = rooms[params.battleId];
   const battleRoom = room?.type === 'battle' ? room : null;
   const battle = battleRoom?.battle ?? null;
+  const historyRef = useRef<{ id: string; timeline: ReturnType<typeof createBattleHistory> } | null>(null);
+  const [history, setHistory] = useState<readonly BattleHistoryPoint[]>([]);
+  const [historyCursor, setHistoryCursor] = useState<number | null>(null);
+  const [playing, setPlaying] = useState(false);
+  const [speed, setSpeed] = useState(1);
+  const [flipped, setFlipped] = useState(false);
+  const [narration, setNarration] = useState<readonly BattleHistoryPoint[]>([]);
+  const narratedThrough = useRef(-1);
+  const rawLog = battleRoom?.rawLog;
+  const engine = battleRoom?.engine;
+  useEffect(() => {
+    if (!rawLog || !engine) return;
+    if (historyRef.current?.id !== params.battleId || !historyRef.current.timeline) {
+      historyRef.current = { id: params.battleId, timeline: createBattleHistory(params.battleId, username) };
+      setHistoryCursor(null);
+      setPlaying(false);
+      narratedThrough.current = -1;
+    }
+    const points = historyRef.current.timeline?.synchronize(rawLog);
+    if (points) {
+      setHistory([...points]);
+      const fresh = points.filter(point => point.line > narratedThrough.current);
+      if (fresh.length) {
+        const latest = fresh[fresh.length - 1];
+        if (narratedThrough.current < 0 || reducedMotion) setNarration([latest]);
+        else setNarration(current => [...current, ...fresh].slice(-40));
+        narratedThrough.current = latest.line;
+      }
+    }
+  }, [rawLog, engine, params.battleId, username, reducedMotion]);
+  useEffect(() => {
+    if (narration.length < 2) return;
+    const timer = window.setTimeout(() => setNarration(current => current.slice(1)), reducedMotion ? 0 : 1200 / speed);
+    return () => window.clearTimeout(timer);
+  }, [narration, speed, reducedMotion]);
+  useEffect(() => {
+    if (!playing) return;
+    const timer = window.setTimeout(() => {
+      const next = (historyCursor ?? -1) + 1;
+      if (next >= history.length) { setPlaying(false); return null; }
+      setHistoryCursor(next);
+    }, 900 / speed);
+    return () => window.clearTimeout(timer);
+  }, [playing, speed, history.length, historyCursor]);
 
   const battleRoomId = battleRoom?.id;
   useEffect(() => {
     if (battleRoomId) {
       focusRoom(battleRoomId);
-      return;
+      return () => { if (useArenaStore.getState().activeRoomId === battleRoomId) focusRoom(undefined); };
     }
     if (params.battleId.startsWith('battle-') && connection === 'connected') joinRoom(params.battleId);
   }, [battleRoomId, connection, focusRoom, joinRoom, params.battleId]);
@@ -88,25 +132,36 @@ export function BattleScreen() {
   }
 
   const decision = getBattleDecision(battle.id);
+  const historyPoint = historyCursor !== null ? history[Math.min(historyCursor, history.length - 1)] : undefined;
+  const fieldBattle = historyPoint?.battle || battle;
+  const viewBattle = flipped ? flipBattleView(fieldBattle) : fieldBattle;
   const pendingTarget = decision.draft.pendingMove;
 
   // Doubles: the session collects one choice per active slot; the deck and
   // the title track the slot currently being decided. (While a move waits on
   // its target the cursor still points at the mover.)
-  const activeCount = battleRoom?.lastRequest?.active?.length ?? 1;
+  const session = battleRoom?.choiceSession;
+  const activeCount = battleRoom?.lastRequest?.active?.length || (Array.isArray(battleRoom?.lastRequest?.forceSwitch) ? battleRoom.lastRequest.forceSwitch.length : 1);
   const choiceCursor = Math.min(decision.draft.choices.length, Math.max(0, activeCount - 1));
-  const activeDeck = choiceCursor > 0 && battleRoom?.lastRequest ?
+  const deck = battleRoom?.lastRequest ?
     buildMoveDeck(
       battleRoom.lastRequest,
-      battle.opponentActive.terastallized ? [battle.opponentActive.terastallized] : battle.opponentActive.types,
-      battle.format,
-      choiceCursor
+      defensiveTypes(battle.opponentActive),
+      `gen${battle.generation || 9}`,
+      choiceCursor,
+      battle.opponentActive,
+      battle.actives?.find(pokemon => pokemon.slot === choiceCursor + 1) || battle.active,
+      battle.weather,
     ) :
     battle.moves;
+  const activeDeck = deck.map(move => ({ ...move, canMegaEvo: move.canMegaEvo && !session?.alreadyMega,
+    canDynamax: move.canDynamax && !session?.alreadyMax, canZMove: move.canZMove && !session?.alreadyZ,
+    canTerastallize: move.canTerastallize && !session?.alreadyTera }));
   const cursorName = battle.actives?.find(pokemon => pokemon.slot === choiceCursor + 1)?.name ?? battle.active.name;
 
-  const pendingMoveCard = pendingTarget ? activeDeck.find(move => move.slot === pendingTarget.slot) : undefined;
-  const targetOptions = pendingTarget ? pendingMoveCard?.targetOptions || [1, 2, -1, -2] : [];
+  const pendingBase = pendingTarget ? activeDeck.find(move => move.slot === pendingTarget.slot) : undefined;
+  const pendingMoveCard = pendingTarget?.z ? pendingBase?.zMove : pendingTarget?.max ? pendingBase?.maxMove : pendingBase;
+  const targetOptions = pendingTarget ? pendingMoveCard?.targetOptions || [] : [];
   /** Resolves a protocol target slot (+foe / −ally) to the Pokémon standing there. */
   const describeTarget = (target: number) => {
     const foe = target > 0;
@@ -115,19 +170,30 @@ export function BattleScreen() {
       (battle.actives?.length ? battle.actives : [battle.active]);
     const pokemon = pool.find(entry => entry.slot === Math.abs(target));
     const self = !foe && Math.abs(target) - 1 === (pendingTarget?.activeIndex ?? choiceCursor);
+    const targetBase = pokemon && battleRoom?.lastRequest ? buildMoveDeck(battleRoom.lastRequest, defensiveTypes(pokemon),
+      `gen${battle.generation || 9}`, choiceCursor, pokemon, battle.actives?.find(entry => entry.slot === choiceCursor + 1) || battle.active, battle.weather)
+      .find(move => move.slot === pendingTarget?.slot) : undefined;
+    const targetMove = pendingTarget?.z ? targetBase?.zMove : pendingTarget?.max ? targetBase?.maxMove : targetBase;
     return {
       foe,
       name: pokemon?.name,
+      effectiveness: targetMove?.effectiveness,
       // Empty or fainted slots are not legal targets; your own slot only is
       // for adjacentAllyOrSelf moves.
       disabled: !pokemon || pokemon.fainted || pokemon.hp <= 0 ||
         (self && pendingMoveCard?.target !== 'adjacentAllyOrSelf'),
     };
   };
-  const playerControls = decision.mode === 'player' && decision.requestType !== 'wait';
+  const playerControls = decision.mode === 'player' && decision.requestType !== 'wait' && !battle.waiting && !battle.ended &&
+    !battle.supportReason && !battle.engineWarning && connection === 'connected' && !!battleRoom?.connected && session?.status !== 'submitted' && session?.status !== 'cancelling';
+  const previewSelection = decision.draft.choices.map(choice => /^team (\d+)$/.exec(choice)?.[1]).filter(Boolean).map(Number);
+  const revival = session ? isReviving(session) : false;
   const decisionTitle = battle.ended ?
     battle.winner ? `${battle.winner} won the battle` : 'Battle ended in a tie' :
+    session?.status === 'cancelling' ? 'Waiting for cancellation' :
     battle.waiting ? 'Waiting for opponent' :
+    revival ? 'Choose a Pokémon to revive' :
+    battle.requestType === 'team' ? `Choose your team · ${previewSelection.length}/${decision.requestLength}` :
     pendingTarget ? `Choose ${pendingMoveCard?.name ?? 'a move'}’s target` :
     playerControls ? `Choose ${cursorName}’s action` : 'Spectating battle';
 
@@ -143,12 +209,6 @@ export function BattleScreen() {
     anchor.download = `${battleRoom.id}.log`;
     anchor.click();
     URL.revokeObjectURL(url);
-  };
-
-  const submitChat = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    sendBattleChat(chatMessage, battle.id);
-    setChatMessage('');
   };
 
   const openInspector = (tab: InspectorTab) => {
@@ -171,7 +231,7 @@ export function BattleScreen() {
             {decision.mode === 'spectator' && (
               <span className="spectate-chip"><Eye size={12} aria-hidden /> Spectating</span>
             )}
-            {battleRoom && <BattleTimerChip timer={battleRoom.timer} />}
+            {battleRoom && <BattleTimerChip timer={battleRoom.timer} running={!battle.waiting && decision.mode === 'player'} ended={battle.ended} />}
           </div>
           <div className="toolbar-actions">
             <button
@@ -192,10 +252,10 @@ export function BattleScreen() {
             </button>
             {decision.mode === 'player' && !battle.ended && (
               <>
-                <button type="button" className="icon-button" aria-label="Undo choice" disabled={decision.noCancel} onClick={() => undoBattleChoice(battle.id)}>
+                <button type="button" className="icon-button" aria-label="Undo choice" disabled={decision.noCancel || session?.status === 'cancelling' || (!battle.waiting && !decision.draft.choices.length && !pendingTarget)} onClick={() => undoBattleChoice(battle.id)}>
                   <RotateCcw size={17} />
                 </button>
-                <button type="button" className="icon-button" aria-label="Reset choice draft" onClick={() => resetBattleChoiceSession(battle.id)}>
+                <button type="button" className="icon-button" aria-label="Reset choice draft" disabled={battle.waiting || !decision.draft.choices.length && !pendingTarget} onClick={() => resetBattleChoiceSession(battle.id)}>
                   <X size={17} />
                 </button>
               </>
@@ -203,22 +263,51 @@ export function BattleScreen() {
           </div>
         </header>
 
-        <BattleField battle={battle} hardcore={hardcoreMode} lastEvent={battleRoom?.lastEvent} />
+        {(decision.mode === 'spectator' || battle.ended) && history.length > 0 && !battle.logTruncated && <div className="battle-playback" aria-label="Battle playback">
+          <button type="button" onClick={() => { if (historyCursor === null) setHistoryCursor(0); setPlaying(!playing); }}>{playing ? 'Pause' : 'Play history'}</button>
+          <button type="button" aria-label="Previous turn" onClick={() => {
+            const current = historyPoint?.turn ?? battle.turn;
+            const index = history.map(point => point.turn < current).lastIndexOf(true);
+            setPlaying(false); setHistoryCursor(Math.max(0, index));
+          }}>Previous turn</button>
+          <button type="button" aria-label="Next turn" onClick={() => {
+            const current = historyPoint?.turn ?? battle.turn;
+            const index = history.findIndex(point => point.turn > current);
+            setPlaying(false); setHistoryCursor(index < 0 ? null : index);
+          }}>Next turn</button>
+          <input type="range" aria-label="Battle history position" min={0} max={Math.max(0, history.length - 1)} value={historyCursor ?? history.length - 1} onChange={event => { setPlaying(false); setHistoryCursor(Number(event.currentTarget.value)); }} />
+          <label>Speed <select aria-label="Playback speed" value={speed} onChange={event => setSpeed(Number(event.currentTarget.value))}><option value={0.5}>0.5×</option><option value={1}>1×</option><option value={2}>2×</option><option value={4}>4×</option></select></label>
+          <button type="button" onClick={() => { setPlaying(false); setHistoryCursor(null); }}>{battle.ended ? 'Latest' : 'Live'}</button>
+          <button type="button" aria-pressed={flipped} onClick={() => setFlipped(!flipped)}>Switch viewpoint</button>
+          <span role="status">{historyPoint ? `Turn ${historyPoint.turn}` : battle.ended ? 'Final position' : 'Live position'}</span>
+        </div>}
+        {!historyPoint && narration.length > 1 && <div className="battle-playback" aria-label="Battle narration">
+          <span>{narration.length - 1} actions queued</span>
+          <select aria-label="Narration speed" value={speed} onChange={event => setSpeed(Number(event.target.value))}>
+            <option value={0.5}>0.5×</option><option value={1}>1×</option><option value={2}>2×</option><option value={4}>4×</option>
+          </select>
+          <button type="button" onClick={() => setNarration(current => current.slice(-1))}>Skip to latest action</button>
+        </div>}
+        <BattleField battle={viewBattle} hardcore={hardcoreMode} lastEvent={historyPoint ? { kind: 'note', side: 'near', at: historyPoint.line, label: historyPoint.label } : narration.length ? { ...(battleRoom?.lastEvent || { kind: 'note', side: 'near' }), at: narration[0].line, label: narration[0].label, side: flipped ? battleRoom?.lastEvent?.side === 'near' ? 'far' : 'near' : battleRoom?.lastEvent?.side || 'near' } : battleRoom?.lastEvent} />
 
         <div className="decision-dock" aria-label="Battle action deck">
           <div className="decision-heading">
             <div>
               <span className="eyebrow">Action deck · Turn {battle.turn}</span>
               <h2>{decisionTitle}</h2>
-              {battle.requestType === 'team' && <p className="decision-note">Team preview: choose your lead slot.</p>}
+              {battle.requestType === 'team' && <p className="decision-note">Select Pokémon in order, then confirm. Select again to remove one.</p>}
               {battle.requestType === 'switch' && <p className="decision-note">A replacement is required.</p>}
               {battle.trapped && <p className="decision-note">Your active Pokémon is trapped.</p>}
               {decision.error && <p className="decision-error" role="alert">{decision.error}</p>}
+              {battle.supportReason && <p className="decision-error" role="alert">{battle.supportReason} <a href={`https://play.pokemonshowdown.com/${battle.id}`} target="_blank" rel="noopener noreferrer">Open original client</a></p>}
+              {battle.engineWarning && <p className="decision-error" role="alert">{battle.engineWarning} <button type="button" onClick={() => joinRoom(battle.id)}>Synchronize battle</button></p>}
+              {battle.logTruncated && <p className="decision-note">This very long session retains the latest 50,000 events. The server replay remains the complete record.</p>}
+              {connection !== 'connected' && <p className="decision-note" role="status">Disconnected. Your draft is preserved; reconnect before submitting.</p>}
             </div>
             <span className={`decision-mode is-${decision.mode}`}>{decision.mode}</span>
           </div>
 
-          {pendingTarget && (
+          {pendingTarget && playerControls && (
             <div className="target-grid" aria-label="Move targets">
               {targetOptions.map(target => {
                 const described = describeTarget(target);
@@ -234,7 +323,7 @@ export function BattleScreen() {
                     <Crosshair size={15} aria-hidden />
                     <span>
                       <strong>{described.name ?? `Slot ${Math.abs(target)}`}</strong>
-                      <small>{described.foe ? 'Opponent' : 'Your side'}</small>
+                      <small>{described.foe ? 'Opponent' : 'Your side'}{described.effectiveness ? ` · ${described.effectiveness}` : ''}</small>
                     </span>
                   </button>
                 );
@@ -245,11 +334,11 @@ export function BattleScreen() {
           <div className="decision-controls">
             <div className="move-deck">
               {playerControls && battle.requestType !== 'switch' && battle.requestType !== 'team' && !pendingTarget ? (
-                <MoveControls moves={activeDeck} format={battle.format} onChoose={choice => submitBattleChoice(choice, battle.id)} />
+                <MoveControls key={`${battle.id}-${battle.rqid}-${choiceCursor}`} moves={activeDeck} format={`gen${battle.generation || 9}`} onChoose={choice => submitBattleChoice(choice, battle.id)} />
               ) : !pendingTarget && (
                 <div className="waiting-state" role="status" aria-live="polite">
                   <span className="waiting-pulse" />
-                  <span>{battle.ended ? 'This session is complete.' : battle.waiting ? 'Your choice has been submitted.' : 'Battle controls are read-only.'}</span>
+                  <span>{battle.ended ? 'This session is complete.' : battle.waiting ? 'Your choice has been submitted.' : battle.requestType === 'team' ? 'Choose and review your team below.' : revival ? 'Select a fainted teammate below.' : battle.requestType === 'switch' ? `Choose a replacement for position ${choiceCursor + 1}.` : 'Battle controls are read-only.'}</span>
                 </div>
               )}
             </div>
@@ -258,7 +347,12 @@ export function BattleScreen() {
                 <span className="deck-label">
                   {decision.mode === 'player' ? 'Your team' : `${battle.playerSide === 'p2' ? battle.p2.name : battle.p1.name}’s team`}
                 </span>
-                <TeamBench team={battle.team} onSwitch={playerControls && !pendingTarget ? choice => submitBattleChoice(choice, battle.id) : undefined} />
+                <TeamBench team={battle.team} format={`gen${battle.generation || 9}`} preview={battle.requestType === 'team'} selection={previewSelection}
+                  allowedSlots={battle.requestType === 'team' ? undefined : session ? session.request.active?.[choiceCursor]?.trapped ? [] : availableSwitches(session) : []}
+                  onOrderChange={playerControls ? order => submitBattleChoice({ kind: 'team', order }, battle.id) : undefined}
+                  onSwitch={playerControls && !pendingTarget ? choice => submitBattleChoice(choice, battle.id) : undefined} />
+                {battle.requestType === 'team' && <button type="button" className="primary-action" disabled={!playerControls || !session || !isBattleChoiceComplete(session)} onClick={() => submitBattleChoice({ kind: 'confirm' }, battle.id)}>Confirm team order</button>}
+                {playerControls && session && canPassBattleChoice(session) && <button type="button" className="secondary-action" onClick={() => submitBattleChoice({ kind: 'pass' }, battle.id)}>Keep position {choiceCursor + 1} empty</button>}
               </div>
             )}
           </div>
@@ -298,22 +392,16 @@ export function BattleScreen() {
             <section className="battle-chat-panel" aria-label="Battle chat">
               <div className="chat-feed">
                 <ChatFeed
+                  key={battle.id}
+                  announce={connection === 'connected'}
+                  label="Battle chat history"
                   messages={battleRoom?.chat ?? []}
                   selfName={username}
                   onCommand={command => sendBattleChat(command, battle.id)}
                   onUserClick={(name, at) => setUserCard({ name, ...at })}
                 />
               </div>
-              <form className="chat-entry" onSubmit={submitChat}>
-                <MessageSquare size={16} aria-hidden />
-                <input
-                  aria-label="Chat message"
-                  placeholder="Message battle room"
-                  value={chatMessage}
-                  onChange={event => setChatMessage(event.currentTarget.value)}
-                />
-                <button type="submit" aria-label="Send"><Send size={15} /></button>
-              </form>
+              <ChatComposer key={battle.id} roomId={battle.id} title="battle" users={battleRoom?.users} send={message => sendBattleChat(message, battle.id)} disabled={connection !== 'connected'} />
             </section>
           )}
 

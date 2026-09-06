@@ -1,7 +1,11 @@
 import { clsx } from 'clsx';
-import { Fragment, type MouseEvent, type ReactNode } from 'react';
+import { Fragment, memo, type MouseEvent, type ReactNode } from 'react';
+import { useNavigate } from '@tanstack/react-router';
 import type { ChatMessage } from '../rooms/types';
-import { sanitizeChatHtml } from './chat-html';
+import { sanitizeChatHtml, isSafeChatCommand, normalizeChatHref } from './chat-html';
+import { useWorkspaceStore } from '../stores/workspace-store';
+import { toId } from '../compat/protocol-parsers';
+import { useChatAnnouncements } from './chat-announcements';
 
 /**
  * The one chat renderer: rooms, PMs and battle chat all feed through here.
@@ -13,7 +17,16 @@ import { sanitizeChatHtml } from './chat-html';
  * through the chat-html sanitizer before rendering.
  */
 
-const sanitize = (html: string) => ({ __html: sanitizeChatHtml(html) });
+const htmlCache = new Map<string, { __html: string }>();
+const sanitize = (html: string) => {
+  let result = htmlCache.get(html);
+  if (!result) {
+    result = { __html: sanitizeChatHtml(html) };
+    if (htmlCache.size >= 100) htmlCache.delete(htmlCache.keys().next().value!);
+    if (html.length <= 100_000) htmlCache.set(html, result);
+  }
+  return result;
+};
 
 // ── Inline formatting (PS chat syntax) ──────────────────────────────────────
 
@@ -43,7 +56,7 @@ const renderSegment = (segment: string, key: number): ReactNode => {
 
 const linkify = (text: string): ReactNode[] =>
   text.split(URL_PATTERN).map((part, index) =>
-    URL_PATTERN.test(part) ?
+    /^https?:\/\//.test(part) ?
       <a key={index} href={part} target="_blank" rel="noopener noreferrer">{part}</a> :
       <Fragment key={index}>{part}</Fragment>
   );
@@ -63,35 +76,47 @@ const formatTime = (timestamp?: number) => {
   return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
-export function ChatFeed({ messages, selfName, onCommand, onUserClick }: {
+export const ChatFeed = memo(function ChatFeed({ messages, selfName, onCommand, onUserClick, announce = false, label = 'Chat history' }: {
   messages: ChatMessage[];
   selfName?: string;
+  /** Opt in only for live conversation; replay/history views stay quiet. */
+  announce?: boolean;
+  label?: string;
   /** Receives the `value` of sanitized HTML command buttons (poll votes, etc.). */
   onCommand?: (command: string) => void;
   /** Makes author names clickable (user cards). */
-  onUserClick?: (name: string, at: { x: number; y: number }) => void;
+  onUserClick?: (name: string, at: { x: number; y: number; trigger: HTMLElement }) => void;
 }) {
+  const navigate = useNavigate();
+  const { timestamps, ignoredUsers, highlights } = useWorkspaceStore();
+  const announcements = useChatAnnouncements(messages, announce, selfName);
   const handleHtmlClick = (event: MouseEvent<HTMLDivElement>) => {
-    const button = (event.target as HTMLElement).closest('button[value]');
-    if (!button || !onCommand) return;
-    const command = (button as HTMLButtonElement).value;
-    if (command.startsWith('/')) onCommand(command);
+    const target = (event.target as HTMLElement).closest<HTMLElement>('[data-cmd],button[value],[data-href],a[href]');
+    if (!target || !event.currentTarget.contains(target)) return;
+    const command = target.getAttribute('data-cmd') || target.getAttribute('value');
+    if (command && isSafeChatCommand(command)) {
+      event.preventDefault();
+      const join = command.match(/^\/(?:join|j) ([a-z0-9-]+)$/i);
+      if (join) void navigate({ to: `/${join[1].startsWith('battle-') ? 'battle' : 'room'}/${join[1]}` });
+      else onCommand?.(command);
+      return;
+    }
+    const href = normalizeChatHref(target.getAttribute('data-href') || target.getAttribute('href') || '');
+    if (href?.startsWith('/')) { event.preventDefault(); void navigate({ to: href }); }
   };
 
-  if (!messages.length) {
-    return <p className="chat-empty">No messages yet.</p>;
-  }
-
   return (
-    <ol className="chat-feed-list">
-      {messages.map((message, index) => {
+    <>
+    <div role="log" aria-label={label} aria-live="off">
+    {!messages.length ? <p className="chat-empty">No messages yet.</p> : <ol className="chat-feed-list">
+      {messages.filter(message => !ignoredUsers.includes(toId(message.user))).map((message, index) => {
         const key = message.uhtmlName || `${message.timestamp || index}-${index}`;
         const self = !!selfName && message.user.toLowerCase() === selfName.toLowerCase();
 
         if (message.kind === 'html') {
           return (
             <li className="chat-line is-html" key={key}>
-              <div onClick={handleHtmlClick} dangerouslySetInnerHTML={sanitize(message.message)} />
+              <div className="chat-rich-content" onClick={handleHtmlClick} dangerouslySetInnerHTML={sanitize(message.message)} />
             </li>
           );
         }
@@ -107,7 +132,7 @@ export function ChatFeed({ messages, selfName, onCommand, onUserClick }: {
           return (
             <li className="chat-line is-me" key={key}>
               <em>● {message.user} {renderChatText(message.message)}</em>
-              <time>{formatTime(message.timestamp)}</time>
+              {timestamps && <time>{formatTime(message.timestamp)}</time>}
             </li>
           );
         }
@@ -119,14 +144,14 @@ export function ChatFeed({ messages, selfName, onCommand, onUserClick }: {
           );
         }
         return (
-          <li className={clsx('chat-line', self && 'is-self')} key={key}>
+          <li className={clsx('chat-line', self && 'is-self', highlights.some(word => message.message.toLowerCase().includes(word.toLowerCase())) && 'is-highlight')} key={key}>
             {onUserClick ? (
               <button
                 type="button"
                 className="chat-author"
                 onClick={event => {
                   const rect = event.currentTarget.getBoundingClientRect();
-                  onUserClick(message.user, { x: rect.left, y: rect.bottom });
+                  onUserClick(message.user, { x: rect.left, y: rect.bottom, trigger: event.currentTarget });
                 }}
               >
                 {message.user}
@@ -135,10 +160,13 @@ export function ChatFeed({ messages, selfName, onCommand, onUserClick }: {
               <strong className="chat-author">{message.user}</strong>
             )}
             <span className="chat-body">{renderChatText(message.message)}</span>
-            <time>{formatTime(message.timestamp)}</time>
+            {timestamps && <time>{formatTime(message.timestamp)}</time>}
           </li>
         );
       })}
-    </ol>
+    </ol>}
+    </div>
+    <div ref={announcements} className="visually-hidden" role="status" aria-label="New chat messages" aria-live={announce ? 'polite' : 'off'} aria-atomic="true" />
+    </>
   );
-}
+});

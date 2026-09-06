@@ -3,154 +3,61 @@
 [![CI](https://github.com/abhishekpradhan/pokemon-showdown-client/actions/workflows/ci.yml/badge.svg)](https://github.com/abhishekpradhan/pokemon-showdown-client/actions/workflows/ci.yml)
 [![License: AGPL-3.0-or-later](https://img.shields.io/badge/license-AGPL--3.0--or--later-blue.svg)](LICENSE)
 
-A modern, standalone battle client for [Pokémon Showdown][ps] servers.
+An independent browser client for [Pokémon Showdown](https://pokemonshowdown.com/), built with React, TypeScript, Vite and the maintained [`@pkmn/client`](https://github.com/pkmn/ps) battle engine.
 
-**Live at [showdown-arena.vercel.app](https://showdown-arena.vercel.app).**
+**[Play Showdown Arena](https://showdown-arena.vercel.app)** · [Compatibility](docs/compatibility.md) · [Roadmap](docs/roadmap.md) · [Contribute](CONTRIBUTING.md)
 
-It speaks the Showdown wire protocol, so it connects to the public server — or
-any PS-compatible one — and plays real, rated battles. It is not a server: it
-talks to one.
+Build and import teams, find or watch battles, chat and exchange private messages, inspect ladders, and review replay logs. Feature depth varies by format and workflow: the [compatibility map](docs/compatibility.md) records the support contract and verification needed before releases. This project is a client; it does not run a battle server or share a browser session with the official client.
 
-Play rated ladder battles, challenge players directly, spectate live games,
-review replays, chat in the full room directory, and build teams in a
-dex-backed editor — in the browser.
+![A battle in Showdown Arena](docs/media/battle.png)
 
-Built with React 19, TypeScript and Vite, with battle state maintained by
-[`@pkmn/client`](https://github.com/pkmn/ps), the maintained extraction of the
-official client's engine. Deploys to Vercel as static assets plus two small
-Edge functions (login and replay-upload proxies).
+## Start locally
 
-  [ps]: https://pokemonshowdown.com/
+Use **Node 22 LTS (22.13+) or Node 24 LTS**; Node 24 is recommended and recorded in `.nvmrc`. These are the tested supported lines. Node 26 is not currently supported.
 
-![A live battle in Showdown Arena](docs/media/battle.png)
-
----
-
-## Quick start
-
-```bash
+```sh
+nvm use
 npm ci
 npm run dev
 ```
 
-That's it — the client connects to `sim3.psim.us` by default. Open
-<http://localhost:5173>, pick a name, and queue for a battle.
+Open [localhost:5173](http://localhost:5173). The default connection is `sim3.psim.us`. Guest names work without credentials. Registered accounts require an OAuth client ID registered to your exact origin; see [self-hosting](docs/self-hosting.md).
 
-To point at your own server, copy `.env.example` to `.env.local` and edit it.
+Copy `.env.example` to `.env.local` for local configuration. Variables beginning `VITE_` are public build inputs. Keep credentials out of them and never commit local environment files.
 
 ## Commands
 
-| Command | What it does |
+| Command | Purpose |
 | --- | --- |
-| `npm run dev` | Dev server on :5173, with the login proxy wired up |
-| `npm run build` | Production build to `dist/` |
-| `npm run preview` | Serve the production build on :4173 |
-| `npm run check` | Typecheck + lint + unit tests |
-| `npm run test` | Unit tests (Vitest) |
-| `npm run test:e2e` | Browser tests: flows, layout, accessibility |
-| `npm run test:live` | Handshake smoke test against a **real** server |
+| `npm run dev` | Development app and the production Request API handlers on :5173 |
+| `npm run check` | Typecheck app, APIs and browser tests; lint; unit tests |
+| `npm run build` | Production app, offline manifest, source/license inventory and bundle budgets |
+| `npm run preview` | Serve the built app with production headers and API handlers on :4173 |
+| `npm run test:e2e` | Browser flows and accessibility across configured browsers |
+| `npm run test:visual` | Desktop/mobile screenshots on the maintained macOS baseline platform |
+| `npm run test:production` | Built callback/header/API/PWA/offline regressions; run build first |
+| `npm run check:licenses` | Check locked dependency license metadata against reviewed inventory |
+| `npm run audit:dependencies` | Query current npm advisories; needs network access |
+| `LIVE_PS_TESTS=1 npm run test:live` | Opt-in guest handshake check against a real server |
 
-`test:live` is opt-in via `LIVE_PS_TESTS=1` because it touches a live service.
-Run it before releasing — the mocked suites cannot catch a change in the real
-handshake.
+For browser tests, first run `npx playwright install chromium firefox webkit` (Linux CI also uses `--with-deps`). See [CONTRIBUTING.md](CONTRIBUTING.md) for the same validation paths CI runs.
 
-## How it connects
+## Connections and privacy
 
-Two separate channels, and the difference matters:
+Battles and chat use a direct browser WebSocket. Guest assertions use the same-origin `/api/action` proxy. Registered login opens Pokémon Showdown's OAuth page; the client does not collect passwords. Modern servers save replays themselves; legacy uploads use `/api/replay` to the configured login service. Ladder, replay downloads, sprites, audio and room images may contact additional hosts. Teams, preferences and the OAuth session token are stored in this browser. [Privacy and storage details](docs/privacy.md).
 
-**Battles and chat** go over a WebSocket straight from the browser to the
-battle server. No proxy, nothing in the middle.
+Development and preview use the same API handler functions as deployment through a Node adapter. Vercel deploys those handlers in its Edge runtime; release checks must also verify the deployed boundary.
 
-**Logging in** goes through `/api/action`, a same-origin endpoint this project
-provides. Showdown's login server (`action.php`) sends no CORS headers, so a
-browser on any other origin cannot call it directly. Both the Vite dev server
-and [`api/action.ts`](api/action.ts) forward to it, so development and
-production share one code path.
+Once the service worker finishes installing, the local team editor, bundled game data and app resources are available offline. Live battles, remote content, login and uploads need connectivity. Updates wait for approval or all older tabs to close; finish live games before applying one. [Offline contract and recovery](docs/offline.md).
 
-The handshake itself:
+## Deploy and maintain
 
-1. Server sends `|challstr|`.
-2. Client obtains an assertion for the name (see below).
-3. Client sends `/trn <name>,0,<assertion>`.
-4. Server confirms with `|updateuser|`.
+[Self-hosting](docs/self-hosting.md) covers Vercel and other hosts, endpoint configuration and origin-specific OAuth. [Release checklist](docs/releases.md) covers source revision, compatibility evidence, storage migration and rollback. Each production build includes `/build-info.json`, `/third-party-licenses.json` and `/THIRD_PARTY_NOTICES.txt`.
 
-Step 2 is not optional. A `/trn` without an assertion is rejected with
-*"Your authentication token was invalid."*
+Use [GitHub issues](https://github.com/abhishekpradhan/pokemon-showdown-client/issues) for bugs and feature requests. Report vulnerabilities privately using [SECURITY.md](SECURITY.md). [SUPPORT.md](SUPPORT.md) explains triage and maintainer contact paths.
 
-### Signing in
+## License and attribution
 
-Registered accounts use **OAuth2**, the flow Showdown's login server provides
-for third-party clients ([OAUTH.md][oauth]): the password is only ever typed
-on play.pokemonshowdown.com. Authorizing redirects back to `/oauth.html` with
-an assertion for the current `challstr` plus a two-week token, which is kept
-in `localStorage` and exchanged for fresh assertions on later connects
-(`oauth/api/getassertion`), rotating past its half-life
-(`oauth/api/refreshtoken`). This client never sees, stores, or transmits a
-Showdown password.
+AGPL-3.0-or-later — [LICENSE](LICENSE). This project began as a fork of the [official Pokémon Showdown client](https://github.com/smogon/pokemon-showdown-client), by Guangcong Luo and contributors. Preserve the applicable source and copyright notices when distributing changes. [Attribution and dependency/asset origins](docs/attribution.md).
 
-Set `VITE_PS_OAUTH_CLIENT_ID` to enable it — [request a client ID][clientid]
-for your deployment's origin. Without one, unregistered (guest) names still
-work through `act=getassertion`, which needs no credentials.
-
-[oauth]: https://github.com/smogon/pokemon-showdown-loginserver/blob/master/OAUTH.md
-[clientid]: https://forms.gle/VAoSjqHn4zwem7tp9
-
-## Layout
-
-```
-api/          Edge functions (login + replay-upload proxies)
-src/
-  battle/     @pkmn/client engine wrapper and view projection
-  compat/     Wire protocol: framing, requests/choices, teams, login
-  protocol/   The router: frames → global handlers or owning room
-  rooms/      The registry: ChatRoom | PmRoom | BattleRoom
-  data/       Pokédex, sprites, type chart (@pkmn)
-  stores/     Client state (zustand)
-  screens/    Routed surfaces
-  components/ Shared UI
-  styles/     Layered CSS — tokens first, one file per surface,
-              touch.css last (it must outrank per-surface sizing)
-e2e/          Playwright specs and the mock server
-scripts/      Live smoke test
-```
-
-### Game data
-
-Species, moves, items, abilities, the type chart and sprite resolution come
-from [`@pkmn`][pkmn], the maintained extraction of Showdown's own data. The
-client does not guess at game facts.
-
-The dataset is large, so it loads as its own chunk after the app shell
-(~150 kB gzipped) rather than blocking first paint. Learnsets are a further
-lazy chunk, fetched only if something asks for them.
-
-  [pkmn]: https://github.com/pkmn/ps
-
-## Deploying
-
-Push to a Vercel project. `vercel.json` covers the build, the SPA rewrite and
-security headers; no dashboard configuration is required.
-
-The one setting worth knowing is `PS_LOGIN_SERVER`, a server-side variable that
-sets which login server `/api/action` forwards to. It defaults to the official
-one.
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md). In short: `npm run check` must pass, and
-anything touching `src/compat/` should say how it was verified against a real
-server.
-
-## Licence and attribution
-
-AGPL-3.0-or-later — see [LICENSE](LICENSE).
-
-This project began as a fork of the [official Pokémon Showdown client][client]
-by Guangcong Luo and contributors, and remains AGPL-licensed accordingly. The
-interface has since been rewritten; what carries forward is protocol
-compatibility.
-
-Pokémon and Pokémon character names are trademarks of Nintendo. This project is
-not affiliated with or endorsed by Nintendo, Creatures, GAME FREAK, or Smogon.
-
-  [client]: https://github.com/smogon/pokemon-showdown-client
+Pokémon and Pokémon character names are trademarks of Nintendo. This project is not affiliated with or endorsed by Nintendo, Creatures, GAME FREAK, or Smogon.
