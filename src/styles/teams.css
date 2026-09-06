@@ -777,3 +777,74 @@
 .team-library-sprites .team-sprite img { position: static; width: 100%; max-height: 28px; }
 .team-slot:not(.is-empty) { display: grid; grid-template-rows: 1fr auto; }
 .team-slot-body { block-size: auto; }
+
+/* Keep the roster close to the work, with one clear place to add or save. */
+.team-mobile-navigation { display: none; }
+.team-workspace .team-toolbar { grid-template-columns: minmax(0, 1fr) minmax(180px, 260px) minmax(90px, 120px); }
+.team-toolbar-actions { grid-column: 1 / -1; justify-content: flex-start; flex-wrap: wrap; }
+.team-toolbar-actions > .primary-action { margin-inline-start: auto; }
+.team-workspace .team-folder-field { max-width: none; }
+.team-workspace .editor-status { padding: 0; gap: 10px; font-size: 12px; }
+.team-save-status { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.team-save-status p { margin: 0; color: var(--arena-muted); }
+.team-save-status .secondary-action { min-height: 34px; flex: none; font-size: 12px; }
+.team-roster-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.team-roster-heading h2 { margin: 0; font-size: 14px; font-weight: 650; }
+.team-roster-heading h2 span { margin-inline-start: 8px; color: var(--arena-muted); font-size: 12px; font-weight: 400; }
+.team-overview-button, .team-undo-remove button, .set-ev-presets button { color: var(--arena-accent-text); border: 0; background: transparent; padding: 8px; font-size: 12px; cursor: pointer; border-radius: 5px; }
+.team-overview-button:hover, .team-undo-remove button:hover, .set-ev-presets button:hover { background: var(--arena-hover); }
+.team-undo-remove { display: flex; align-items: center; gap: 8px; color: var(--arena-muted); font-size: 12px; }
+.team-slot-heading { padding-inline-end: 18px; }
+.team-slot-remove { opacity: 1; width: 32px; height: 32px; inset-block-start: 4px; inset-inline-end: 4px; }
+.team-slot-order { gap: 4px; }
+.team-slot-order button { min-width: 32px; min-height: 32px; }
+.team-workspace .team-slot-grid.is-editing { display: flex; gap: 8px; overflow-x: auto; padding-block-end: 4px; flex: none; }
+.team-slot-grid.is-editing > .team-slot { flex: 0 0 150px; min-height: 76px; }
+.team-slot-grid.is-editing .team-slot-body { padding: 10px 8px; }
+.team-slot-grid.is-editing .team-slot-heading { grid-template-columns: 30px minmax(0, 1fr); gap: 5px; padding-inline-end: 10px; }
+.team-slot-grid.is-editing .team-slot-heading .team-sprite { width: 30px; height: 34px; }
+.team-slot-grid.is-editing .team-slot-heading strong { white-space: normal; font-size: 12px; line-height: 1.3; }
+.team-slot-grid.is-editing .team-slot-heading small, .team-slot-grid.is-editing .team-slot-moves, .team-slot-grid.is-editing .team-slot-order { display: none; }
+.team-slot-grid.is-editing .team-slot-remove { width: 24px; height: 24px; inset-block-start: 0; inset-inline-end: 0; }
+.team-workspace .team-editor-panel { border: 0; border-top: 1px solid var(--arena-line); border-radius: 0; background: transparent; padding: 18px 0 0; }
+.team-workspace .team-editor-hint { padding: 8px 0; border: 0; text-align: start; }
+.team-workspace .set-unrestricted { margin: 2px 0 0; color: var(--arena-muted); }
+.set-ev-presets { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.set-ev-presets > span { color: var(--arena-muted); font-size: 12px; margin-inline-end: 4px; }
+.team-workspace .set-details { margin-top: 0; padding: 12px 0 0; }
+.set-iv-details .button-row { margin-top: 10px; }
+.set-details > summary { font-size: 13px; font-weight: 600; }
+.team-workspace .team-library-tools .secondary-action { font-size: 12px; min-height: 36px; }
+.team-workspace .new-team-button { margin: 0; font-size: 12px; }
+
+@media (max-width: 1120px) {
+  .team-workspace .team-toolbar { grid-template-columns: minmax(0, 1fr) minmax(90px, 120px); }
+  .team-toolbar > .team-name-input { grid-column: 1 / -1; }
+}
+
+@media (max-width: 820px) {
+  .team-workspace .team-mobile-navigation { display: flex; gap: 8px; align-items: center; }
+  .team-mobile-navigation h1 { margin: 0; font-size: 16px; }
+  .team-workspace .team-library .pane-heading h1 { display: none; }
+  .team-mobile-library-toggle { display: flex; align-items: center; gap: 10px; flex: 1; min-height: 44px; padding: 10px 12px; color: var(--arena-text); background: var(--arena-ink-2); border: 1px solid var(--arena-line); border-radius: 8px; text-align: start; cursor: pointer; }
+  .team-mobile-library-toggle > span { flex: 1; font-size: 13px; font-weight: 650; }
+  .team-mobile-library-toggle small { margin-inline-start: 8px; color: var(--arena-muted); font-size: 11px; font-weight: 400; }
+  .team-mobile-library-toggle > svg:last-child { transition: transform var(--arena-fast) ease; }
+  .team-mobile-library-toggle[aria-expanded=true] > svg:last-child { transform: rotate(180deg); }
+  .team-workspace[data-library-open=false] .team-library { display: none; }
+  .team-workspace[data-library-open=true] .team-library { min-height: 0; max-height: none; }
+  .team-workspace .team-library-list { max-height: 300px; }
+  .team-workspace .team-canvas { padding: 12px; min-height: 0; }
+  .team-workspace .team-toolbar { gap: 8px; }
+  .team-toolbar-actions { gap: 6px; }
+  .team-toolbar-actions > .primary-action { flex: 1; min-width: 140px; }
+  .team-toolbar-actions > .secondary-action { font-size: 12px; }
+  .team-save-status { align-items: flex-start; flex-direction: column; gap: 4px; }
+  .team-save-status .secondary-action { padding-inline: 0; border-color: transparent; background: transparent; }
+  .team-workspace .team-slot-grid { grid-template-columns: minmax(0, 1fr); }
+  .team-slot-grid > .team-slot.is-empty { min-height: 66px; display: flex; align-items: center; justify-content: center; }
+  .team-workspace .team-editor-panel .set-editor-grid,
+  .team-workspace .team-editor-panel .set-editor-moves .set-editor-grid,
+  .team-workspace .team-editor-panel .set-editor-grid.is-compact { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .team-workspace .team-editor-panel .ev-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}

@@ -63,6 +63,20 @@ export function SettingsScreen() {
         <p>Teams and preferences are stored in this browser. Sign-in, battles, replays, rankings and sprites contact their respective services. <a href="https://github.com/abhishekpradhan/pokemon-showdown-client/blob/main/docs/privacy.md">Storage and network details</a></p>
       </header>
 
+      <nav className="settings-jump" aria-label="Settings sections">
+        {[
+          ['appearance-settings', 'Appearance'], ['chat-preferences', 'Chat & privacy'],
+          ['notification-settings', 'Notifications'], ['offline-settings', 'Offline & updates'],
+          ['connection-settings', 'Connection'], ['diagnostics-settings', 'Diagnostics'],
+        ].map(([id, label]) => <a key={id} href={`#${id}`} onClick={event => {
+          event.preventDefault();
+          const heading = document.getElementById(id);
+          heading?.scrollIntoView({ block: 'start' });
+          heading?.setAttribute('tabindex', '-1');
+          heading?.focus({ preventScroll: true });
+        }}>{label}</a>)}
+      </nav>
+
       <section className="settings-section" aria-labelledby="appearance-settings">
         <h2 id="appearance-settings"><Paintbrush size={15} aria-hidden /> Appearance</h2>
         <div className="setting-row">

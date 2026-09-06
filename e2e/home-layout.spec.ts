@@ -23,7 +23,7 @@ test('home setup and readiness stay reachable without sideways scrolling', async
         const bounds = element.getBoundingClientRect();
         return { left: bounds.left, right: bounds.right, top: bounds.top, bottom: bounds.bottom, height: bounds.height, width: bounds.width, scrollWidth: element.scrollWidth };
       };
-      return { width: innerWidth, setup: rect('.match-stage'), form: rect('.queue-controls'), fields: [...document.querySelectorAll('.queue-controls .control-field')].map(element => element.getBoundingClientRect().toJSON()), action: rect('.queue-action'), readiness: rect('.match-inspector'), live: rect('.live-now'), chooseName: rect('.match-inspector > .primary-action') };
+      return { width: innerWidth, setup: rect('.match-stage'), form: rect('.queue-controls'), fields: [...document.querySelectorAll('.queue-controls .control-field')].map(element => element.getBoundingClientRect().toJSON()), action: rect('.queue-action'), readiness: rect('.match-inspector'), live: rect('.live-now'), chooseName: rect('.queue-action') };
     });
     for (const target of [geometry.setup, geometry.form, geometry.action, geometry.readiness, ...geometry.fields]) {
       expect(target.left, `${width}px control starts on screen`).toBeGreaterThanOrEqual(0);

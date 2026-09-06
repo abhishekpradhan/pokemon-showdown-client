@@ -69,3 +69,15 @@ it('keeps replay, filtered history, and re-enabled existing history silent', () 
   view.rerender(<ChatFeed messages={[...baseline, message('New live message')]} announce />); flush();
   expect(announcements()).toHaveTextContent('Bob: New live message');
 });
+
+it('announces hidden spoilers without speaking their contents, including across the length limit', () => {
+  const view = render(<ChatFeed messages={[]} announce />);
+  view.rerender(<ChatFeed messages={[message('The answer is ||Pikachu||, then ||Eevee||.')]} announce />); flush();
+  expect(announcements()).toHaveTextContent('Bob: The answer is [spoiler], then [spoiler].');
+  expect(announcements()).not.toHaveTextContent(/Pikachu|Eevee/);
+  const baseline = [message('Existing')];
+  view.rerender(<ChatFeed messages={baseline} announce />); flush();
+  view.rerender(<ChatFeed messages={[...baseline, message(`${'x'.repeat(290)} ||Hidden answer past the limit||`)]} announce />); flush();
+  expect(announcements()).toHaveTextContent('[spoiler]');
+  expect(announcements()).not.toHaveTextContent('Hidden');
+});

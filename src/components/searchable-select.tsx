@@ -1,5 +1,5 @@
 import { Check, ChevronDown, Search } from 'lucide-react';
-import { type CSSProperties, type KeyboardEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { type CSSProperties, type KeyboardEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { clsx } from 'clsx';
 
@@ -31,30 +31,51 @@ export function SearchableSelect({
   const [popStyle, setPopStyle] = useState<CSSProperties>();
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
+  const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const popRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
 
-  // The list renders in a body portal with fixed coordinates: no ancestor's
-  // overflow can ever clip it (cards, panels and inspectors all did). It
-  // opens toward whichever side of the trigger has more room and caps its
-  // height to that side's actual space. Layout effect: settled pre-paint.
-  const updatePosition = () => {
+  // A modal's focus scope requires the popup to remain its DOM descendant.
+  // The native top layer lets that descendant escape scrolling/transformed
+  // dialog ancestors without moving it outside the modal's focus boundary.
+  const topLayer = !!portalContainer && portalContainer !== document.body && typeof HTMLElement.prototype.showPopover === 'function';
+  const updatePosition = useCallback(() => {
     const rect = triggerRef.current?.getBoundingClientRect();
     if (!rect) return;
-    const below = window.innerHeight - rect.bottom - 16;
-    const above = rect.top - 72; // keep clear of the topbar
-    const up = below < 340 && above > below;
-    const width = Math.min(Math.max(rect.width, 340), window.innerWidth - 24);
-    const left = Math.min(rect.left, window.innerWidth - width - 12);
+    const viewport = window.visualViewport;
+    let leftEdge = (viewport?.offsetLeft || 0) + 8;
+    let topEdge = (viewport?.offsetTop || 0) + 8;
+    let rightEdge = leftEdge + (viewport?.width || window.innerWidth) - 16;
+    let bottomEdge = topEdge + (viewport?.height || window.innerHeight) - 16;
+    const local = portalContainer && portalContainer !== document.body && !topLayer ? portalContainer : null;
+    const localRect = local?.getBoundingClientRect();
+    if (localRect) {
+      leftEdge = Math.max(leftEdge, localRect.left + 8);
+      topEdge = Math.max(topEdge, localRect.top + 8);
+      rightEdge = Math.min(rightEdge, localRect.right - 8);
+      bottomEdge = Math.min(bottomEdge, localRect.bottom - 8);
+    }
+    const below = Math.max(0, bottomEdge - rect.bottom - 8);
+    const above = Math.max(0, rect.top - topEdge - 8);
+    const up = below < 300 && above > below;
+    const height = Math.max(0, Math.min(420, bottomEdge - topEdge, up ? above : below));
+    const width = Math.max(0, Math.min(Math.max(rect.width, 340), rightEdge - leftEdge));
+    const left = Math.max(leftEdge, Math.min(rect.left, rightEdge - width));
+    const top = Math.max(topEdge, Math.min(up ? rect.top - height - 8 : rect.bottom + 8, bottomEdge - height));
     setPopStyle({
-      position: 'fixed',
-      left,
+      position: local ? 'absolute' : 'fixed',
+      margin: 0,
+      inset: 'auto',
+      left: left - (localRect?.left || 0) - (local?.clientLeft || 0) + (local?.scrollLeft || 0),
+      top: top - (localRect?.top || 0) - (local?.clientTop || 0) + (local?.scrollTop || 0),
       width,
-      maxHeight: Math.max(180, Math.min(420, up ? above : below)),
-      ...(up ? { bottom: window.innerHeight - rect.top + 8, top: 'auto' } : { top: rect.bottom + 8, bottom: 'auto' }),
+      maxHeight: height,
     });
-  };
+  }, [portalContainer, topLayer]);
+
+  const close = () => { setOpen(false); setQuery(''); };
 
   // Close only when focus SETTLES outside — transient null-focus hops (a
   // portal input mounting, dev double-effects) must not dismiss the list.
@@ -62,7 +83,7 @@ export function SearchableSelect({
     requestAnimationFrame(() => {
       const active = document.activeElement;
       if (rootRef.current?.contains(active) || popRef.current?.contains(active)) return;
-      setOpen(false);
+      close();
     });
   };
 
@@ -72,26 +93,47 @@ export function SearchableSelect({
     const onPointerDown = (event: PointerEvent) => {
       const target = event.target as Node;
       if (rootRef.current?.contains(target) || popRef.current?.contains(target)) return;
-      setOpen(false);
+      close();
     };
     document.addEventListener('pointerdown', onPointerDown);
     return () => document.removeEventListener('pointerdown', onPointerDown);
   }, [open]);
 
+  useEffect(() => {
+    if (!open) return;
+    // Radix observes Escape on document capture. Handle the innermost popup
+    // first so dismissing it does not also dismiss its enclosing dialog.
+    const onEscape = (event: globalThis.KeyboardEvent) => {
+      if (event.key !== 'Escape' || event.defaultPrevented) return;
+      event.preventDefault(); event.stopPropagation();
+      close(); triggerRef.current?.focus();
+    };
+    window.addEventListener('keydown', onEscape, true);
+    return () => window.removeEventListener('keydown', onEscape, true);
+  }, [open]);
+
   useLayoutEffect(() => {
     if (!open) return;
+    if (topLayer && popRef.current && !popRef.current.matches(':popover-open')) popRef.current.showPopover();
     updatePosition();
+    searchRef.current?.focus({ preventScroll: true });
     // Scrolls and resizes anywhere move the trigger — follow it rather than
     // closing; unrelated container scrolls (a feed filling in) must not
     // dismiss an open list.
-    const follow = () => requestAnimationFrame(updatePosition);
+    let frame = 0;
+    const follow = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(updatePosition); };
     window.addEventListener('scroll', follow, true);
     window.addEventListener('resize', follow);
+    window.visualViewport?.addEventListener('resize', follow);
+    window.visualViewport?.addEventListener('scroll', follow);
     return () => {
+      cancelAnimationFrame(frame);
       window.removeEventListener('scroll', follow, true);
       window.removeEventListener('resize', follow);
+      window.visualViewport?.removeEventListener('resize', follow);
+      window.visualViewport?.removeEventListener('scroll', follow);
     };
-  }, [open]);
+  }, [open, topLayer, updatePosition]);
   const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const selected = options.find(option => option.value === value);
   const visibleOptions = useMemo(() => {
@@ -123,8 +165,14 @@ export function SearchableSelect({
 
   const choose = (nextValue: string) => {
     onValueChange(nextValue);
-    setOpen(false);
+    close();
+  };
+
+  const openSelect = () => {
+    setPortalContainer(rootRef.current?.closest<HTMLElement>('[role="dialog"], [role="alertdialog"]') || document.body);
+    setOpen(true);
     setQuery('');
+    setActiveIndex(Math.max(0, enabledOptions.findIndex(option => option.value === value)));
   };
 
   useEffect(() => {
@@ -137,8 +185,7 @@ export function SearchableSelect({
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault();
       if (!open) {
-        setOpen(true);
-        setActiveIndex(Math.max(0, enabledOptions.findIndex(option => option.value === value)));
+        openSelect();
         return;
       }
       const direction = event.key === 'ArrowDown' ? 1 : -1;
@@ -158,8 +205,7 @@ export function SearchableSelect({
     if (event.key === 'Enter') {
       if (!open) {
         event.preventDefault();
-        setOpen(true);
-        setActiveIndex(Math.max(0, enabledOptions.findIndex(option => option.value === value)));
+        openSelect();
       } else if (enabledOptions[activeIndex]) {
         event.preventDefault();
         choose(enabledOptions[activeIndex].value);
@@ -167,9 +213,10 @@ export function SearchableSelect({
       }
       return;
     }
-    if (event.key === 'Escape') {
-      setOpen(false);
-      setQuery('');
+    if (open && event.key === 'Tab') {
+      // Native Tab navigation continues from the trigger's place in the
+      // form, instead of traversing every option or the end-of-body portal.
+      close();
       triggerRef.current?.focus();
     }
   };
@@ -189,8 +236,7 @@ export function SearchableSelect({
         aria-expanded={open}
         aria-haspopup="listbox"
         onClick={() => {
-          setOpen(current => !current);
-          setActiveIndex(Math.max(0, enabledOptions.findIndex(option => option.value === value)));
+          if (open) close(); else openSelect();
         }}
       >
         <span>
@@ -205,14 +251,14 @@ export function SearchableSelect({
           className="select-popover"
           ref={popRef}
           style={popStyle}
+          popover={topLayer ? 'manual' : undefined}
           tabIndex={-1}
-          onKeyDown={handleKeyDown}
-          onBlur={closeIfFocusLeft}
         >
           <label className="select-search">
             <Search size={15} aria-hidden />
             <input
               autoFocus
+              ref={searchRef}
               aria-label={`${ariaLabel} filter`}
               aria-activedescendant={enabledOptions[activeIndex] ? optionId(enabledOptions[activeIndex].value) : undefined}
               aria-controls={`${ariaLabel.replace(/\s+/g, '-').toLowerCase()}-options`}
@@ -237,6 +283,7 @@ export function SearchableSelect({
                     ref={element => { if (enabledIndex >= 0) optionRefs.current[enabledIndex] = element; }}
                     type="button"
                     role="option"
+                    tabIndex={-1}
                     id={optionId(option.value)}
                     aria-selected={option.value === value}
                     className={clsx('select-option', option.value === value && 'is-selected', enabledIndex === activeIndex && 'is-active')}
@@ -258,7 +305,7 @@ export function SearchableSelect({
             )) : <p className="select-empty">{emptyLabel}</p>}
           </div>
         </div>,
-        document.body
+        portalContainer || document.body
       )}
     </div>
   );

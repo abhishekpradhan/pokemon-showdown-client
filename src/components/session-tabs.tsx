@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from '@tanstack/react-router';
 import { clsx } from 'clsx';
 import { Hash, MessageCircle, Swords, X } from 'lucide-react';
-import { memo } from 'react';
+import { memo, useEffect, useRef } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { nextRouteAfterClose } from '../rooms/registry';
 import { useArenaStore } from '../stores/arena-store';
@@ -25,6 +25,10 @@ type TabModel = {
 
 const SessionTab = memo(function SessionTab({ id, type, title, live, unread, active }: TabModel & { active: boolean }) {
   const navigate = useNavigate();
+  const tabRef = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    if (active) tabRef.current?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+  }, [active]);
 
   const open = () => {
     useArenaStore.getState().focusRoom(id);
@@ -37,14 +41,19 @@ const SessionTab = memo(function SessionTab({ id, type, title, live, unread, act
     const next = nextRouteAfterClose(state.rooms, id);
     if (!state.leaveRoom(id)) return;
     if (active) void navigate({ to: next });
+    else requestAnimationFrame(() => {
+      const tab = document.querySelector<HTMLElement>('.session-tab.is-active .session-tab-open') || document.querySelector<HTMLElement>('.session-tab-open');
+      (tab || document.getElementById('workspace'))?.focus({ preventScroll: true });
+    });
   };
 
   return (
-    <span className={clsx('session-tab', active && 'is-active')}>
+    <span className={clsx('session-tab', active && 'is-active')} ref={tabRef}>
       <button
         type="button"
         className="session-tab-open"
         aria-current={active ? 'page' : undefined}
+        title={title}
         onClick={open}
       >
         {type === 'battle' ? <Swords size={13} aria-hidden /> :
@@ -52,7 +61,7 @@ const SessionTab = memo(function SessionTab({ id, type, title, live, unread, act
           <Hash size={13} aria-hidden />}
         <span className="session-tab-title">{title}</span>
         {live && <span className="session-tab-live" role="img" aria-label="Live" />}
-        {unread > 0 && !active && <i className="session-tab-unread">{Math.min(unread, 99)}</i>}
+        {unread > 0 && !active && <i className="session-tab-unread" aria-label={`${unread} unread messages`}>{unread > 99 ? '99+' : unread}</i>}
       </button>
       <button type="button" className="session-tab-close" aria-label={`Close ${title}`} onClick={close}>
         <X size={12} />

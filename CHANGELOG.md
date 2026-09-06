@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.1.1 — 2026-09-06
+
+Polish the main desktop and mobile workflows following a hands-on UX review.
+
+- Put the next usable action in matchmaking, clarify provided teams, and keep compact navigation oriented to the current page or conversation.
+- Restore focus and predictable dismissal in account, search, notification, battle and selector dialogs; keep modal controls above mobile navigation.
+- Make team editing reachable with compact roster navigation, a mobile library toggle, responsive save controls and undo for removing a Pokémon.
+- Improve move targeting, spectator playback, mobile battle details, multiline chat drafts, room search and conversation controls.
+- Bring replay loading into the first viewport and add direct navigation to settings sections.
+
+See the [UX review](docs/ux-review-2026-09-06.md) for the findings, changes and verification scope. Team storage and supported battle formats retain the 1.1 compatibility contract.
+
 ## 1.1.0 — 2026-09-05
 
 This release addresses the September 2026 project audit. Its release notes record the verified revision, CI results and deployment evidence.

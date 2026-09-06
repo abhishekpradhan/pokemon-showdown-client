@@ -9,18 +9,20 @@
 
 .battle-console .battle-stage {
   display: grid;
-  grid-template-rows: 44px minmax(220px, 1fr) auto;
+  grid-template-rows: auto minmax(220px, 1fr) auto;
   gap: 0;
   min-width: 0;
   min-height: 0;
   padding: 0;
-  overflow: hidden;
+  overflow: auto;
   background: var(--arena-ink-2);
   border: 1px solid var(--arena-line);
   border-radius: 9px;
   box-shadow: none;
   backdrop-filter: none;
 }
+
+.battle-stage-header { min-inline-size: 0; }
 
 .battle-toolbar {
   min-height: 44px;
@@ -240,13 +242,22 @@
   backdrop-filter: blur(6px);
 }
 
-.roster-pips {
+.field-hud .roster-pips {
   display: inline-flex;
+  flex-shrink: 0;
   gap: 3px;
   align-items: center;
+  max-width: none;
+  padding: 0;
+  overflow: visible;
+  background: none;
+  border: 0;
+  backdrop-filter: none;
+  box-shadow: none;
 }
 
 .roster-pips i {
+  flex-shrink: 0;
   inline-size: 7px;
   block-size: 7px;
   background: var(--hp-high);
@@ -475,9 +486,15 @@
 }
 
 .decision-heading {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  gap: 12px;
   min-height: 34px;
   align-items: flex-start;
 }
+
+.decision-heading > div { min-inline-size: 0; }
 
 .decision-heading .eyebrow {
   color: var(--arena-faint);
@@ -487,9 +504,29 @@
 
 .decision-heading h2 {
   margin: 2px 0 0;
-  font-size: 13px;
-  line-height: 1.2;
+  font-size: 14px;
+  line-height: 1.4;
 }
+
+.decision-change {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  gap: 6px;
+  min-block-size: 36px;
+  padding: 6px 10px;
+  color: var(--arena-soft);
+  background: var(--arena-hover);
+  border: 1px solid var(--arena-line);
+  border-radius: var(--arena-radius);
+  font-size: 12px;
+  cursor: pointer;
+}
+.decision-change:hover:not(:disabled) { color: var(--arena-text); background: var(--arena-hover-strong); }
+.decision-change:disabled { opacity: .45; cursor: default; }
+.target-selection { display: grid; gap: 8px; margin-block-start: 8px; }
+.target-selection > .decision-change { justify-self: start; }
 
 .decision-note,
 .decision-error {
@@ -527,6 +564,8 @@
   gap: 10px;
   margin-top: 8px;
 }
+.decision-controls[data-readonly="true"] { grid-template-columns: minmax(0, 1fr); }
+.decision-controls[data-readonly="true"] .team-bench { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
 
 .move-deck,
 .bench-deck {
@@ -694,7 +733,7 @@
 
 .team-bench {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 6px;
 }
 
@@ -802,8 +841,9 @@
 }
 
 .target-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(170px, 100%), 1fr));
   gap: 5px;
-  margin-top: 8px;
+  margin-top: 0;
 }
 
 .target-button {
@@ -840,11 +880,13 @@
 
 .inspector-tabs {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   padding: 5px;
   background: var(--arena-ink-2);
   border-bottom: 1px solid var(--arena-line);
 }
+
+.inspector-tabs [role="tablist"] { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 
 .inspector-tabs button {
   display: inline-flex;
@@ -1112,7 +1154,7 @@
   }
 
   .inspector-tabs {
-    grid-template-columns: repeat(3, 1fr) 34px;
+    grid-template-columns: minmax(0, 1fr) 44px;
   }
 
   .inspector-tabs .inspector-close {
@@ -1122,6 +1164,21 @@
   .mobile-inspector-button {
     display: grid;
   }
+
+  .battle-inspector-overlay { position: fixed; inset: 0; z-index: 170; background: rgb(0 0 0 / 52%); animation: inspectorBackdropIn 150ms ease-out; }
+  .battle-inspector-sheet {
+    inset: auto 8px max(8px, env(safe-area-inset-bottom));
+    height: min(640px, calc(100dvh - 32px));
+    background: var(--arena-ink-2);
+    border: 1px solid var(--arena-line-strong);
+    border-radius: 12px;
+    overflow: hidden;
+    grid-template-rows: 50px minmax(0, 1fr) auto;
+    z-index: 180;
+  }
+  .battle-inspector-sheet .inspector-tabs button { min-block-size: 40px; font-size: 12px; }
+  .battle-inspector-sheet .battle-inspector-actions { display: flex; flex-wrap: wrap; }
+  .battle-inspector-sheet .battle-inspector-actions > button { flex: 1; min-block-size: 44px; font-size: 12px; }
 }
 
 @media (max-width: 560px) {
@@ -1166,7 +1223,7 @@
   }
 
   .battle-console .battle-stage {
-    grid-template-rows: 42px minmax(220px, 1fr) auto;
+    grid-template-rows: auto minmax(220px, 1fr) auto;
   }
 
   .battle-toolbar {
@@ -1178,7 +1235,7 @@
   }
 
   .battle-toolbar-state .battle-timer-chip {
-    display: none;
+    display: inline-flex;
   }
 
   .battle-toolbar .toolbar-actions {
@@ -1186,7 +1243,9 @@
   }
 
   .battle-toolbar .icon-button {
-    width: 30px;
+    width: 40px;
+    height: 40px;
+    min-height: 40px;
   }
 
   .battle-field {
@@ -1236,9 +1295,10 @@
   .battle-field:not(:has(.combatant[data-positions="2"])) .field-hud.is-near { padding: 10px 12px 8px; }
   .battle-field:not(:has(.combatant[data-positions="2"])) .field-player,
   .battle-field:not(:has(.combatant[data-positions="2"])) .field-turn { padding: 2px 7px; font-size: 11px; line-height: 16px; }
+  .field-hud .field-player { max-width: calc(100% - 76px); }
 
   .decision-dock {
-    max-height: 47dvh;
+    max-height: 50dvh;
     padding: 8px;
     overflow: auto;
   }
@@ -1251,16 +1311,28 @@
 
   .move-choice,
   .move-button {
-    min-height: 49px;
+    min-height: 100px;
   }
+
+  .move-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  .move-headline { flex-wrap: wrap; gap: 3px; }
+  .move-headline strong { white-space: normal; font-size: 12px; }
+  .move-choice { padding: 8px; }
+  .move-meta { font-size: 10.5px; }
+  .gimmick-toggle { min-block-size: 38px; }
+  .decision-change { min-block-size: 40px; }
 
   .team-bench {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+  .decision-controls[data-readonly="true"] .team-bench { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 
   .bench-slot {
-    min-height: 45px;
-    padding: 2px;
+    min-height: 56px;
+    padding: 5px;
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    gap: 3px;
   }
 
   .bench-icon {
@@ -1272,10 +1344,9 @@
     max-height: 27px;
   }
 
-  .bench-slot strong,
-  .bench-hp {
-    display: none;
-  }
+  .bench-body { inline-size: 100%; gap: 4px; text-align: center; }
+  .bench-slot strong { display: block; font-size: 10px; }
+  .bench-hp { display: block; }
 
   .battle-side {
     inset-inline: 8px;
@@ -1286,6 +1357,7 @@
   from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
 }
+@keyframes inspectorBackdropIn { from { opacity: 0; } to { opacity: 1; } }
 
 /* ── Stat stages, volatiles and hazards ──────────────────────────────────
    Boosts and hazards decide most turns, so they sit on the field rather
@@ -1588,6 +1660,9 @@
 .touch-inspect:focus-visible { display: block; outline: 2px solid var(--arena-accent); }
 .nameplate-row > .battle-tooltip-trigger { position: relative; min-inline-size: 0; }
 .battle-inspection { max-block-size: min(85svh, 700px); overflow: auto; }
+.battle-inspection .tooltip-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-block-end: 16px; }
+.battle-inspection .tooltip-heading strong { font-size: 20px; }
+.battle-details-close { margin-block-start: 16px; min-block-size: 44px; }
 .battle-inspection .tooltip-facts { display: grid; gap: 5px; }
 .battle-inspection .tooltip-facts div { display: flex; justify-content: space-between; gap: 16px; }
 .battle-inspection .tooltip-facts dd { margin: 0; }
@@ -1598,15 +1673,22 @@
 .known-moves { list-style: none; padding: 0; margin: 8px 0; font-size: 12px; }
 .known-moves li { display: flex; justify-content: space-between; gap: 10px; padding-block: 3px; }
 .roster-pips i[data-unrevealed] { background: transparent; outline: 1px solid var(--arena-muted); }
-.battle-playback { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 8px 12px; border-block-end: 1px solid var(--arena-line); font-size: 12px; }
+.battle-playback { display: flex; align-items: center; align-content: start; flex-wrap: wrap; gap: 6px; padding: 8px 12px; border-block-end: 1px solid var(--arena-line); font-size: 12px; }
 .battle-playback button, .battle-playback select { min-block-size: 36px; border: 1px solid var(--arena-line); background: var(--arena-surface); color: var(--arena-text); border-radius: var(--arena-radius); padding: 4px 8px; }
 .battle-playback input { flex: 1; min-inline-size: 100px; }
 @media (hover: none), (pointer: coarse) {
   .touch-inspect { display: block; min-inline-size: 44px; min-block-size: 44px; }
-  .move-grid .move-choice { padding-inline-end: 48px; }
+  .move-grid .move-choice { padding-inline-end: 10px; padding-block-end: 43px; }
+  .move-grid .touch-inspect { background: transparent; }
   .team-bench > .battle-tooltip-trigger { display: grid; grid-template-rows: minmax(44px, 1fr) 44px; gap: 3px; }
   .team-bench .touch-inspect { position: static; inline-size: 100%; border-radius: var(--arena-radius); }
   .team-bench .bench-slot { padding-inline: 6px; }
   .nameplate-row > .battle-tooltip-trigger { padding-inline-end: 44px; }
   .nameplate-row .touch-inspect { inset-block-start: -7px; inset-block-end: auto; }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .battle-inspector-overlay, .battle-inspector-sheet { animation: none; }
+}
+[data-reduced-motion="true"] .battle-inspector-overlay,
+[data-reduced-motion="true"] .battle-inspector-sheet { animation: none; }

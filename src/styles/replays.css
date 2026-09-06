@@ -208,3 +208,21 @@
 .replay-workspace .replay-transport { grid-template-columns: repeat(4, 44px) minmax(60px, 1fr) auto; }
 .replay-workspace .replay-transport button { width: 44px; height: 44px; }
 @media (max-width: 560px) { .replay-workspace .replay-transport { grid-template-columns: repeat(4, 44px) minmax(60px, 1fr); } }
+
+/* Give the loader the first useful viewport before a replay is opened. */
+.replay-workspace.is-empty { align-items: start; }
+.replay-workspace.is-empty .replay-stage { min-height: 0; }
+.replay-workspace.is-empty .replay-canvas { height: 150px; min-height: 150px; }
+.replay-empty p { max-width: 360px; margin: 0; padding-inline: 20px; color: var(--arena-faint); font-size: 12px; line-height: 1.5; text-align: center; }
+.replay-inspector .replay-loader textarea { min-height: 100px; resize: vertical; }
+.replay-inspector .replay-search label { display: grid; gap: 5px; color: var(--arena-muted); font-size: 12px; }
+.replay-inspector .replay-search input { width: 100%; min-height: 38px; padding: 7px 10px; color: var(--arena-text); background: var(--arena-ink-2); border: 1px solid var(--arena-line-strong); border-radius: 6px; }
+.replay-inspector input[type='file'] { width: 100%; margin-top: 7px; color: var(--arena-muted); font-size: 12px; }
+.replay-inspector input::file-selector-button { margin-right: 8px; min-height: 34px; padding-inline: 10px; color: var(--arena-soft); background: var(--arena-panel-raised); border: 1px solid var(--arena-line); border-radius: 6px; cursor: pointer; }
+.replay-workspace .replay-playback-options { align-items: end; }
+@media (max-width: 820px) {
+  .replay-workspace.is-empty .replay-canvas { height: 110px; min-height: 110px; }
+  .replay-workspace.is-empty > .replay-inspector { min-height: 0; }
+  .replay-workspace .replay-status { max-width: 48%; }
+  .replay-workspace.has-replay .replay-stage { scroll-margin-top: 10px; }
+}

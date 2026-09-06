@@ -416,3 +416,24 @@
   gap: 6px;
   align-items: start;
 }
+
+.setting-field > input {
+  width: 100%; min-width: 0; min-height: 40px; padding: 8px 11px;
+  color: var(--arena-text); background: var(--arena-ink-2);
+  border: 1px solid var(--arena-line-strong); border-radius: 7px; font-size: 13px;
+}
+.settings-heading a { color: var(--arena-accent-text); text-decoration: underline; }
+.settings-section > p { color: var(--arena-muted); font-size: 12px; line-height: 1.55; }
+.settings-section input[type='range'] { accent-color: var(--arena-accent); max-width: 45%; }
+.settings-section h2 { scroll-margin-top: 16px; }
+.settings-jump { display: flex; flex-wrap: wrap; gap: 6px; }
+.settings-jump a { padding: 7px 10px; color: var(--arena-muted); font-size: 12px; border: 1px solid var(--arena-line); border-radius: 6px; }
+.settings-jump a:hover { color: var(--arena-text); background: var(--arena-hover); }
+@media (max-width: 560px) {
+  .settings-page { padding-inline: 4px; }
+  .setting-field-controls { flex-wrap: wrap; }
+  .setting-field-controls input { flex-basis: calc(100% - 42px); }
+  .setting-field-controls > button:first-of-type { margin-left: 38px; }
+  .setting-row .setting-actions { flex-wrap: wrap; }
+  .settings-section .button-row { gap: 7px; }
+}

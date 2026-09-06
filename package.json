@@ -1,7 +1,7 @@
 {
   "name": "showdown-arena",
-  "version": "1.1.0",
-  "description": "A modern, standalone Pok\u00e9mon Showdown battle client",
+  "version": "1.1.1",
+  "description": "A modern, standalone Pokémon Showdown battle client",
   "license": "AGPL-3.0-or-later",
   "private": true,
   "type": "module",

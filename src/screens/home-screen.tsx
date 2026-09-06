@@ -8,7 +8,6 @@ import {
   Shield,
   Signal,
   Swords,
-  Timer,
   UserRound,
   Wifi,
 } from 'lucide-react';
@@ -50,6 +49,15 @@ export function HomeScreen() {
     requiresTeam && activeTeam && !validation.ok ? validation.errors.join(' ') : '',
   ].filter(Boolean);
   const canSearch = blockers.filter(blocker => blocker !== 'Search in progress').length === 0;
+  const needsTeam = requiresTeam && (!activeTeam || !validation.ok);
+  const connecting = connection === 'connecting' || connection === 'reconnecting';
+  const actionLabel = connection !== 'connected' ? connecting ? 'Connecting…' : 'Reconnect' : !named ? 'Choose name' : needsTeam ? activeTeam ? 'Edit team' : 'Build a team' : 'Find battle';
+  const begin = (opener: HTMLElement) => {
+    if (connection !== 'connected') { useArenaStore.getState().reconnect(); return; }
+    if (!named) { window.dispatchEvent(new CustomEvent('arena:open-account', { detail: opener })); return; }
+    if (needsTeam) { void navigate({ to: '/teambuilder' }); return; }
+    startSearch();
+  };
   const teamOptions = teams.filter(team => team.format === selectedFormat || !team.format).map(team => ({
     value: team.id,
     label: team.name,
@@ -90,7 +98,7 @@ export function HomeScreen() {
 
         <div className="match-stage-copy">
           <span className="eyebrow">Matchmaking</span>
-          <h1>{searchState === 'searching' ? 'Looking for an opponent.' : 'Ready when you are.'}</h1>
+          <h1>{searchState === 'searching' ? 'Looking for an opponent.' : 'Find a battle'}</h1>
           <p>
             {searchState === 'searching' ?
               `${formats.find(format => format.id === searchFormats[0])?.name || selected?.name || 'Selected format'} is in the queue.` :
@@ -102,22 +110,22 @@ export function HomeScreen() {
           <div className="queue-controls" key="setup">
             <label className="control-field">
               <span>Format</span>
-              <FormatSelector value={selectedFormat} formats={formats.filter(format => battleSupport(format.id).supported)} onValueChange={setSelectedFormat} />
+              <FormatSelector value={selectedFormat} formats={formats.filter(format => format.searchShow && battleSupport(format.id).supported)} onValueChange={setSelectedFormat} />
             </label>
             <label className="control-field">
               <span>Battle team</span>
-              <SearchableSelect
+              {requiresTeam ? <SearchableSelect
                 ariaLabel="Select active team"
-                emptyLabel="No saved teams"
+                emptyLabel="No teams for this format. Create one in Teams."
                 options={teamOptions}
-                placeholder={requiresTeam ? 'Choose team' : 'Preset team'}
-                value={activeTeamId}
+                placeholder="Choose team"
+                value={teamOptions.some(option => option.value === activeTeamId) ? activeTeamId : undefined}
                 onValueChange={selectTeam}
-              />
+              /> : <span className="provided-team"><Shield size={17} aria-hidden /><span><strong>Provided team</strong><small>Provided when the battle starts</small></span></span>}
             </label>
-            <button className="queue-action" type="button" onClick={startSearch} disabled={!canSearch}>
+            <button className="queue-action" type="button" onClick={event => begin(event.currentTarget)} disabled={connecting || (connection === 'connected' && named && !needsTeam && !canSearch)}>
               <Radio size={17} aria-hidden />
-              Find battle
+              {actionLabel}
             </button>
           </div>
         ) : (
@@ -125,7 +133,7 @@ export function HomeScreen() {
             <span className="searching-radar" aria-hidden><i /><i /><i /></span>
             <span>
               <strong>Searching {selected?.name || selectedFormat}</strong>
-              <small>Keep this workspace open. The battle will take focus when matched.</small>
+              <small>You can browse while we find an opponent. Your battle opens when matched.</small>
             </span>
             <button className="queue-cancel" type="button" onClick={cancelSearch}>Cancel</button>
           </div>
@@ -135,10 +143,10 @@ export function HomeScreen() {
       <aside className="match-inspector" aria-label="Queue readiness">
         <div className="inspector-heading">
           <span>
-            <small>Session</small>
-            <strong>Queue readiness</strong>
+            <small>Before you play</small>
+            <strong>Your setup</strong>
           </span>
-          <em>{canSearch ? 'Ready' : `${blockers.length} blocked`}</em>
+          <em>{searchState === 'searching' ? 'Searching' : canSearch ? 'Ready' : connection !== 'connected' ? connecting ? 'Connecting' : 'Offline' : !named ? 'Name needed' : needsTeam ? 'Team needed' : 'Check format'}</em>
         </div>
 
         <div className="readiness-list">
@@ -160,11 +168,10 @@ export function HomeScreen() {
             );
           })}
         </div>
-        {!named && <button type="button" className="primary-action" onClick={() => window.dispatchEvent(new Event('arena:open-account'))}>Choose name</button>}
-        {searchState === 'idle' && selectedFormat !== 'gen9randombattle' && formats.some(format => format.id === 'gen9randombattle') && <button type="button" className="secondary-action" onClick={() => setSelectedFormat('gen9randombattle')}>Try Random Battle · no team needed</button>}
+        {searchState === 'idle' && selectedFormat !== 'gen9randombattle' && formats.some(format => format.id === 'gen9randombattle') && <button type="button" className="secondary-action random-battle-shortcut" onClick={() => setSelectedFormat('gen9randombattle')}>Try Random Battle <small>No team needed</small></button>}
         {challenges.to && <div className="queue-notice" role="status"><span>Challenge sent to {challenges.to.to} · {challenges.to.format}</span><button type="button" className="secondary-action" onClick={() => useArenaStore.getState().cancelChallenge()}>Cancel challenge</button></div>}
 
-        {(lastError || (blockers.length > 0 && searchState === 'idle')) && (
+        {(lastError || (named && blockers.length > 0 && searchState === 'idle')) && (
           <div className="queue-notice" role="status" aria-live="polite">
             <CircleAlert size={15} aria-hidden />
             <span>{lastError || blockers[0]}</span>
@@ -193,7 +200,7 @@ export function HomeScreen() {
             Challenge
           </button>
         </form>
-        <p className="challenge-send-hint">Uses the selected format and team above.</p>
+        <p className="challenge-send-hint">Review the format and team before sending.</p>
 
         {Object.keys(challenges.from).length > 0 && (
           <>
@@ -218,10 +225,6 @@ export function HomeScreen() {
         )}
 
 
-        <div className="match-inspector-footer">
-          <Timer size={14} aria-hidden />
-          <span>Battle decisions remain available in the bottom action deck.</span>
-        </div>
       </aside>
 
       <section className="live-now" aria-label="Live battles">

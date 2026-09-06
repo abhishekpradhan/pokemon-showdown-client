@@ -3,7 +3,9 @@ import type { ChatMessage } from '../rooms/types';
 import { toId } from '../compat/protocol-parsers';
 import { useWorkspaceStore } from '../stores/workspace-store';
 
-const spokenText = (message: ChatMessage) => `${message.user.replace(/^[^a-z0-9]/i, '')}: ${message.message.slice(0, 300)}`;
+// Redact before truncating so a spoiler crossing the announcement length limit
+// cannot expose its opening fragment. The transcript offers a reveal button.
+const spokenText = (message: ChatMessage) => `${message.user.replace(/^[^a-z0-9]/i, '')}: ${message.message.replace(/\|\|[^|\n]+\|\|/g, '[spoiler]').slice(0, 300)}`;
 
 /** Announce additions independently from the browsable transcript. A snapshot
  * replacement has no shared tail and must not replay retained history. */

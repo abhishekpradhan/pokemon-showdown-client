@@ -64,7 +64,7 @@ export function MoveControls({ moves, onChoose, format, disabled = false }: {
               {gimmick.label}
             </button>
           ))}
-          {armed && <span className="gimmick-hint" role="status">Now pick a move.</span>}
+          {armed && <span className="gimmick-hint" role="status">Ready for your next move.</span>}
         </div>
       )}
 
@@ -78,6 +78,7 @@ export function MoveControls({ moves, onChoose, format, disabled = false }: {
             <button
               type="button"
               className={clsx('move-choice', move.disabled && 'is-disabled')}
+              data-move-slot={move.slot}
               style={typeStyle(move.type)}
               disabled={disabled || move.disabled}
               data-effect={tone}

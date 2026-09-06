@@ -7,6 +7,8 @@ An independent browser client for [Pokémon Showdown](https://pokemonshowdown.co
 
 **[Play Showdown Arena](https://showdown-arena.vercel.app)** · [Compatibility](docs/compatibility.md) · [Roadmap](docs/roadmap.md) · [Contribute](CONTRIBUTING.md)
 
+The [1.1.1 UX review](docs/ux-review-2026-09-06.md) records the latest desktop and mobile polish, interaction fixes and verification scope.
+
 Build and import teams, find or watch battles, chat and exchange private messages, inspect ladders, and review replay logs. Feature depth varies by format and workflow: the [compatibility map](docs/compatibility.md) records the support contract and verification needed before releases. This project is a client; it does not run a battle server or share a browser session with the official client.
 
 ![A battle in Showdown Arena](docs/media/battle.png)
