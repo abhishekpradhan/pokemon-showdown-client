@@ -8,7 +8,7 @@ import { pathToFileURL } from 'node:url';
 import { createServer } from 'node:net';
 import { build } from 'esbuild';
 import { participant as createParticipant, line, identify, playUntil, finishBattle } from './local-server-clients.mjs';
-import { verifyLayouts, verifyReconnect } from './local-server-scenarios.mjs';
+import { verifyLayouts, verifyProfileConfirmation, verifyReconnect } from './local-server-scenarios.mjs';
 import { verifyLocalServices } from './local-server-services.mjs';
 import { runSessionStress } from './test-session-stress.mjs';
 
@@ -119,6 +119,7 @@ try {
     player.send('/utm null');
   }
   evidence.push('Two real protocol clients: handshake, format catalog and guest identity accepted.');
+  const profileConfirmation = await verifyProfileConfirmation({ player: alice, evidence });
   alice.send('/challenge ArenaBob, gen9randombattle');
   await bob.wait(line('pm', args => args[0].trim() === 'ArenaAlice' && args[2] === '/challenge gen9randombattle'), 'incoming direct challenge');
   bob.send('/accept ArenaAlice');
@@ -183,7 +184,7 @@ try {
   cleanup();
   const stress = await runSessionStress();
   evidence.push('Deterministic sustained sessions enforce retained-state cardinality, forced-GC heap bounds and per-batch latency budgets in an isolated process.');
-  const report = { node: process.version, upstreamRevision: revision, runtimeLockSha256: runtimeHash, source: `https://github.com/smogon/pokemon-showdown/tree/${revision}`, clientRevision: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(), clientModified: !!execFileSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' }).trim(), transport: 'real ProtocolClient + loopback SockJS WebSocket', endpoint: `127.0.0.1:${port}`, externalNetwork: 'denied for server and workers; external login/replay APIs disabled', modernReplay: { realServerHandlers: true, publicationBackend: 'in-process contract stub', private: published.hidden === 1, passwordPreserved: true }, localServices, layouts, stress, evidence };
+  const report = { node: process.version, upstreamRevision: revision, runtimeLockSha256: runtimeHash, source: `https://github.com/smogon/pokemon-showdown/tree/${revision}`, clientRevision: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(), clientModified: !!execFileSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' }).trim(), transport: 'real ProtocolClient + loopback SockJS WebSocket', endpoint: `127.0.0.1:${port}`, externalNetwork: 'denied for server and workers; external login/replay APIs disabled', profileConfirmation, modernReplay: { realServerHandlers: true, publicationBackend: 'in-process contract stub', private: published.hidden === 1, passwordPreserved: true }, localServices, layouts, stress, evidence };
   writeFileSync(resolve('test-results-local-server.json'), JSON.stringify(report, null, 2));
   console.log(JSON.stringify(report, null, 2));
 } catch (error) {

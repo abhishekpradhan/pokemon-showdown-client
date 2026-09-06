@@ -51,14 +51,14 @@ export function ProfileSettings() {
   const retry = () => {
     const state = useArenaStore.getState();
     if (!state.named || state.connection !== 'connected') return;
-    if (pendingAvatar) state.protocol.send(`/avatar ${preferredAvatar}`);
+    if (pendingAvatar) state.applyAvatarPreference();
     if (pendingLanguage) state.protocol.send(`/language ${serverLanguage}`);
     setAttempt(value => value + 1);
   };
   return <section className="settings-section" aria-labelledby="profile-settings">
     <h2 id="profile-settings"><UserRound size={15} aria-hidden /> Profile and language</h2>
     <div className="setting-row"><span><strong>Trainer avatar</strong><small>{connected ? 'Current avatar confirmed by the server.' : 'Your preference applies when you choose a name.'}</small></span>
-      <div className="setting-actions">{avatarUrl(avatar) && <img src={avatarUrl(avatar)} alt="Current trainer avatar" width={48} height={48} />}<AvatarPicker value={preferredAvatar || avatarName(avatar || '')} onChoose={value => { if (value === preferredAvatar && pendingAvatar && connected) useArenaStore.getState().protocol.send(`/avatar ${value}`); setPreference('preferredAvatar', value); setAttempt(count => count + 1); }} /></div>
+      <div className="setting-actions">{avatarUrl(avatar) && <img src={avatarUrl(avatar)} alt="Current trainer avatar" width={48} height={48} />}<AvatarPicker value={preferredAvatar || avatarName(avatar || '')} onChoose={value => { if (value === preferredAvatar && pendingAvatar && connected) useArenaStore.getState().applyAvatarPreference(); setPreference('preferredAvatar', value); setAttempt(count => count + 1); }} /></div>
     </div>
     {preferredAvatar && <p>Saved avatar: {labelForAvatar(preferredAvatar)}. {pendingAvatar && connected ? 'Waiting for the server to apply it.' : ''}</p>}
     <label className="setting-row"><span><strong>Server language</strong><small>Language for translated server messages. Rooms can choose their own language. Arena’s interface remains in English.</small></span>

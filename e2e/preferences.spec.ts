@@ -11,9 +11,24 @@ const updateUser = (page: Page, avatar = '1', language = 'english') => page.eval
 async function namedSettings(page: Page) {
   await page.goto('/settings');
   await expect(page.getByRole('button', { name: 'Disconnect', exact: true })).toBeVisible();
+  await page.evaluate(() => {
+    const socket = (window as unknown as { __mockPsSockets: Array<{ emit: (line: string) => void }> }).__mockPsSockets[0];
+    const emit = socket.emit.bind(socket);
+    // The generic mock returns an unrelated default avatar for user cards.
+    // Control our own structured response so delayed/missing ACKs stay testable.
+    socket.emit = line => {
+      if (line.startsWith('|queryresponse|userdetails|') && JSON.parse(line.slice('|queryresponse|userdetails|'.length)).userid === 'preferencetester') return;
+      emit(line);
+    };
+    (window as unknown as { __emitProfileFixture: (line: string) => void }).__emitProfileFixture = emit;
+  });
   await updateUser(page);
   await expect(page.getByText('Profile preferences are in sync.', { exact: true })).toBeVisible();
 }
+
+const confirmAvatarDetails = (page: Page, avatar: string, userid = 'preferencetester') => page.evaluate(({ avatar, userid }) => {
+  (window as unknown as { __emitProfileFixture: (line: string) => void }).__emitProfileFixture(`|queryresponse|userdetails|${JSON.stringify({ userid, avatar, rooms: {} })}`);
+}, { avatar, userid });
 
 async function backgroundFile(page: Page) {
   const data = await page.evaluate(() => {
@@ -52,9 +67,12 @@ test('avatar preview applies only on confirmation and waits for server acknowled
   await dialog.getByRole('button', { name: 'Apply avatar', exact: true }).click();
   await expect(choose).toBeFocused();
   await expect.poll(() => sent(page)).toContain('|/avatar dawn');
+  await expect.poll(() => sent(page)).toContain('|/cmd userdetails preferencetester');
+  await page.evaluate(() => (window as unknown as { __emitProfileFixture: (line: string) => void }).__emitProfileFixture('|pm|~|PreferenceTester|/raw <img src="https://play.pokemonshowdown.com/sprites/trainers/dawn.png" />'));
+  await confirmAvatarDetails(page, '2', 'someoneelse');
   await expect(currentAvatar).toHaveAttribute('src', /\/lucas\.png$/);
   await expect(page.getByText('Applying preferences…', { exact: true })).toBeVisible();
-  await updateUser(page, '2');
+  await confirmAvatarDetails(page, '2');
   await expect(currentAvatar).toHaveAttribute('src', /\/dawn\.png$/);
   await expect(page.getByText('Profile preferences are in sync.', { exact: true })).toBeVisible();
   await page.getByLabel('Server language', { exact: true }).selectOption('spanish');
@@ -84,7 +102,8 @@ test('unacknowledged avatar preferences offer a retry without claiming success',
   await expect(page.getByText('The server has not confirmed these preferences. Try again, or check your connection.', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Retry profile preferences', exact: true }).click();
   await expect.poll(async () => (await sent(page)).filter(line => line === '|/avatar dawn').length).toBe(3);
-  await updateUser(page, '2');
+  await expect.poll(async () => (await sent(page)).filter(line => line === '|/cmd userdetails preferencetester').length).toBe(3);
+  await confirmAvatarDetails(page, '2');
   await expect(page.getByText('Profile preferences are in sync.', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Retry profile preferences', exact: true })).toHaveCount(0);
 });
