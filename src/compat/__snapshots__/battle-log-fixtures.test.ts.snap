@@ -5,7 +5,7 @@ exports[`battle log fixtures (engine projection) > projects a player-perspective
   "active": {
     "currentHp": 293,
     "hp": 88,
-    "item": "blackglasses",
+    "item": "Black Glasses",
     "maxHp": 334,
     "name": "Kingambit",
     "species": "Kingambit",
@@ -20,6 +20,7 @@ exports[`battle log fixtures (engine projection) > projects a player-perspective
   },
   "ourHazards": [
     {
+      "duration": undefined,
       "layers": 1,
       "name": "Spikes",
     },
@@ -74,7 +75,7 @@ exports[`battle log fixtures (engine projection) > projects a real gen9ou single
   "active": {
     "fainted": true,
     "hp": 0,
-    "item": "leftovers",
+    "item": "Leftovers",
     "name": "Heatran",
     "species": "Heatran",
   },
@@ -88,6 +89,7 @@ exports[`battle log fixtures (engine projection) > projects a real gen9ou single
   },
   "ourHazards": [
     {
+      "duration": undefined,
       "layers": 1,
       "name": "Stealth Rock",
     },
@@ -101,6 +103,7 @@ exports[`battle log fixtures (engine projection) > projects a real gen9ou single
   ],
   "theirHazards": [
     {
+      "duration": undefined,
       "layers": 1,
       "name": "Stealth Rock",
     },

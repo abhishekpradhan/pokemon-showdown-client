@@ -6,7 +6,7 @@ body:
     id: lines
     attributes:
       label: Protocol lines involved
-      description: The exact lines (from Settings → Protocol diagnostics or a replay .log).
+      description: Use a reviewed share-safe export or public replay log. Remove credentials, private messages, unrevealed teams and private replay URLs; include the build revision.
       render: text
     validations:
       required: true

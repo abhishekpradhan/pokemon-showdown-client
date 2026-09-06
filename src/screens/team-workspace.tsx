@@ -1,348 +1,170 @@
 import * as Dialog from '@radix-ui/react-dialog';
-import { ClipboardCopy, Copy, FileDown, FilePlus2, Plus, Trash2, X } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { ArrowDown, ArrowUp, ClipboardCopy, Copy, FileDown, FilePlus2, Plus, Trash2, X } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useSearch } from '@tanstack/react-router';
+import { useShallow } from 'zustand/react/shallow';
 import { ConfirmDialog } from '../components/confirm-dialog';
 import { SearchableSelect } from '../components/searchable-select';
 import { SetEditor } from '../components/set-editor';
 import { StatusCallout } from '../components/status-callout';
-import { exportTeam, importTeam, validateTeamSets, type StoredTeam, type TeamSet } from '../compat/team-store';
-import { useShallow } from 'zustand/react/shallow';
+import { createTeamId, exportTeam, exportTeams, importTeamLibrary, listTeamDrafts, loadTeamDraft, removeTeamDraft, saveTeamDraft, teamRecoveryData, teamStorageProblem, TEAM_STORAGE_KEY, validateTeamSets, type StoredTeam, type TeamDraft, type TeamSet } from '../compat/team-store';
+import { genFromFormat, getAbility, getItem, getMove } from '../data/dex';
+import { pokemonSprite } from '../data/sprites';
 import { useArenaStore } from '../stores/arena-store';
-import { getAbility, getItem, getMove } from '../data/dex';
 
-/**
- * The team canvas: a team is six slots. Filled slots are cards; empty slots
- * are the add affordance; the selected slot's editor opens full-width below
- * the grid. Sets are real state — text import/export is a dialog that
- * derives from and feeds into them, not the other way round.
- */
+const asDraft = (team: StoredTeam): TeamDraft => ({ key: team.id, teamId: team.id, baseUpdatedAt: team.updatedAt, name: team.name, format: team.format, folder: team.folder || '', sets: structuredClone(team.sets), updatedAt: team.updatedAt });
+const newDraft = (format: string): TeamDraft => ({ key: createTeamId(), name: '', format, folder: '', sets: [], updatedAt: Date.now() });
+const sameContents = (draft: TeamDraft, team: StoredTeam | undefined) => !!team && JSON.stringify([draft.name, draft.format, draft.folder, draft.sets]) === JSON.stringify([team.name, team.format, team.folder || '', team.sets]);
+const downloadText = (text: string, filename: string) => {
+  const url = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }));
+  const link = document.createElement('a'); link.href = url; link.download = filename; link.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+};
 
-const TEAM_SIZE = 6;
-
-const displayMove = (id: string) => getMove(id)?.name || id;
-const displayItem = (id?: string) => (id ? getItem(id)?.name || id : 'No item');
-const displayAbility = (id?: string) => (id ? getAbility(id)?.name || id : 'No ability');
+function TeamSprite({ set, format }: { set: TeamSet; format: string }) {
+  const [failed, setFailed] = useState('');
+  const [loaded, setLoaded] = useState('');
+  const url = pokemonSprite(set.species, { side: 'far', gen: genFromFormat(format), shiny: set.shiny, gender: set.gender === 'M' || set.gender === 'F' ? set.gender : undefined, still: true }).url;
+  return <span className="team-sprite">{loaded !== url && <span aria-label={set.species}>{set.species.slice(0, 1) || '?'}</span>}{failed !== url && <img src={url} alt="" width={44} height={46} loading="lazy" style={{ opacity: loaded === url ? 1 : 0 }} onLoad={() => setLoaded(url)} onError={() => setFailed(url)} />}</span>;
+}
 
 export function TeamWorkspace() {
-  const { activeTeam, activeTeamId, deleteTeam, duplicateTeam, formats, importTeamText, lastError, renameTeam, replaceTeamFromText, selectTeam, selectedFormat, teamNotice, teams, updateTeamFormat } = useArenaStore(
-    useShallow(state => ({ activeTeam: state.activeTeam, activeTeamId: state.activeTeamId, deleteTeam: state.deleteTeam, duplicateTeam: state.duplicateTeam, formats: state.formats, importTeamText: state.importTeamText, lastError: state.lastError, renameTeam: state.renameTeam, replaceTeamFromText: state.replaceTeamFromText, selectTeam: state.selectTeam, selectedFormat: state.selectedFormat, teamNotice: state.teamNotice, teams: state.teams, updateTeamFormat: state.updateTeamFormat }))
-  );
-  const [editingTeamId, setEditingTeamId] = useState<string | undefined>(activeTeamId);
-  const [teamName, setTeamName] = useState(() => teams.find(team => team.id === activeTeamId)?.name || '');
-  const [teamFormat, setTeamFormat] = useState(() => teams.find(team => team.id === activeTeamId)?.format || selectedFormat);
-  const [sets, setSets] = useState<TeamSet[]>(() => importTeam(exportTeam(activeTeam)));
+  const state = useArenaStore(useShallow(store => ({ activeTeamId: store.activeTeamId, teams: store.teams, formats: store.formats, selectedFormat: store.selectedFormat, selectTeam: store.selectTeam, deleteTeam: store.deleteTeam, replaceTeamLibrary: store.replaceTeamLibrary, reloadTeamLibrary: store.reloadTeamLibrary, saveTeamDraftToLibrary: store.saveTeamDraftToLibrary, validateTeamOnServer: store.validateTeamOnServer, teamValidation: store.teamValidation, connection: store.connection, lastError: store.lastError, teamNotice: store.teamNotice })));
+  const search = useSearch({ from: '/teambuilder' });
+  const navigate = useNavigate();
+  const [draft, setDraft] = useState<TeamDraft>(() => {
+    const selected = state.teams.find(team => team.id === (search.team || state.activeTeamId));
+    return (selected && (loadTeamDraft(selected.id) || asDraft(selected))) || (!search.team && listTeamDrafts()[0]) || newDraft(state.selectedFormat);
+  });
   const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
-  const [teamToDelete, setTeamToDelete] = useState<string | undefined>();
-  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [folder, setFolder] = useState('');
+  const [sort, setSort] = useState('manual');
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [drafts, setDrafts] = useState(listTeamDrafts);
+  const [draftStatus, setDraftStatus] = useState('');
+  const [notice, setNotice] = useState('');
+  const [teamToDelete, setTeamToDelete] = useState<string>();
+  const [dialog, setDialog] = useState<'team' | 'library' | null>(null);
   const [importText, setImportText] = useState('');
   const [copied, setCopied] = useState(false);
+  const editingTeam = state.teams.find(team => team.id === draft.teamId);
+  const dirty = !sameContents(draft, editingTeam);
+  const validation = useMemo(() => validateTeamSets(draft.sets, draft.format), [draft.sets, draft.format]);
+  const patch = (next: Partial<TeamDraft>) => setDraft(current => ({ ...current, ...next, updatedAt: Date.now() }));
 
-  const editingTeam = teams.find(team => team.id === editingTeamId);
-  const filledSets = useMemo(() => sets.filter(set => set.species.trim()), [sets]);
-  // Soft legality feedback. The server's validator remains the authority —
-  // these never block anything.
-  const validation = useMemo(() => filledSets.length ? validateTeamSets(filledSets) : null, [filledSets]);
-  const selectedSet = selectedSlot !== null ? sets[selectedSlot] : undefined;
-  const formatOptions = formats.map(format => ({
-    value: format.id,
-    label: format.name,
-    group: format.section || 'Formats',
-    description: format.team === false ? 'Preset team' : 'Custom team',
-    meta: format.searchShow ? 'Ladder' : 'Custom',
-  }));
+  useEffect(() => {
+    if (!dirty) return;
+    const result = saveTeamDraft(draft);
+    // Durable draft recovery is separate from publishing edits to the saved library.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setDraftStatus(result.ok ? 'Draft recovered automatically in this browser.' : result.error);
+    setDrafts(listTeamDrafts());
+  }, [draft, dirty]);
 
-  const loadTeam = (team: StoredTeam) => {
-    selectTeam(team.id);
-    setEditingTeamId(team.id);
-    setTeamName(team.name);
-    setTeamFormat(team.format);
-    setSets(team.sets.map(set => ({ ...set })));
-    setSelectedSlot(null);
-  };
+  const reloadTeamLibrary = state.reloadTeamLibrary;
+  useEffect(() => {
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === TEAM_STORAGE_KEY) { reloadTeamLibrary(); setNotice('Another tab updated the saved library. Your open draft is preserved.'); }
+      if (event.key?.startsWith('ps-arena-team-draft-')) setDrafts(listTeamDrafts());
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, [reloadTeamLibrary]);
 
-  const editTeam = (teamId: string) => {
-    const team = teams.find(entry => entry.id === teamId);
-    if (team) loadTeam(team);
-  };
-
-  const newTeam = () => {
-    setEditingTeamId(undefined);
-    setTeamName('');
-    setTeamFormat(selectedFormat);
-    setSets([]);
-    setSelectedSlot(null);
-  };
-
-  const saveTeam = () => {
-    const text = exportTeam(filledSets);
-    if (!editingTeamId) {
-      importTeamText(text, teamName, teamFormat);
-      const nextState = useArenaStore.getState();
-      const importedTeam = nextState.teams.find(team => team.id === nextState.activeTeamId);
-      if (importedTeam) loadTeam(importedTeam);
-      return;
+  useEffect(() => {
+    if (!search.team || search.team === draft.teamId) return;
+    const team = useArenaStore.getState().teams.find(entry => entry.id === search.team);
+    if (team) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setDraft(loadTeamDraft(team.id) || asDraft(team));
+      setSelectedSlot(null);
     }
-    if (teamName.trim() && teamName !== editingTeam?.name) renameTeam(editingTeamId, teamName);
-    if (teamFormat !== editingTeam?.format) updateTeamFormat(editingTeamId, teamFormat);
-    replaceTeamFromText(editingTeamId, text);
-  };
+    // Browser back/forward follows the URL; local draft changes do not reload it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search.team]);
 
-  const duplicateEditingTeam = () => {
-    if (!editingTeamId) return;
-    duplicateTeam(editingTeamId);
-    const nextState = useArenaStore.getState();
-    const copy = nextState.teams.find(team => team.id === nextState.activeTeamId);
-    if (copy) loadTeam(copy);
+  const load = (team: StoredTeam) => {
+    state.selectTeam(team.id);
+    setDraft(loadTeamDraft(team.id) || asDraft(team));
+    setSelectedSlot(null); setNotice('');
+    void navigate({ to: '/teambuilder', search: { team: team.id } });
   };
-
-  const addSlot = () => {
-    if (sets.length >= TEAM_SIZE) return;
-    setSets(current => [...current, { species: '', moves: [] }]);
-    setSelectedSlot(sets.length);
+  const create = () => { setDraft(newDraft(state.selectedFormat)); setSelectedSlot(null); setNotice(''); void navigate({ to: '/teambuilder', search: {} }); };
+  const save = () => {
+    const team = state.saveTeamDraftToLibrary(draft);
+    if (!team) return;
+    removeTeamDraft(draft.key); setDrafts(listTeamDrafts()); setDraft(asDraft(team)); setDraftStatus('Saved in this browser.');
+    void navigate({ to: '/teambuilder', search: { team: team.id } });
   };
-
-  const removeSlot = (index: number) => {
-    setSets(current => current.filter((_, position) => position !== index));
-    setSelectedSlot(null);
+  const duplicate = () => {
+    const copy = { ...structuredClone(draft), key: createTeamId(), teamId: undefined, name: `${draft.name || 'Untitled team'} copy`, updatedAt: Date.now() };
+    setDraft(copy); setNotice('Copy includes your visible edits.'); void navigate({ to: '/teambuilder', search: {} });
   };
-
-  const updateSlot = (index: number, next: TeamSet) => {
-    setSets(current => current.map((set, position) => position === index ? next : set));
-  };
-
+  const openDialog = (scope: 'team' | 'library') => { setDialog(scope); setCopied(false); setImportText(scope === 'team' ? exportTeam(draft.sets) : exportTeams(state.teams)); setNotice(''); };
   const applyImport = () => {
-    const imported = importTeam(importText);
-    if (!imported.length) return;
-    setSets(imported);
-    setSelectedSlot(null);
-    setImportDialogOpen(false);
-    setImportText('');
+    try {
+      const imported = importTeamLibrary(importText, draft.format);
+      if (!imported.length) throw new Error('No teams found. Paste a Showdown export, packed team or library backup.');
+      if (dialog === 'library' || imported.length > 1) {
+        if (!state.replaceTeamLibrary([...imported, ...state.teams])) return;
+        load(imported[0]); setNotice(`${imported.length} team(s) added. Existing teams were preserved.`);
+      } else patch({ sets: imported[0].sets });
+      setSelectedSlot(null); setDialog(null);
+    } catch (error) { setNotice(error instanceof Error ? error.message : 'Import failed.'); }
   };
-
-  const openImportDialog = () => {
-    setImportText(filledSets.length ? exportTeam(filledSets) : '');
-    setCopied(false);
-    setImportDialogOpen(true);
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(dialog === 'library' ? exportTeams(state.teams) : exportTeam(draft.sets)); setCopied(true); }
+    catch { setNotice('Copy failed. Select the text manually or download it.'); }
   };
-
-  const copyExport = () => {
-    void navigator.clipboard?.writeText(exportTeam(filledSets)).then(() => setCopied(true));
+  const moveTeam = (id: string, delta: number) => {
+    const index = state.teams.findIndex(team => team.id === id); const destination = index + delta;
+    if (destination < 0 || destination >= state.teams.length) return;
+    const next = [...state.teams]; [next[index], next[destination]] = [next[destination], next[index]];
+    state.replaceTeamLibrary(next);
   };
+  const visibleTeams = state.teams.filter(team => (!folder || (team.folder || '') === folder) && `${team.name} ${team.format} ${team.folder || ''} ${team.sets.map(set => `${set.species} ${set.name || ''}`).join(' ')}`.toLowerCase().includes(query.toLowerCase())).slice().sort((a, b) => sort === 'name' ? a.name.localeCompare(b.name) : sort === 'updated' ? b.updatedAt - a.updatedAt : 0);
+  const folders = [...new Set(state.teams.map(team => team.folder || '').filter(Boolean))];
+  const formatOptions = state.formats.map(format => ({ value: format.id, label: format.name, group: format.section || 'Formats' }));
+  const selectedSet = selectedSlot !== null ? draft.sets[selectedSlot] : undefined;
+  const serverResult = state.teamValidation;
 
-  return (
-    <section className="utility-workspace team-workspace" aria-label="Team builder">
-      <aside className="workspace-pane team-library" aria-label="Saved teams">
-        <header className="pane-heading">
-          <span>
-            <small>Library</small>
-            <h1>Teams</h1>
-          </span>
-          <button type="button" className="pane-icon-button" onClick={newTeam} aria-label="New team">
-            <FilePlus2 size={16} />
-          </button>
-        </header>
-        <div className="team-library-list">
-          {teams.map(team => (
-            <button
-              type="button"
-              className={`team-library-row ${team.id === editingTeamId ? 'is-active' : ''}`}
-              key={team.id}
-              onClick={() => editTeam(team.id)}
-            >
-              <span className="team-library-sprites">
-                {team.sets.slice(0, 3).map((set, index) => (
-                  <img
-                    key={`${set.species}-${index}`}
-                    src={`https://play.pokemonshowdown.com/sprites/gen5/${set.species.toLowerCase().replace(/[^a-z0-9]/g, '')}.png`}
-                    alt=""
-                  />
-                ))}
-              </span>
-              <span>
-                <span className="team-library-name">
-                  <strong>{team.name}</strong>
-                  {team.id === activeTeamId && <i>Active</i>}
-                </span>
-                <small>{team.format} · {team.sets.length} Pokémon</small>
-              </span>
-            </button>
-          ))}
-          {!teams.length && <p className="pane-empty">No teams saved locally.</p>}
-        </div>
-        <button type="button" className="new-team-button" onClick={newTeam}>
-          <FilePlus2 size={15} aria-hidden /> New team
-        </button>
-      </aside>
-
-      <div className="workspace-stage team-canvas">
-        <header className="team-toolbar">
-          <input
-            className="team-name-input"
-            aria-label="Team name"
-            value={teamName}
-            placeholder="Untitled team"
-            onChange={event => setTeamName(event.currentTarget.value)}
-          />
-          <div className="team-toolbar-format">
-            <SearchableSelect
-              ariaLabel="Set team format"
-              emptyLabel="No formats match"
-              options={formatOptions}
-              placeholder="Team format"
-              value={teamFormat}
-              onValueChange={setTeamFormat}
-            />
-          </div>
-          <div className="team-toolbar-actions">
-            <button type="button" className="secondary-action" onClick={openImportDialog}>
-              <FileDown size={14} aria-hidden /> Import / Export
-            </button>
-            {editingTeamId && (
-              <>
-                <button type="button" className="icon-button" aria-label={`Duplicate ${editingTeam?.name}`} onClick={duplicateEditingTeam}>
-                  <Copy size={15} />
-                </button>
-                <ConfirmDialog
-                  open={teamToDelete === editingTeamId}
-                  setOpen={open => setTeamToDelete(open ? editingTeamId : undefined)}
-                  title={`Delete ${editingTeam?.name}?`}
-                  description="This removes the team from local browser storage."
-                  confirmLabel="Delete team"
-                  onConfirm={() => {
-                    deleteTeam(editingTeamId);
-                    newTeam();
-                  }}
-                >
-                  <button type="button" className="icon-button danger-icon" aria-label={`Delete ${editingTeam?.name}`} onClick={() => setTeamToDelete(editingTeamId)}>
-                    <Trash2 size={15} />
-                  </button>
-                </ConfirmDialog>
-              </>
-            )}
-            <button type="button" className="primary-action" onClick={saveTeam} disabled={!filledSets.length}>
-              {editingTeamId ? 'Save team' : 'Save as new team'}
-            </button>
-          </div>
-        </header>
-
-        <div className="editor-status" aria-live="polite">
-          {teamNotice && <StatusCallout tone="success">{teamNotice}</StatusCallout>}
-          {lastError && <StatusCallout tone="error">{lastError}</StatusCallout>}
-          {validation && !validation.ok && (
-            <StatusCallout tone="error">{validation.errors.join(' ')}</StatusCallout>
-          )}
-          {validation && validation.warnings.length > 0 && (
-            <StatusCallout tone="warning">
-              {validation.warnings.slice(0, 4).join(' ')}
-              {validation.warnings.length > 4 ? ` (+${validation.warnings.length - 4} more)` : ''}
-            </StatusCallout>
-          )}
-        </div>
-
-        <div className="team-slot-grid" aria-label="Team slots">
-          {Array.from({ length: TEAM_SIZE }, (_, index) => {
-            const set = sets[index];
-            if (!set) {
-              return (
-                <button
-                  type="button"
-                  className="team-slot is-empty"
-                  key={`empty-${index}`}
-                  disabled={index > sets.length}
-                  onClick={addSlot}
-                >
-                  <Plus size={17} aria-hidden />
-                  <span>Add Pokémon</span>
-                </button>
-              );
-            }
-            const selected = selectedSlot === index;
-            return (
-              <div className={`team-slot ${selected ? 'is-selected' : ''}`} key={index}>
-                <button
-                  type="button"
-                  className="team-slot-body"
-                  aria-pressed={selected}
-                  aria-label={`Edit ${set.species || `slot ${index + 1}`}`}
-                  onClick={() => setSelectedSlot(selected ? null : index)}
-                >
-                  <span className="team-slot-heading">
-                    {set.species ? (
-                      <img
-                        src={`https://play.pokemonshowdown.com/sprites/gen5/${set.species.toLowerCase().replace(/[^a-z0-9]/g, '')}.png`}
-                        alt=""
-                      />
-                    ) : (
-                      <span className="team-slot-blank" aria-hidden>?</span>
-                    )}
-                    <span>
-                      <strong>{set.name || set.species || 'Choose species'}</strong>
-                      <small>{displayItem(set.item)} · {displayAbility(set.ability)}</small>
-                    </span>
-                  </span>
-                  <span className="team-slot-moves">
-                    {set.moves.filter(Boolean).slice(0, 4).map(move => <i key={move}>{displayMove(move)}</i>)}
-                    {!set.moves.filter(Boolean).length && <i className="is-blank">No moves yet</i>}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  className="team-slot-remove"
-                  aria-label={`Remove ${set.species || `slot ${index + 1}`}`}
-                  onClick={() => removeSlot(index)}
-                >
-                  <X size={13} />
-                </button>
-              </div>
-            );
-          })}
-        </div>
-
-        {selectedSet !== undefined && selectedSlot !== null && (
-          <section className="team-editor-panel" aria-label="Set editor">
-            <SetEditor
-              set={selectedSet}
-              formatId={teamFormat}
-              onChange={next => updateSlot(selectedSlot, next)}
-            />
-          </section>
-        )}
-        {selectedSet === undefined && sets.length > 0 && (
-          <p className="team-editor-hint">Select a slot to edit its set.</p>
-        )}
+  return <section className="utility-workspace team-workspace" aria-label="Team builder">
+    <aside className="workspace-pane team-library" aria-label="Saved teams">
+      <header className="pane-heading"><span><small>Library</small><h1>Teams</h1></span><button type="button" className="pane-icon-button" onClick={create} aria-label="New team"><FilePlus2 size={16} /></button></header>
+      <div className="team-library-tools">
+        <input aria-label="Search teams" placeholder="Search name, species, format" value={query} onChange={event => setQuery(event.currentTarget.value)} />
+        <select aria-label="Filter team folder" value={folder} onChange={event => setFolder(event.currentTarget.value)}><option value="">All folders</option>{folders.map(name => <option key={name}>{name}</option>)}</select>
+        <select aria-label="Sort teams" value={sort} onChange={event => setSort(event.currentTarget.value)}><option value="manual">Manual order</option><option value="name">Name</option><option value="updated">Recently updated</option></select>
       </div>
-
-      <Dialog.Root open={importDialogOpen} onOpenChange={setImportDialogOpen}>
-        <Dialog.Portal>
-          <Dialog.Overlay className="dialog-overlay" />
-          <Dialog.Content className="account-dialog import-dialog">
-            <div className="dialog-heading">
-              <div>
-                <Dialog.Title>Import / export team</Dialog.Title>
-                <Dialog.Description>
-                  Pokémon Showdown export or packed format. Importing replaces the current slots.
-                </Dialog.Description>
-              </div>
-              <Dialog.Close className="icon-button" aria-label="Close import dialog"><X size={17} /></Dialog.Close>
-            </div>
-            <textarea
-              className="import-dialog-text"
-              aria-label="Team import text"
-              placeholder="Paste a Pokémon Showdown team export or packed team"
-              value={importText}
-              onChange={event => setImportText(event.currentTarget.value)}
-            />
-            <div className="button-row">
-              <button type="button" className="primary-action" onClick={applyImport} disabled={!importText.trim()}>
-                Import team
-              </button>
-              <button type="button" className="secondary-action" onClick={copyExport} disabled={!filledSets.length}>
-                <ClipboardCopy size={14} aria-hidden /> {copied ? 'Copied' : 'Copy export'}
-              </button>
-            </div>
-          </Dialog.Content>
-        </Dialog.Portal>
-      </Dialog.Root>
-    </section>
-  );
+      <div className="team-library-list">{visibleTeams.map(team => <div className="team-library-entry" key={team.id}>
+        <input type="checkbox" aria-label={`Select ${team.name} for bulk actions`} checked={selectedIds.includes(team.id)} onChange={event => setSelectedIds(ids => event.currentTarget.checked ? [...ids, team.id] : ids.filter(id => id !== team.id))} />
+        <button type="button" className={`team-library-row ${team.id === draft.teamId ? 'is-active' : ''}`} onClick={() => load(team)}>
+          <span className="team-library-sprites">{team.sets.slice(0, 6).map((set, index) => <TeamSprite key={index} set={set} format={team.format} />)}</span>
+          <span><span className="team-library-name"><strong>{team.name}</strong>{team.id === state.activeTeamId && <i>Active</i>}</span><small>{team.format} · {team.sets.length} Pokémon{team.folder ? ` · ${team.folder}` : ''}{drafts.some(entry => entry.teamId === team.id) ? ' · Draft' : ''}</small></span>
+        </button>
+        {sort === 'manual' && <span className="team-reorder"><button type="button" aria-label={`Move ${team.name} up`} disabled={state.teams[0]?.id === team.id} onClick={() => moveTeam(team.id, -1)}><ArrowUp size={13} /></button><button type="button" aria-label={`Move ${team.name} down`} disabled={state.teams.at(-1)?.id === team.id} onClick={() => moveTeam(team.id, 1)}><ArrowDown size={13} /></button></span>}
+      </div>)}{!visibleTeams.length && <p className="pane-empty">{state.teams.length ? 'No teams match.' : 'No teams saved locally.'}</p>}</div>
+      {selectedIds.length > 0 && <div className="team-library-tools"><strong>{selectedIds.length} selected</strong><button type="button" className="secondary-action" onClick={() => downloadText(exportTeams(state.teams.filter(team => selectedIds.includes(team.id))), 'showdown-selected-teams.txt')}>Export selected</button><label>Move to folder<input aria-label="Folder for selected teams" onKeyDown={event => { if (event.key !== 'Enter') return; const value = event.currentTarget.value.trim(); if (state.replaceTeamLibrary(state.teams.map(team => selectedIds.includes(team.id) ? { ...team, folder: value, updatedAt: Date.now() } : team))) setSelectedIds([]); }} placeholder="Folder name, then Enter" /></label></div>}
+      <div className="team-library-tools"><button type="button" className="new-team-button" onClick={create}><FilePlus2 size={15} /> New team</button><button type="button" className="secondary-action" onClick={() => openDialog('library')}>Backup / restore library</button><button type="button" className="secondary-action" onClick={state.reloadTeamLibrary}>Reload saved library</button></div>
+      {drafts.length > 0 && <details className="team-recovery"><summary>Recover drafts / deleted teams ({drafts.length})</summary>{drafts.map(entry => <div key={entry.key}><button type="button" className="secondary-action" onClick={() => { setDraft(loadTeamDraft(entry.key) || entry); setSelectedSlot(null); void navigate({ to: '/teambuilder', search: entry.teamId ? { team: entry.teamId } : {} }); }}>{entry.name || 'Untitled draft'}</button><button type="button" aria-label={`Download ${entry.name || 'draft'}`} onClick={() => downloadText(JSON.stringify({ version: 2, teams: [{ ...entry, id: entry.teamId || entry.key }] }, null, 2), 'team-draft.json')}><FileDown size={14} /></button></div>)}</details>}
+    </aside>
+    <div className="workspace-stage team-canvas">
+      <header className="team-toolbar"><input className="team-name-input" aria-label="Team name" value={draft.name} placeholder="Untitled team" onChange={event => patch({ name: event.currentTarget.value })} /><div className="team-toolbar-format"><SearchableSelect ariaLabel="Set team format" options={formatOptions} value={draft.format} onValueChange={format => patch({ format })} /></div><label className="team-folder-field">Folder<input value={draft.folder} onChange={event => patch({ folder: event.currentTarget.value })} placeholder="Optional" /></label>
+        <div className="team-toolbar-actions"><button type="button" className="secondary-action" onClick={() => openDialog('team')}><FileDown size={14} /> Import / Export</button><button type="button" className="icon-button" aria-label={`Duplicate ${draft.name || 'team'}`} onClick={duplicate}><Copy size={15} /></button>{editingTeam && <ConfirmDialog open={teamToDelete === editingTeam.id} setOpen={open => setTeamToDelete(open ? editingTeam.id : undefined)} title={`Delete ${editingTeam.name}?`} description="A recoverable copy is kept in drafts." confirmLabel="Delete team" onConfirm={() => { state.deleteTeam(editingTeam.id); if (!useArenaStore.getState().teams.some(team => team.id === editingTeam.id)) { setDrafts(listTeamDrafts()); create(); } }}><button type="button" className="icon-button danger-icon" aria-label={`Delete ${editingTeam.name}`} onClick={() => setTeamToDelete(editingTeam.id)}><Trash2 size={15} /></button></ConfirmDialog>}<button type="button" className="primary-action" onClick={save}>{draft.teamId ? 'Save team' : 'Save as new team'}</button></div>
+      </header>
+      <div className="editor-status" aria-live="polite"><p>{dirty ? 'Unsaved library changes. ' : 'Saved. '}{draftStatus}</p>{(notice || state.teamNotice) && <StatusCallout>{notice || state.teamNotice}</StatusCallout>}{state.lastError && <StatusCallout tone="error">{state.lastError}</StatusCallout>}{teamStorageProblem() && <StatusCallout tone="warning">{teamStorageProblem()} <button type="button" onClick={() => downloadText(teamRecoveryData(), 'showdown-team-recovery.json')}>Export recovery data</button></StatusCallout>}{(validation.errors.length > 0 || validation.warnings.length > 0) && <details><summary>Local checks ({validation.errors.length + validation.warnings.length}) — drafts can still be saved</summary><ul>{[...validation.errors, ...validation.warnings].map((text, index) => <li key={index}>{text}</li>)}</ul></details>}
+        <button type="button" className="secondary-action" disabled={state.connection !== 'connected' || serverResult?.state === 'validating'} onClick={() => state.validateTeamOnServer(draft.sets, draft.format)}>{serverResult?.state === 'validating' ? 'Validating with server…' : 'Validate with server'}</button>{serverResult && serverResult.state !== 'validating' && <StatusCallout tone={serverResult.state === 'valid' ? 'success' : 'error'}><strong>{serverResult.format}</strong><pre className="team-validation-result">{serverResult.message}</pre></StatusCallout>}
+      </div>
+      {draft.sets.length > 6 && <StatusCallout tone="warning">All {draft.sets.length} imported slots are shown. Standard formats allow at most six; server validation checks this format.</StatusCallout>}
+      <div className="team-slot-grid" aria-label="Team slots">{Array.from({ length: Math.max(6, draft.sets.length) }, (_, index) => {
+        const set = draft.sets[index];
+        if (!set) return <button type="button" className="team-slot is-empty" key={`empty-${index}`} disabled={index > draft.sets.length} onClick={() => { patch({ sets: [...draft.sets, { species: '', moves: [] }] }); setSelectedSlot(index); }}><Plus size={17} /><span>Add Pokémon</span></button>;
+        return <div className={`team-slot ${selectedSlot === index ? 'is-selected' : ''}`} key={index}><button type="button" className="team-slot-body" aria-pressed={selectedSlot === index} aria-label={`Edit ${set.species || `slot ${index + 1}`}`} onClick={() => setSelectedSlot(selectedSlot === index ? null : index)}><span className="team-slot-heading"><TeamSprite set={set} format={draft.format} /><span><strong>{set.name || set.species || 'Choose species'}</strong><small>{getItem(set.item || '', genFromFormat(draft.format))?.name || set.item || 'No item'} · {getAbility(set.ability || '', genFromFormat(draft.format))?.name || set.ability || 'No ability'}</small></span></span><span className="team-slot-moves">{set.moves.filter(Boolean).map((move, moveIndex) => <i key={moveIndex}>{getMove(move, genFromFormat(draft.format))?.name || move}</i>)}</span></button><button type="button" className="team-slot-remove" aria-label={`Remove ${set.species || `slot ${index + 1}`}`} onClick={() => { patch({ sets: draft.sets.filter((_, position) => position !== index) }); setSelectedSlot(null); }}><X size={13} /></button><div className="team-slot-order"><button type="button" aria-label={`Move slot ${index + 1} left`} disabled={!index} onClick={() => { const sets = [...draft.sets]; [sets[index - 1], sets[index]] = [sets[index], sets[index - 1]]; patch({ sets }); setSelectedSlot(index - 1); }}>←</button><button type="button" aria-label={`Move slot ${index + 1} right`} disabled={index === draft.sets.length - 1} onClick={() => { const sets = [...draft.sets]; [sets[index + 1], sets[index]] = [sets[index], sets[index + 1]]; patch({ sets }); setSelectedSlot(index + 1); }}>→</button></div></div>;
+      })}</div>
+      {draft.sets.length >= 6 && <button type="button" className="secondary-action" onClick={() => { patch({ sets: [...draft.sets, { species: '', moves: [] }] }); setSelectedSlot(draft.sets.length); }}>Add slot for custom format</button>}
+      {selectedSet && selectedSlot !== null ? <section className="team-editor-panel" aria-label="Set editor"><SetEditor set={selectedSet} formatId={draft.format} onChange={set => patch({ sets: draft.sets.map((existing, position) => position === selectedSlot ? set : existing) })} /></section> : <p className="team-editor-hint">Select a slot to edit its set. Incomplete teams can be saved.</p>}
+    </div>
+    <Dialog.Root open={dialog !== null} onOpenChange={open => !open && setDialog(null)}><Dialog.Portal><Dialog.Overlay className="dialog-overlay" /><Dialog.Content className="account-dialog import-dialog"><div className="dialog-heading"><div><Dialog.Title>{dialog === 'library' ? 'Backup / restore library' : 'Import / export team'}</Dialog.Title><Dialog.Description>{dialog === 'library' ? 'Import adds teams without deleting your library. Showdown text backups, packed browser storage and Arena JSON are supported.' : 'Paste a Showdown export or packed team. Import replaces the current draft slots.'}</Dialog.Description></div><Dialog.Close className="icon-button" aria-label="Close import dialog"><X size={17} /></Dialog.Close></div><textarea className="import-dialog-text" aria-label="Team import text" value={importText} onChange={event => setImportText(event.currentTarget.value)} />{notice && <p role="alert">{notice}</p>}<label className="team-file-import">Open backup file<input type="file" accept=".txt,.json,.team" onChange={event => { const file = event.currentTarget.files?.[0]; if (file) void file.text().then(setImportText).catch(() => setNotice('Could not read that file.')); }} /></label><div className="button-row"><button type="button" className="primary-action" disabled={!importText.trim()} onClick={applyImport}>{dialog === 'library' ? 'Add imported teams' : 'Import team'}</button><button type="button" className="secondary-action" onClick={() => void copy()}><ClipboardCopy size={14} /> {copied ? 'Copied' : 'Copy export'}</button><button type="button" className="secondary-action" onClick={() => downloadText(dialog === 'library' ? exportTeams(state.teams) : exportTeam(draft.sets), 'showdown-teams.txt')}>Download export</button>{dialog === 'library' && <button type="button" className="secondary-action" onClick={() => downloadText(JSON.stringify({ version: 2, teams: state.teams }, null, 2), 'showdown-arena-backup.json')}>Lossless JSON backup</button>}</div></Dialog.Content></Dialog.Portal></Dialog.Root>
+  </section>;
 }

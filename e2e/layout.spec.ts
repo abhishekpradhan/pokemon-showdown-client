@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 import { installMockPs } from './mock-ps';
 
 /**
@@ -102,7 +102,7 @@ test('every surface keeps its primary heading', async ({ page }) => {
  * because per-surface rules outranked it.
  */
 test.describe('touch targets', () => {
-  test.use({ viewport: { width: 390, height: 664 }, hasTouch: true, isMobile: true });
+  test.use({ viewport: { width: 390, height: 664 }, hasTouch: true });
 
   for (const route of ROUTES) {
     test(`${route.name} controls are large enough to tap`, async ({ page }) => {

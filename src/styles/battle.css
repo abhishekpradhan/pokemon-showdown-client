@@ -283,6 +283,24 @@
   justify-items: start;
 }
 
+/* Keep each single combatant's sprite beside its own health panel. Stacking
+   two tall sprite/panel columns in a short field inverted their visual order. */
+.combatant[data-positions="1"] {
+  inline-size: 90%;
+  width: 90%;
+  align-items: center;
+  column-gap: 14px;
+}
+.combatant-far[data-positions="1"] {
+  grid-template-areas: "plate sprite";
+  grid-template-columns: minmax(0, 1fr) minmax(84px, 34%);
+}
+.combatant-near[data-positions="1"] {
+  grid-template-areas: "sprite plate";
+  grid-template-columns: minmax(84px, 34%) minmax(0, 1fr);
+}
+.battle-field:has(.combatant[data-positions="2"]) { min-block-size: 460px; }
+
 .combatant { transition: opacity 300ms ease; }
 
 .combatant.is-fainted { opacity: 0.35; }
@@ -1172,7 +1190,7 @@
   }
 
   .battle-field {
-    min-height: 220px;
+    min-height: 290px;
   }
 
   .combatant {
@@ -1529,3 +1547,40 @@
 }
 
 .nameplate-name { cursor: help; }
+
+/* Request-aware choices retain the existing field / deck / inspector layout. */
+.move-grid > span, .team-bench > span { position: relative; display: block; min-inline-size: 0; }
+.move-grid > span > .move-choice, .team-bench > span > .bench-slot { inline-size: 100%; block-size: 100%; }
+.team-bench-wrap { display: grid; gap: 10px; }
+.bench-slot[aria-pressed="true"] { outline: 2px solid var(--arena-accent); outline-offset: -2px; }
+.preview-order { display: grid; gap: 4px; padding: 0; margin: 0; list-style: none; }
+.preview-order li { display: flex; align-items: center; gap: 6px; min-inline-size: 0; }
+.preview-order li > span { flex: 1; font-size: 12px; }
+.preview-order button { min-inline-size: 36px; min-block-size: 36px; color: var(--arena-text); border: 1px solid var(--arena-line); background: var(--arena-surface); border-radius: var(--arena-radius); }
+.preview-order button:disabled { opacity: .4; }
+.touch-inspect { display: none; position: absolute; inset-inline-end: 3px; inset-block-end: 3px; min-inline-size: 32px; min-block-size: 32px; border: 0; border-radius: 50%; color: var(--arena-text); background: var(--arena-surface); font-size: 19px; }
+.touch-inspect:focus-visible { display: block; outline: 2px solid var(--arena-accent); }
+.nameplate-row > .battle-tooltip-trigger { position: relative; min-inline-size: 0; }
+.battle-inspection { max-block-size: min(85svh, 700px); overflow: auto; }
+.battle-inspection .tooltip-facts { display: grid; gap: 5px; }
+.battle-inspection .tooltip-facts div { display: flex; justify-content: space-between; gap: 16px; }
+.battle-inspection .tooltip-facts dd { margin: 0; }
+.battle-inspection .tooltip-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.battle-inspection .tooltip-stats span { display: flex; justify-content: space-between; gap: 8px; }
+.battle-inspection .tooltip-stats dfn { font-style: normal; }
+.battle-inspection .tooltip-types { display: flex; gap: 4px; }
+.known-moves { list-style: none; padding: 0; margin: 8px 0; font-size: 12px; }
+.known-moves li { display: flex; justify-content: space-between; gap: 10px; padding-block: 3px; }
+.roster-pips i[data-unrevealed] { background: transparent; outline: 1px solid var(--arena-muted); }
+.battle-playback { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 8px 12px; border-block-end: 1px solid var(--arena-line); font-size: 12px; }
+.battle-playback button, .battle-playback select { min-block-size: 36px; border: 1px solid var(--arena-line); background: var(--arena-surface); color: var(--arena-text); border-radius: var(--arena-radius); padding: 4px 8px; }
+.battle-playback input { flex: 1; min-inline-size: 100px; }
+@media (hover: none), (pointer: coarse) {
+  .touch-inspect { display: block; min-inline-size: 44px; min-block-size: 44px; }
+  .move-grid .move-choice { padding-inline-end: 48px; }
+  .team-bench > .battle-tooltip-trigger { display: grid; grid-template-rows: minmax(44px, 1fr) 44px; gap: 3px; }
+  .team-bench .touch-inspect { position: static; inline-size: 100%; border-radius: var(--arena-radius); }
+  .team-bench .bench-slot { padding-inline: 6px; }
+  .nameplate-row > .battle-tooltip-trigger { padding-inline-end: 44px; }
+  .nameplate-row .touch-inspect { inset-block-start: -7px; inset-block-end: auto; }
+}

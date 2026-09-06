@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import * as Dialog from '@radix-ui/react-dialog';
 import { createPortal } from 'react-dom';
-import type { BattleChoice, PokemonSet } from '../compat/battle-adapter';
+import { defensiveTypes, type BattleChoice, type PokemonSet } from '../compat/battle-adapter';
 import { genFromFormat, getMove, getSpecies } from '../data/dex';
 import { typeStyle } from '../data/types';
 
@@ -14,12 +15,15 @@ import { typeStyle } from '../data/types';
 
 const SHOW_DELAY = 120;
 
-export function TooltipTrigger({ content, children, className }: {
+export function TooltipTrigger({ content, children, className, label = 'Battle details' }: {
   content: () => ReactNode;
   children: ReactNode;
   className?: string;
+  label?: string;
 }) {
   const [open, setOpen] = useState(false);
+  const [pinned, setPinned] = useState(false);
+  const tooltipId = useId();
   const [style, setStyle] = useState<CSSProperties>({});
   const anchorRef = useRef<HTMLSpanElement>(null);
   const tipRef = useRef<HTMLDivElement>(null);
@@ -66,15 +70,28 @@ export function TooltipTrigger({ content, children, className }: {
   return (
     <span
       ref={anchorRef}
-      className={className}
+      className={['battle-tooltip-trigger', className].filter(Boolean).join(' ')}
+      aria-describedby={open && !pinned ? tooltipId : undefined}
       onMouseEnter={show}
       onMouseLeave={hide}
       onFocus={show}
       onBlur={hide}
     >
       {children}
-      {open && createPortal(
-        <div className="battle-tooltip" ref={tipRef} style={style} role="tooltip">
+      <button type="button" className="touch-inspect" aria-label={`Inspect ${label}`} onClick={() => { hide(); setPinned(true); }}>ⓘ</button>
+      <Dialog.Root open={pinned} onOpenChange={setPinned}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="dialog-overlay" />
+          <Dialog.Content className="battle-inspection account-dialog">
+            <Dialog.Title>{label}</Dialog.Title>
+            <Dialog.Description>Known battle information and move details.</Dialog.Description>
+            {content()}
+            <Dialog.Close className="secondary-action">Close details</Dialog.Close>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
+      {open && !pinned && createPortal(
+        <div className="battle-tooltip" id={tooltipId} ref={tipRef} style={style} role="tooltip">
           {content()}
         </div>,
         document.body
@@ -97,11 +114,13 @@ export function MoveTooltip({ move, format }: { move: BattleChoice; format?: str
       <dl className="tooltip-facts">
         <div><dt>Category</dt><dd>{move.category ?? data?.category ?? '—'}</dd></div>
         <div><dt>Power</dt><dd>{move.basePower || data?.basePower || '—'}</dd></div>
-        <div><dt>Accuracy</dt><dd>{typeof accuracy === 'number' ? `${accuracy}%` : accuracy || '—'}</dd></div>
+        <div><dt>Base accuracy</dt><dd>{typeof accuracy === 'number' ? `${accuracy}%` : accuracy || '—'}</dd></div>
         <div><dt>PP</dt><dd>{move.ppLeft ?? '—'}/{move.ppMax ?? data?.pp ?? '—'}</dd></div>
         {data?.priority ? <div><dt>Priority</dt><dd>{data.priority > 0 ? `+${data.priority}` : data.priority}</dd></div> : null}
       </dl>
-      {data?.shortDesc && <p className="tooltip-desc">{data.shortDesc}</p>}
+      {(move.description || data?.shortDesc) && <p className="tooltip-desc">{move.description || data?.shortDesc}</p>}
+      {move.notes?.map(note => <p className="tooltip-desc" key={note}>{note}</p>)}
+      {move.effectiveness && <p className="tooltip-desc">{move.effectiveness} against the displayed opponent. Unknown abilities and items may change the result.</p>}
     </>
   );
 }
@@ -113,7 +132,7 @@ const STAT_LABELS: Record<(typeof STAT_ORDER)[number], string> = {
 
 export function PokemonTooltip({ pokemon, format }: { pokemon: PokemonSet; format?: string }) {
   const species = getSpecies(pokemon.species, genFromFormat(format));
-  const types = pokemon.terastallized ? [pokemon.terastallized] : (pokemon.types ?? species?.types ?? []);
+  const types = defensiveTypes(pokemon) ?? species?.types ?? [];
   const abilities = pokemon.ability ?
     [pokemon.ability] :
     species ? Object.values(species.abilities).filter(Boolean) : [];
@@ -126,20 +145,30 @@ export function PokemonTooltip({ pokemon, format }: { pokemon: PokemonSet; forma
         </span>
       </header>
       {species && (
+        <>
+        <p className="tooltip-desc">{pokemon.stats ? 'Your reported stats (before stat stages)' : 'Species base stats'}</p>
         <div className="tooltip-stats">
           {STAT_ORDER.map(stat => (
             <span key={stat}>
               <dfn>{STAT_LABELS[stat]}</dfn>
               <i style={{ inlineSize: `${Math.min(100, species.baseStats[stat] / 2)}%` }} />
-              <b>{species.baseStats[stat]}</b>
+              <b>{pokemon.stats ? (stat === 'hp' ? pokemon.maxHp : pokemon.stats[stat]) ?? '—' : species.baseStats[stat]}</b>
             </span>
           ))}
         </div>
+        </>
       )}
+      {!pokemon.stats && pokemon.speedRange && <p className="tooltip-desc">Possible unmodified Speed: {pokemon.speedRange[0]}–{pokemon.speedRange[1]}.</p>}
+      {pokemon.boosts && <p className="tooltip-desc">Stat stages: {Object.entries(pokemon.boosts).map(([stat, stage]) => `${stat.toUpperCase()} ${stage! > 0 ? '+' : ''}${stage}`).join(', ')}</p>}
       <p className="tooltip-desc">
         {pokemon.ability ? `Ability: ${pokemon.ability}` : abilities.length ? `Abilities: ${abilities.join(' / ')}` : ''}
         {pokemon.item ? `${pokemon.ability || abilities.length ? ' · ' : ''}Item: ${pokemon.item}` : ''}
       </p>
+      {pokemon.lastItem && <p className="tooltip-desc">Previous item: {pokemon.lastItem}</p>}
+      {!!pokemon.knownMoves?.length && <ul className="known-moves" aria-label="Known moves">
+        {pokemon.knownMoves.map(move => <li key={move.name}><strong>{move.name}</strong> <span>{move.pp !== undefined ? `${move.pp}/${move.maxpp ?? '?'} PP` : Array.isArray(move.used) ? `${move.used.join('–')} PP used` : `${move.used ?? 0} PP used`}</span></li>)}
+      </ul>}
+      {pokemon.counters?.map(counter => <p className="tooltip-desc" key={counter}>{counter}</p>)}
     </>
   );
 }

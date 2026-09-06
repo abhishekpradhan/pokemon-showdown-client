@@ -35,7 +35,7 @@ const SessionTab = memo(function SessionTab({ id, type, title, live, unread, act
   const close = () => {
     const state = useArenaStore.getState();
     const next = nextRouteAfterClose(state.rooms, id);
-    state.leaveRoom(id);
+    if (!state.leaveRoom(id)) return;
     if (active) void navigate({ to: next });
   };
 

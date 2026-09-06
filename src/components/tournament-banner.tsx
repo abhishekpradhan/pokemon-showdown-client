@@ -2,6 +2,9 @@ import * as Dialog from '@radix-ui/react-dialog';
 import { ListTree, Swords, Trophy, X } from 'lucide-react';
 import { Link } from '@tanstack/react-router';
 import type { BracketNode, TournamentState } from '../rooms/types';
+import { useArenaStore } from '../stores/arena-store';
+import { toId } from '../compat/protocol-parsers';
+import { useState } from 'react';
 
 /**
  * The room's running tournament, as a banner above the chat: what it is,
@@ -51,7 +54,24 @@ export function TournamentBanner({ tournament, roomTitle, send }: {
   roomTitle: string;
   send: (command: string) => void;
 }) {
-  if (tournament.ended) return null;
+  const teams = useArenaStore(state => state.teams);
+  const formats = useArenaStore(state => state.formats);
+  const [teamId, setTeamId] = useState(useArenaStore.getState().activeTeamId || '');
+  const [error, setError] = useState('');
+  const format = toId(tournament.teambuilderFormat || tournament.format);
+  const requiresTeam = formats.find(entry => entry.id === format)?.team !== false;
+  const play = (command: string) => {
+    const state = useArenaStore.getState();
+    if (state.connection !== 'connected' || !state.named) { setError('Connect and choose a name before playing.'); return; }
+    if (requiresTeam) {
+      const team = teams.find(entry => entry.id === teamId);
+      const validation = state.validateTeamForFormat(teamId, format);
+      if (!team || !validation.ok) { setError(validation.errors.join(' ') || 'Select a team for this tournament.'); return; }
+      if (state.protocol.send(`/utm ${team.packed}`) === false) return;
+    }
+    setError(''); send(command);
+  };
+  if (tournament.ended) return <aside className="tournament-banner" aria-label={`Tournament in ${roomTitle}`}><strong>{tournament.format} · Tournament ended</strong>{tournament.results?.[0]?.length ? <span>Winner: {tournament.results[0].join(', ')}</span> : null}</aside>;
   const stateLabel = tournament.isStarted ?
     'In progress' :
     `Signups open${tournament.playerCap ? ` · ${tournament.players.length}/${tournament.playerCap}` : tournament.players.length ? ` · ${tournament.players.length} joined` : ''}`;
@@ -68,30 +88,34 @@ export function TournamentBanner({ tournament, roomTitle, send }: {
         </span>
       </span>
       <div className="tournament-actions">
+        {tournament.isJoined && requiresTeam && <select aria-label="Tournament team" value={teamId} onChange={event => setTeamId(event.currentTarget.value)}><option value="">Choose team</option>{teams.map(team => <option key={team.id} value={team.id}>{team.name} · {team.format}</option>)}</select>}
+        {(error || tournament.error) && <p role="alert">{error || tournament.error}</p>}
+        {tournament.challenging && <span>Waiting for {tournament.challenging} <button type="button" className="secondary-action" onClick={() => send('/tour cancelchallenge')}>Cancel challenge</button></span>}
         {tournament.currentBattle && (
           <Link className="primary-action" to="/battle/$battleId" params={{ battleId: tournament.currentBattle }}>
             <Swords size={13} aria-hidden /> Your match is live
           </Link>
         )}
-        {!tournament.currentBattle && tournament.challenges.length > 0 && (
-          <button type="button" className="primary-action" onClick={() => send(`/tour challenge ${tournament.challenges[0]}`)}>
+        {!tournament.currentBattle && !tournament.challenging && !tournament.challenged && tournament.challenges.length > 0 && (
+          <button type="button" className="primary-action" onClick={() => play(`/tour challenge ${tournament.challenges[0]}`)}>
             <Swords size={13} aria-hidden /> Challenge {tournament.challenges[0]}
           </button>
         )}
-        {!tournament.currentBattle && !tournament.challenges.length && tournament.challengeBys.length > 0 && (
-          <button type="button" className="primary-action" onClick={() => send('/tour acceptchallenge')}>
-            <Swords size={13} aria-hidden /> Accept {tournament.challengeBys[0]}
+        {!tournament.currentBattle && tournament.challenged && (
+          <button type="button" className="primary-action" onClick={() => play('/tour acceptchallenge')}>
+            <Swords size={13} aria-hidden /> Accept {tournament.challenged}
           </button>
         )}
+        {!tournament.challenged && !tournament.currentBattle && tournament.challengeBys.length > 0 && <small>Waiting for {tournament.challengeBys.join(', ')} to challenge you.</small>}
         {!tournament.isStarted && (
           tournament.isJoined ?
             <button type="button" className="secondary-action" onClick={() => send('/tour leave')}>Leave</button> :
             <button type="button" className="primary-action" onClick={() => send('/tour join')}>Join</button>
         )}
         {tournament.isStarted && tournament.isJoined && !tournament.currentBattle && (
-          <button type="button" className="secondary-action" onClick={() => send('/tour leave')}>Forfeit tour</button>
+          <button type="button" className="secondary-action" onClick={() => { if (window.confirm('Leave and forfeit this tournament?')) send('/tour leave'); }}>Forfeit tour</button>
         )}
-        {rounds.length > 0 && (
+        {(rounds.length > 0 || tournament.bracketData?.type === 'table') && (
           <Dialog.Root>
             <Dialog.Trigger asChild>
               <button type="button" className="secondary-action"><ListTree size={13} aria-hidden /> Bracket</button>
@@ -107,6 +131,7 @@ export function TournamentBanner({ tournament, roomTitle, send }: {
                   <Dialog.Close className="icon-button" aria-label="Close bracket"><X size={17} /></Dialog.Close>
                 </div>
                 <div className="bracket-scroll">
+                  {tournament.bracketData?.type === 'table' && <table><caption>Round-robin results</caption><thead><tr><th scope="col">Player</th>{tournament.bracketData.tableHeaders?.cols.map((col, index) => <th scope="col" key={index}>{col}</th>)}</tr></thead><tbody>{tournament.bracketData.tableContents?.map((row, index) => <tr key={index}><th scope="row">{tournament.bracketData?.tableHeaders?.rows[index]}</th>{row.map((cell, col) => <td key={col}>{cell ? [cell.result || cell.state || 'Pending', cell.score?.join('–')].filter(Boolean).join(' ') : '—'}</td>)}</tr>)}</tbody></table>}
                   <div className="bracket-rounds">
                     {rounds.map((round, index) => (
                       <div className="bracket-round" key={index}>

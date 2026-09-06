@@ -4,6 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="robots" content="noindex" />
+<meta name="referrer" content="no-referrer" />
 <title>Signing in — Showdown Arena</title>
 <style>
   :root { color-scheme: light dark; }
@@ -20,24 +21,6 @@
 </head>
 <body>
   <p id="status">Finishing sign-in…</p>
-  <script>
-    // The OAuth redirect target. The authorize page sends us back with
-    // ?assertion=…&token=…&user=…; hand that to the opener and close. The
-    // opener also polls this window's URL, so the flow survives a blocked
-    // postMessage.
-    (function () {
-      var params = new URLSearchParams(location.search);
-      var ok = !!params.get('assertion');
-      document.getElementById('status').textContent = ok ?
-        'Signed in. You can close this window.' :
-        'Sign-in was cancelled or failed. You can close this window.';
-      try {
-        if (window.opener) {
-          window.opener.postMessage({ type: 'ps-oauth', search: location.search }, location.origin);
-        }
-      } catch (error) { /* opener gone; the poller handles it */ }
-      if (ok) setTimeout(function () { window.close(); }, 400);
-    })();
-  </script>
+  <script src="/oauth-callback.js" defer></script>
 </body>
 </html>

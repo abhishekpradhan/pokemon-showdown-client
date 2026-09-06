@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 import { installMockPs } from './mock-ps';
 
 test.beforeEach(async ({ page }) => {
@@ -55,21 +55,13 @@ test('search creates a mock battle room and sends exact battle choices', async (
   await expect(page).toHaveURL(/\/battle\/battle-gen9ou-1/);
   await expect(page.locator('.battle-room-title')).toContainText('CodexTester');
   await expect(page.locator('.battle-room-title')).toContainText('MockRival');
-  await expect(page.getByRole('button', { name: /Moonblast/i })).toBeVisible();
-  await page.getByRole('button', { name: /Moonblast/i }).click();
-  // The target picker names the Pokémon standing in each slot; empty slots
-  // and the mover's own slot are disabled. Great Tusk (foe slot 1) is the
-  // only legal target here, and picking it sends the protocol's +1.
-  const target = page.getByRole('button', { name: /Great Tusk/i });
-  await expect(target).toBeEnabled();
-  await expect(page.locator('.target-button:disabled')).toHaveCount(3);
-  await target.click();
+  await expect(page.getByRole('button', { name: /^Moonblast,/i })).toBeVisible();
 
   // Dex tooltips are a fine-pointer affordance: hovering a move shows
   // power/accuracy and effect text; hovering a combatant shows base stats.
   // Touch devices keep the info panel instead, so mobile skips this block.
   if (!test.info().project.name.includes('mobile')) {
-    await page.getByRole('button', { name: /Moonblast/i }).hover();
+    await page.getByRole('button', { name: /^Moonblast,/i }).hover();
     const moveTip = page.getByRole('tooltip');
     await expect(moveTip).toBeVisible();
     await expect(moveTip.getByText('95')).toBeVisible();
@@ -79,6 +71,14 @@ test('search creates a mock battle room and sends exact battle choices', async (
     await expect(page.getByRole('tooltip').getByText('131').first()).toBeVisible();
     await page.mouse.move(0, 0);
   }
+
+  await page.getByRole('button', { name: /^Moonblast,/i }).click();
+  // This targeted request has one opponent slot and excludes the mover.
+  const target = page.locator('.target-button', { hasText: 'Great Tusk' });
+  await expect(target).toBeEnabled();
+  await expect(page.locator('.target-button')).toHaveCount(1);
+  await target.click();
+  await expect(page.locator('.move-choice')).toHaveCount(0);
 
   // The sound toggle lives in the toolbar and persists its state.
   const mute = page.getByRole('button', { name: /battle sounds/i });
@@ -114,6 +114,7 @@ test('closing the active tab moves to the neighbouring tab', async ({ page }) =>
 
   // Lobby (joined at connect) and the battle are both open; closing the
   // active battle should land on the lobby tab, not dump to matchmaking.
+  page.once('dialog', dialog => dialog.accept());
   await page.getByRole('button', { name: 'Close CodexTester v MockRival' }).click();
   await expect(page).toHaveURL(/\/room\/lobby/);
   await expect(page.getByRole('heading', { name: 'Lobby' })).toBeVisible();
@@ -136,6 +137,10 @@ test('teambuilder imports selects duplicates and deletes teams', async ({ page }
 
   await page.getByRole('button', { name: 'Duplicate Builder Test' }).click();
   await expect(page.getByRole('button', { name: 'Duplicate Builder Test copy' })).toBeVisible();
+  // Duplication preserves the visible edits as a recoverable draft; saving
+  // publishes that copy to the library before it can be deleted from there.
+  await page.getByRole('button', { name: 'Save as new team' }).click();
+  await expect(page.getByLabel('Saved teams').getByText('Builder Test copy', { exact: true })).toBeVisible();
 
   await page.getByRole('button', { name: 'Delete Builder Test copy' }).click();
   await page.getByRole('button', { name: 'Delete team' }).click();
@@ -172,7 +177,7 @@ test('keeps mobile battle controls usable without horizontal overflow', async ({
   await expect(page.getByRole('button', { name: 'CodexTester', exact: true })).toBeVisible();
   await page.getByRole('button', { name: /find battle/i }).click();
   await expect(page).toHaveURL(/\/battle\/battle-gen9ou-1/);
-  await expect(page.getByRole('button', { name: /Moonblast/i })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Moonblast,/i })).toBeVisible();
   const logButton = page.getByRole('button', { name: 'Open battle log' });
   await expect(logButton).toBeVisible();
   const toolbarBounds = await page.locator('.battle-toolbar').boundingBox();

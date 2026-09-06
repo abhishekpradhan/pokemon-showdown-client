@@ -20,14 +20,18 @@ import { CommandBar } from '../components/command-bar';
 import { SessionTabs } from '../components/session-tabs';
 import { StatusCallout } from '../components/status-callout';
 import { navItems } from '../navigation';
+import { ChallengeDialog } from '../components/challenge-dialog';
+import { openChallenge } from '../compat/ui-events';
 
 export function AppRoot() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { acceptChallenge, challenges, chooseName, connect, connection, disconnect, lastError, loginPending, loginWithOAuth, logout, named, oauthAvailable, reconnect, rejectChallenge, rooms, username } = useArenaStore(
-    useShallow(state => ({ acceptChallenge: state.acceptChallenge, challenges: state.challenges, rejectChallenge: state.rejectChallenge, chooseName: state.chooseName, connect: state.connect, connection: state.connection, disconnect: state.disconnect, lastError: state.lastError, loginPending: state.loginPending, loginWithOAuth: state.loginWithOAuth, logout: state.logout, named: state.named, oauthAvailable: state.oauthAvailable, reconnect: state.reconnect, rooms: state.rooms, username: state.username }))
+  const { challenges, chooseName, connect, connection, disconnect, lastError, loginPending, loginWithOAuth, logout, named, oauthAvailable, reconnect, rejectChallenge, rooms, username } = useArenaStore(
+    useShallow(state => ({ challenges: state.challenges, rejectChallenge: state.rejectChallenge, chooseName: state.chooseName, connect: state.connect, connection: state.connection, disconnect: state.disconnect, lastError: state.lastError, loginPending: state.loginPending, loginWithOAuth: state.loginWithOAuth, logout: state.logout, named: state.named, oauthAvailable: state.oauthAvailable, reconnect: state.reconnect, rooms: state.rooms, username: state.username }))
   );
-  const { notificationsEnabled, setTheme, theme } = useWorkspaceStore();
+  const { notificationsEnabled, setTheme, theme, reducedMotion } = useWorkspaceStore();
+  const sessionNotice = useArenaStore(state => state.sessionNotice);
+  const loginStage = useArenaStore(state => state.loginStage);
   const [nameInput, setNameInput] = useState(named ? username : '');
   const [accountOpen, setAccountOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -64,6 +68,30 @@ export function AppRoot() {
   useEffect(() => {
     if (import.meta.env.MODE !== 'test' && import.meta.env.VITE_PS_AUTOCONNECT !== 'false') connect();
   }, [connect]);
+
+  useEffect(() => {
+    const sync = () => {
+      const match = location.pathname.match(/^\/(battle|room)\/([^/]+)/);
+      const id = match ? decodeURIComponent(match[2]) : undefined;
+      useArenaStore.getState().focusRoom(document.hidden ? undefined : id);
+    };
+    sync();
+    document.addEventListener('visibilitychange', sync);
+    return () => document.removeEventListener('visibilitychange', sync);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    const open = (event: Event) => {
+      const path = (event as CustomEvent<string>).detail;
+      if (/^\/(?:room|battle)\/[a-z0-9-]+$/.test(path)) void navigate({ to: path });
+    };
+    const account = () => setAccountOpen(true);
+    window.addEventListener('arena:open-room', open);
+    window.addEventListener('arena:open-account', account);
+    return () => { window.removeEventListener('arena:open-room', open); window.removeEventListener('arena:open-account', account); };
+  }, [navigate]);
+
+  useEffect(() => { document.documentElement.dataset.reduceMotion = String(reducedMotion); }, [reducedMotion]);
 
   useEffect(() => {
     if (submittedAccountRef.current && accountOpen && named && !loginPending) {
@@ -151,7 +179,7 @@ export function AppRoot() {
             </div>
             <CommandBar />
             <div className="topbar-actions">
-              <div className="theme-segment" role="radiogroup" aria-label="Theme">
+              <div className="theme-segment" role="group" aria-label="Theme">
                 {([
                   { value: 'light', label: 'Light theme', icon: Sun },
                   { value: 'dark', label: 'Dark theme', icon: Moon },
@@ -160,8 +188,7 @@ export function AppRoot() {
                   <button
                     key={option.value}
                     type="button"
-                    role="radio"
-                    aria-checked={theme === option.value}
+                    aria-pressed={theme === option.value}
                     aria-label={option.label}
                     className={clsx(theme === option.value && 'is-selected')}
                     onClick={() => setTheme(option.value)}
@@ -199,7 +226,7 @@ export function AppRoot() {
                             </span>
                             <span className="challenge-actions">
                               <button type="button" className="primary-action" onClick={() => {
-                                acceptChallenge(challenger);
+                                openChallenge(challenger, format, true);
                                 setNotificationsOpen(false);
                               }}>Accept</button>
                               <button type="button" className="secondary-action" onClick={() => rejectChallenge(challenger)}>
@@ -230,7 +257,7 @@ export function AppRoot() {
                   </div>
                 )}
               </div>
-              <Dialog.Root open={accountOpen} onOpenChange={setAccountOpen}>
+              <Dialog.Root open={accountOpen} onOpenChange={open => { setAccountOpen(open); if (!open) useArenaStore.getState().cancelLogin(); }}>
                 <button
                   className="user-trigger"
                   type="button"
@@ -270,8 +297,8 @@ export function AppRoot() {
                       </button>
                       <p className="account-hint">
                         {oauthAvailable ?
-                          'Opens Pokémon Showdown to authorize this client. Your password is never typed here, and this browser stays signed in for two weeks.' :
-                          'Registered-account sign-in needs an OAuth client ID (VITE_PS_OAUTH_CLIENT_ID). Until then, unregistered names below work immediately.'}
+                          'Opens Pokémon Showdown to authorize this client. Your password stays with Pokémon Showdown. You can revoke access from your account there.' :
+                          'Registered sign-in is unavailable on this installation. You can use an unregistered guest name, or play on the official client.'}
                       </p>
                     </div>
                     <form className="account-form" onSubmit={submitName}>
@@ -290,7 +317,9 @@ export function AppRoot() {
                         accounts must use the button above.
                       </p>
                       {connection !== 'connected' && <StatusCallout tone="error">Connect before choosing a name.</StatusCallout>}
-                      {loginPending && <StatusCallout>Waiting for server confirmation.</StatusCallout>}
+                      {loginPending && <StatusCallout>{loginStage === 'authorization' ? 'Complete sign-in in the authorization window.' : 'Waiting for server confirmation.'}</StatusCallout>}
+                      {loginPending && <button className="secondary-action" type="button" onClick={() => useArenaStore.getState().cancelLogin()}>Cancel sign-in</button>}
+                      {sessionNotice && <StatusCallout>{sessionNotice}</StatusCallout>}
                       {lastError && <StatusCallout tone="error">{lastError}</StatusCallout>}
                       <div className="button-row">
                         <button className="secondary-action" type="submit" disabled={loginPending || !nameInput.trim()}>
@@ -314,6 +343,8 @@ export function AppRoot() {
           </header>
 
           <SessionTabs />
+          <ChallengeDialog />
+          {sessionNotice && <div className="global-notice" role="status">{sessionNotice}<button type="button" className="secondary-action" onClick={() => window.location.reload()}>Reload</button><button type="button" className="icon-button" aria-label="Dismiss notice" onClick={() => useArenaStore.setState({ sessionNotice: undefined })}><X size={14} /></button></div>}
 
           <main id="workspace" className="workspace" tabIndex={-1}>
             <Outlet />

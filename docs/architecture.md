@@ -1,208 +1,43 @@
 # Architecture
 
-Why the client is put together the way it is. For how to run it, see the
-[README](../README.md). For the July 2026 top-down review and the phased
-modernization plan (battle-engine swap, room registry, session model), see
-[architecture-review.md](architecture-review.md).
+Showdown Arena is a Vite/React browser application connected directly to a Pokémon Showdown-compatible server. Zustand owns client/room state; TanStack Router owns the visible route. `@pkmn/client` derives battle mechanics from protocol, and `@pkmn/data`, `@pkmn/dex` and `@pkmn/img` supply game data and asset lookup.
 
-## The shape of the problem
+The [September audit](project-audit-2026-09-05.md) and [July architecture review](architecture-review.md) are historical snapshots. Their findings describe the code at those dates. Consult [implementation status](implementation-status.md), [compatibility](compatibility.md) and current tests for present behavior.
 
-This is a thin client for a stateful server we do not control. That single fact
-drives most decisions:
+## Ownership
 
-- **The protocol is the contract.** Everything else is replaceable; wire
-  compatibility is not.
-- **The server is the source of truth.** The client projects server state for
-  display. It never simulates battles, and it must not invent facts the server
-  did not send.
-- **Traffic is a firehose.** Battle events, lobby chat and roomlists arrive
-  continuously. Anything on the render path pays that cost repeatedly.
+| Directory | Responsibility |
+| --- | --- |
+| `src/compat/` | Wire framing/transport, OAuth/guest assertions, packed/text teams, notifications |
+| `src/protocol/` | Route protocol frames to global state or the owning room |
+| `src/rooms/` | Chat, PM and battle room records and lifecycle helpers |
+| `src/battle/` | Engine loading, protocol projection, sound |
+| `src/data/` | Lazy game-data access and sprite resolution |
+| `src/stores/` | Session, selection, rooms, team persistence and display preferences |
+| `src/screens/`, `src/components/` | Routed surfaces, decisions, accessibility and reusable controls |
+| `src/styles/` | Semantic tokens, surface styles and responsive/reduced-motion rules |
+| `src/pwa.ts`, `public/sw.js` | Offline installation, update consent and bounded cache recovery |
+| `api/`, `server/proxy.ts` | Fixed-upstream guest assertion and replay Request handlers |
+| `server/dev-api.ts` | Node adapter using those same handlers in Vite dev/preview |
+| `server/build-artifacts.ts` | Offline asset manifest and source/dependency provenance |
+| `e2e/production/` | Built callback/header/proxy/PWA verification |
 
-## Layers
+## Network and trust boundaries
 
-```
-  screens/ components/     React surfaces
-        stores/            client state (zustand)
-        compat/            wire protocol
-        data/              game data (@pkmn)
-```
+The socket goes straight from the browser to the selected battle server. HTTP endpoints have separate ownership: guest assertions use `/api/action`; registered OAuth uses the configured provider; replay uploads use `/api/replay`; replay downloads, ladder data, sprites/audio and embedded room media contact their configured hosts. See [self-hosting](self-hosting.md) and [privacy](privacy.md).
 
-Dependencies point downward. `compat/` knows nothing about React; `data/` knows
-nothing about the protocol.
+The APIs accept only specified form fields, reject cross-origin browser requests, bound incoming UTF-8 bytes and outgoing responses, and apply deadlines. They do not forward cookies, arbitrary authorization headers, or upstream response headers. Production responses are inert text with `no-store`. Rate/concurrency enforcement belongs to the hosting platform; the fixed upstream and origin checks are not a general authentication system.
 
-### `compat/` — the protocol
+Server HTML passes through DOMPurify with a bounded payload/element count. Safe room/battle navigation and information/poll commands remain interactive; arbitrary account, moderation and battle commands do not. CSS layout is contained by the renderer. CSP permits required external requests/media and custom sockets, but forbids foreign scripts, embedded frames and objects. OAuth callback code is an external same-origin script and clears its query URL after handing the result to its opener.
 
-- `protocol-client.ts` — WebSocket lifecycle, framing, reconnect backoff, and a
-  send queue so messages composed while offline are not lost.
-- `login-server.ts` — the `action.php` handshake.
-- `battle-adapter.ts` — projects protocol messages into the battle state the UI
-  renders, and builds `/choose` commands.
-- `team-store.ts` — import/export of packed and exported team formats.
+## State and lifecycle
 
-### `data/` — game facts
+Room records own chat and battle views. Protocol-derived mechanics belong to the battle engine; local action drafts belong to the client and are submitted against the current request. A visible route, server session and background notification are distinct concepts. Cancellation, reconnect, server change and logout must invalidate work from the previous session. Persistent schemas are versioned and validated before use; failed saves must remain visible and recoverable.
 
-Wraps [`@pkmn`][pkmn], the maintained extraction of Showdown's own data.
+Game data/engine and routed screens are separate chunks. Failure to load a chunk must offer retry/recovery; it must not silently become invented game data. The build's offline manifest preloads local application resources, including team editing and the dex, once installation succeeds. A worker serves its own matching shell, retains at most one previous version for older tabs, and never caches OAuth/API responses. [Offline contract](offline.md).
 
-The client used to infer game facts from strings — move types from move names,
-sprite filenames from species names. This cannot be made correct by adding
-special cases, because the underlying mappings are arbitrary: "Knock Off" is
-Dark, `Pikachu-Original` is `pikachu-original.gif`, `Urshifu-Rapid-Strike` is
-`urshifu-rapidstrike.gif`. Look it up or do not show it.
+## Testing and release evidence
 
-`effectiveness()` returns `null` rather than `1` when the dex has not loaded, so
-callers can hide a hint instead of rendering a wrong one.
+Use pure/unit tests for parsers, choices, persistence and failure transitions; browser tests for real input, focus, layout and accessibility; production tests for the built shell and HTTP boundaries. Fixture-based tests should compare the documented upstream behavior and include negative cases that the mock rejects. The opt-in public smoke checks only a guest handshake; controlled battle evidence is needed for mechanics and tournament transitions.
 
-  [pkmn]: https://github.com/pkmn/ps
-
-### `stores/` — client state
-
-`arena-store.ts` holds connection, rooms, battles and teams;
-`workspace-store.ts` holds display preferences.
-
-Components subscribe to slices with `useShallow`. Subscribing to the whole
-store re-renders the entire tree on every protocol frame.
-
-## Decisions worth knowing
-
-### The login proxy
-
-Showdown's login server sends no `Access-Control-Allow-Origin` header, so a
-browser on any origin other than `play.pokemonshowdown.com` cannot call it.
-A standalone client therefore *has* to proxy it — this is not a convenience.
-
-`/api/action` is that proxy: a serverless function in production, a Vite proxy
-in development, one code path in the client. Its upstream is fixed server-side,
-so it is not an open proxy, and it never logs request bodies because they carry
-passwords and assertions.
-
-Battle traffic does **not** go through it — the WebSocket connects directly.
-
-### Loading the dex
-
-The dataset is ~1.8 MB (345 kB gzipped) and learnsets another 3.2 MB. Blocking
-first paint on that is unacceptable, and bundling it into the shell is worse.
-
-`loadDex()` fires at boot and resolves into module state; accessors return
-`undefined` until it lands. Because a battle can open before the chunk
-resolves, the store keeps the last raw `|request|` per room and re-derives when
-the dex is ready. Learnsets stay a separate lazy chunk — do not name them in
-`manualChunks`, or Rollup flattens both into one 5 MB download.
-
-### HP is asymmetric
-
-The server tells you your own exact HP (`155/281`) and only a percentage for
-the opponent. `PokemonSet` models this directly: `hp` is always a percentage,
-`currentHp`/`maxHp` are present only for your own side in a battle you are
-playing — spectating and replays get percentages for both, because that is all
-those logs contain. Showing a fabricated exact number would be a lie, and
-"100/100" reads exactly like one.
-
-### Requests describe a side, not a battle
-
-`|request|` carries your species, HP, moves and PP. It carries no stat stages,
-volatiles or Terastallization — those are only ever learned from protocol
-lines. So `battleFromRequest` merges rather than replaces: rebuilding the team
-wholesale from each turn's request erased your own boosts while the opponent's,
-never rebuilt from a request, persisted.
-
-### Which side is ours
-
-`playerSide` comes from `|player|` matched against the logged-in username,
-because that arrives before the switches that populate the field, whereas the
-first `|request|` may not. A stale assumption here does not fail loudly — it
-quietly renders the opponent's nameplate from our own Pokémon.
-
-### Styling
-
-Layered plain CSS. `styles/tokens.css` owns the palette and scales; each
-surface owns a file; `styles.css` is imports only and its order is the cascade
-order.
-
-There is no CSS framework. Tailwind was a dependency for a while without a
-single utility class being used, while its reset fought the hand-written rules.
-
-The stylesheet previously contained two complete design systems stacked on top
-of each other, which is worth remembering: the failure mode was not dead code,
-it was rules that *half*-applied. A leftover responsive rule from the abandoned
-layout silently broke the battle inspector at laptop widths.
-
-## Testing
-
-Four tiers, and the distinction matters:
-
-| Tier | Runs against | Catches |
-| --- | --- | --- |
-| Vitest | pure functions | parsing and state-projection logic |
-| Playwright | `e2e/mock-ps.ts` | UI flows and regressions |
-| `layout` + `a11y` specs | rendered pages | collapsed layout, overflow, contrast, landmarks, tap sizes |
-| `test:live` | a **real** server | handshake drift |
-
-`layout.spec.ts` and `a11y.spec.ts` exist because CSS breaks silently: the
-page still renders, nothing throws, and only a person looking at the right
-screen notices. Both were written after changes of exactly that kind shipped,
-and both caught real bugs the moment they were added.
-
-The mock must reject what a real server rejects. When it did not — it accepted
-`/trn` with no assertion — a client that could not log in at all shipped with a
-green suite, and the live smoke test agreed, because it only checked that
-*some* `|updateuser|` arrived rather than a named one.
-
-The lesson generalises: a mock encodes your assumptions, so it confirms your
-mistakes. When fixing a protocol bug, teach the mock to fail on it.
-
-## Information architecture
-
-The Battle page is the hub: matchmaking, challenges, and the live-battle
-directory (watch anything in progress) live together, because "find a battle"
-and "watch a battle" are the same intent. Rooms is the chat directory only. A
-battle takes navigation focus exactly once, when it opens; after that every
-surface stays reachable — steering the router at spectators is a bug, not a
-feature.
-
-## Motion
-
-There is no JS animation library. Framer-motion drove entrance fades until a
-frozen animation left entire surfaces stuck at 26% opacity — rAF-driven
-animation halts in throttled tabs, and anything readability-critical must not
-depend on an animation loop ticking. All motion is CSS: transitions for state
-(HP width, faint dimming), keyframes for choreography (lunge, shake, the
-action banner), all flattened by both reduced-motion paths.
-
-The action banner is how battles read: |move|, |faint|, and outcome notes
-(super-effective, crit, miss) each announce on the field itself; plain damage
-lines shake the target but never clear an in-flight announcement.
-
-## Theming
-
-Every surface colour flows from semantic tokens in `tokens.css`; the light
-theme is a token override block selected by `[data-theme]`, which app-root
-stamps from the Settings preference (light / dark / system, tracking the OS
-via matchMedia). Three slots exist per theme where one value cannot serve
-both: accent-as-text on tinted chips, text on accent-filled controls, and
-inverse chrome (tooltips, the skip link). The battle field stays scenery-dark
-in both themes by design. Hardcoded colours in stylesheets are a regression:
-the light-theme axe audit in `a11y.spec.ts` is what catches them.
-
-## Colour-blindness
-
-No state is encoded by hue alone: stat stages are signed (+1/−2) as text,
-status and type chips carry their names, readiness rows pair icons with
-labels, and HP always shows a number next to the bar. The light and dark axe
-audits keep every pair above AA contrast, which also preserves lightness
-separation for the common dichromacies.
-
-## Known gaps
-
-- No sound. Field choreography is deliberately minimal: protocol-driven CSS
-  emphasis (attack lunge, hit shake, faint drop) rather than full move
-  animations, and it obeys both reduced-motion paths.
-- Team validation is structural plus dex-backed *warnings* (unknown
-  species/moves/abilities/items, EV totals, Species Clause duplicates). Full
-  format legality (clauses, bans, tier lists) stays with the server, which
-  rejects illegal teams at match time — the client never blocks a team the
-  local dex cannot prove illegal.
-- Tournaments are not implemented.
-
-Closed in July 2026: doubles now render every active slot at its protocol
-position, and the target picker names the Pokémon standing in each slot
-(protocol convention: positive targets are foes, negative are allies).
+CI checks TypeScript across app/API/browser-test code, lint, dependency advisories/licenses, bundle budgets, desktop/mobile/browser flows, macOS visual baselines and production boundary tests. [Release checklist](releases.md) defines the separate deployed smoke and source-revision checks.

@@ -3,6 +3,7 @@ import { Hash, RefreshCw, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useArenaStore } from '../stores/arena-store';
+import { useWorkspaceStore } from '../stores/workspace-store';
 
 /**
  * The room directory: browse and join. Open rooms live in the session tabs
@@ -21,6 +22,8 @@ export function RoomsScreen() {
     }))
   );
   const [query, setQuery] = useState('');
+  const [joinName, setJoinName] = useState('');
+  const { favoriteRooms, setPreference } = useWorkspaceStore();
   const normalized = query.trim().toLowerCase();
   const matches = (title: string, id: string) =>
     !normalized || title.toLowerCase().includes(normalized) || id.includes(normalized);
@@ -86,16 +89,20 @@ export function RoomsScreen() {
         </div>
       </header>
 
+      <form className="room-history-tools" onSubmit={event => { event.preventDefault(); const id = joinName.trim().toLowerCase().replace(/^https?:\/\/(?:play\.)?pokemonshowdown\.com\//, ''); if (/^[a-z0-9-]+$/.test(id)) chooseRoom(id, id.startsWith('battle-')); }}>
+        <label>Join by name or official URL <input aria-label="Room to join" value={joinName} onChange={event => setJoinName(event.currentTarget.value)} placeholder="lobby" /></label><button type="submit" className="secondary-action" disabled={!joinName.trim() || connection !== 'connected'}>Join room</button>
+      </form>
+      {favoriteRooms.length > 0 && <div className="room-history-tools" aria-label="Favorite rooms">{favoriteRooms.map(id => <button type="button" className="secondary-action" key={id} onClick={() => chooseRoom(id)}>{id}</button>)}</div>}
+
       <div className="directory-chat">
         {chatSections.map(([section, sectionRooms]) => (
           <section key={section} aria-label={section}>
             <div className="directory-section-label">{section}</div>
             <div className="directory-grid">
               {sectionRooms.map(room => (
-                <button
+                <div key={room.id} className="directory-room-entry"><button
                   type="button"
                   className="directory-card"
-                  key={room.id}
                   onClick={() => chooseRoom(room.id)}
                   title={room.desc}
                 >
@@ -103,6 +110,7 @@ export function RoomsScreen() {
                   <small>{room.desc || 'Chat room'}</small>
                   <i>{room.userCount.toLocaleString()} online</i>
                 </button>
+                <button type="button" className="secondary-action" aria-label={`${favoriteRooms.includes(room.id) ? 'Unfavorite' : 'Favorite'} ${room.title}`} aria-pressed={favoriteRooms.includes(room.id)} onClick={() => setPreference('favoriteRooms', favoriteRooms.includes(room.id) ? favoriteRooms.filter(id => id !== room.id) : [...favoriteRooms, room.id])}>{favoriteRooms.includes(room.id) ? '★ Saved' : '☆ Save'}</button></div>
               ))}
             </div>
           </section>

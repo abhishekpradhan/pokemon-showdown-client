@@ -9,11 +9,12 @@ export async function installMockPs(page: Page) {
     const battleRequest = JSON.stringify({
       rqid: 7,
       side: {
+        id: 'p1',
         name: 'CodexTester',
         pokemon: [
-          { ident: 'p1: Iron Valiant', details: 'Iron Valiant, L80', condition: '156/200', active: true },
-          { ident: 'p1: Heatran', details: 'Heatran, L80', condition: '184/200' },
-          { ident: 'p1: Dragapult', details: 'Dragapult, L80', condition: '0 fnt' },
+          { ident: 'p1: Iron Valiant', details: 'Iron Valiant, L80', condition: '156/200', active: true, moves: ['moonblast', 'closecombat'], ability: 'quarkdrive', item: '' },
+          { ident: 'p1: Heatran', details: 'Heatran, L80', condition: '184/200', moves: ['lavaplume'], ability: 'flashfire', item: 'leftovers' },
+          { ident: 'p1: Dragapult', details: 'Dragapult, L80', condition: '0 fnt', moves: ['shadowball'], ability: 'infiltrator', item: '' },
         ],
       },
       active: [{
@@ -207,8 +208,17 @@ export async function installMockPs(page: Page) {
       return Promise.resolve(new Response(''));
     }) as typeof window.fetch;
 
+    // Vite owns a different WebSocket for HMR. Mock only the simulator
+    // endpoint so browser tests retain real dev-server reload behavior.
+    const realWebSocket = window.WebSocket;
+    const routedWebSocket = new Proxy(realWebSocket, {
+      construct(target, args) {
+        const url = new URL(String(args[0]), window.location.href);
+        return url.pathname.endsWith('/websocket') ? new MockPsWebSocket(url.href) : Reflect.construct(target, args);
+      },
+    });
     Object.assign(window, {
-      WebSocket: MockPsWebSocket,
+      WebSocket: routedWebSocket,
       __mockPsSent: sent,
       __mockPsSockets: sockets,
     });

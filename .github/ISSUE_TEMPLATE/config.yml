@@ -1,1 +1,8 @@
 blank_issues_enabled: true
+contact_links:
+  - name: Private vulnerability report
+    url: https://github.com/abhishekpradhan/pokemon-showdown-client/security/advisories/new
+    about: Security details must be reported privately; see SECURITY.md if the form is unavailable.
+  - name: Setup and support
+    url: https://github.com/abhishekpradhan/pokemon-showdown-client/blob/main/SUPPORT.md
+    about: Setup guidance, report preparation and maintainer contact paths.

@@ -6,9 +6,9 @@ import DOMPurify from 'dompurify';
  *
  * The allowlist admits what real PS content uses — tables, images, fonts,
  * command buttons, inline styles with https backgrounds — while refusing
- * scripts, frames, forms, event handlers and non-https URLs. Layout
- * geometry is trusted the way the official client trusts it (Caja passes
- * it through; the server vets room HTML); only position:fixed is refused.
+ * scripts, frames, forms and event handlers. The renderer contains layout;
+ * escaped CSS and fixed positioning cannot escape that boundary. Only vetted
+ * navigation, information and poll commands remain interactive.
  *
  * Server content is authored against the official client's surfaces and
  * often uses extreme colors (white text) that depend on a backdrop we may
@@ -33,6 +33,7 @@ const PURIFY_OPTIONS = {
     'href', 'target', 'rel', 'title', 'src', 'alt', 'width', 'height',
     'style', 'align', 'valign', 'colspan', 'rowspan', 'border', 'cellpadding',
     'cellspacing', 'color', 'size', 'face', 'bgcolor', 'name', 'value', 'class',
+    'data-cmd', 'data-href',
   ],
   // NOTE: no custom ALLOWED_URI_REGEXP — DOMPurify applies it to EVERY
   // attribute outside its URI-safe set, so a strict one silently strips
@@ -41,16 +42,56 @@ const PURIFY_OPTIONS = {
   ALLOW_DATA_ATTR: false,
 };
 
+/** Showdown internal links belong to this client; other web links open separately. */
+export function normalizeChatHref(value: string): string | null {
+  const href = value.trim();
+  if (!href || href.length > 2048 || href.includes('\\') || [...href].some(character => character.charCodeAt(0) <= 32)) return null;
+  let url: URL;
+  try { url = new URL(href, 'https://play.pokemonshowdown.com/'); }
+  catch { return null; }
+  if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password) return null;
+  if (url.hostname !== 'play.pokemonshowdown.com') return url.href;
+  const path = (url.hash || url.pathname).replace(/^[/#]/, '').replace(/\/$/, '');
+  if (!path) return '/';
+  if (/^(?:room|battle)\/[a-z0-9-]{1,200}$/.test(path)) return `/${path}`;
+  if (/^(?:teambuilder|settings|rooms|ladder|replays)$/.test(path)) return `/${path}`;
+  if (/^battle-[a-z0-9-]{1,200}$/.test(path)) return `/battle/${path}`;
+  if (/^[a-z0-9-]{1,200}$/.test(path) && !/\.(?:html|php|js)$/.test(path)) return `/room/${path}`;
+  return null;
+}
+
+/** Rich content cannot issue account, battle, moderation or arbitrary chat actions. */
+export function isSafeChatCommand(command: string): boolean {
+  if (command.length > 300 || /[\r\n\0|]/.test(command)) return false;
+  return /^\/(?:join|j) [a-z0-9-]{1,200}$/i.test(command) ||
+    /^\/(?:rules|help|faq|roomintro|data|dt|details|learn|dexsearch|movesearch|itemsearch|abilitysearch)(?: [^/]{1,250})?$/i.test(command) ||
+    /^\/(?:cmd|query) (?:rooms|roomlist|userdetails [a-z0-9]{1,18})$/i.test(command) ||
+    /^\/poll (?:vote [1-9]\d*(?:,\s*[1-9]\d*)*|view|results)$/i.test(command);
+}
+
 DOMPurify.addHook('afterSanitizeAttributes', node => {
   if (node.tagName === 'A') {
-    const href = node.getAttribute('href') || '';
-    if (!/^https?:\/\//i.test(href)) node.removeAttribute('href');
-    node.setAttribute('target', '_blank');
+    const href = normalizeChatHref(node.getAttribute('href') || '');
+    if (href) node.setAttribute('href', href);
+    else node.removeAttribute('href');
+    node.setAttribute('target', href?.startsWith('/') ? '_self' : '_blank');
     node.setAttribute('rel', 'noopener noreferrer');
   }
+  const navigation = node.getAttribute('data-href');
+  if (navigation !== null) {
+    const href = normalizeChatHref(navigation);
+    if (href) node.setAttribute('data-href', href);
+    else node.removeAttribute('data-href');
+  }
+  const command = node.getAttribute('data-cmd');
+  if (command !== null && !isSafeChatCommand(command)) node.removeAttribute('data-cmd');
   // Buttons stay inert form-wise; clicks are delegated to the room's command
   // sender (polls, /join buttons).
-  if (node.tagName === 'BUTTON') node.setAttribute('type', 'button');
+  if (node.tagName === 'BUTTON') {
+    node.setAttribute('type', 'button');
+    const value = node.getAttribute('value');
+    if (value !== null && !isSafeChatCommand(value)) node.removeAttribute('value');
+  }
   if (node.tagName === 'IMG') {
     // PS content uses https, protocol-relative (//play.pokemonshowdown.com/…)
     // and data:image sources; the official tagPolicy accepts all three, and
@@ -75,7 +116,7 @@ DOMPurify.addHook('afterSanitizeAttributes', node => {
     // outside it, the regex engine backtracks it to empty and the lookahead
     // rejects quoted https URLs (url('https://…') killed the Lobby banner).
     if (
-      /expression\s*\(|@import|behavior\s*:/i.test(normalized) ||
+      /\\|\/\*|expression\s*\(|@import|behavior\s*:/i.test(normalized) ||
       /url\s*\(\s*(?!['"]?https:\/\/)/i.test(normalized)
     ) {
       node.removeAttribute('style');
@@ -186,7 +227,11 @@ const colorIsJustified = (declaration: HTMLElement): boolean => {
 const hasBackdrop = (start: HTMLElement): boolean => chainBackground(start) !== null;
 
 export const sanitizeChatHtml = (html: string): string => {
+  // Fail closed before parsing a payload that can stall the UI. Do not truncate
+  // inside markup and accidentally reinterpret its closing tags.
+  if (html.length > 256 * 1024) return '<p>Room content is too large to display safely.</p>';
   const fragment = DOMPurify.sanitize(html, { ...PURIFY_OPTIONS, RETURN_DOM_FRAGMENT: true });
+  if (fragment.querySelectorAll('*').length > 3000) return '<p>Room content is too complex to display safely.</p>';
 
   // Keep an extreme color only when contrast-justified; otherwise drop it
   // and the text-shadow designed around it (shadows INHERIT — left in place

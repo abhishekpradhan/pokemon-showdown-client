@@ -48,14 +48,18 @@ describe('PS protocol helpers', () => {
     expect(frame.lines[2].args[0]).toBe('{"rqid":3}');
   });
 
-  it('queues messages while offline and flushes on connect', () => {
+  it('queues only replaceable public queries while offline', () => {
     const client = new ProtocolClient(server, FakeWebSocket as unknown as typeof WebSocket);
     const states: string[] = [];
     client.subscribe(event => {
       if (event.type === 'state') states.push(event.state);
     });
 
-    client.send('/search gen9ou');
+    expect(client.send('/search gen9ou')).toBe(false);
+    expect(client.send('/utm private-team')).toBe(false);
+    expect(client.send('/trn name,0,assertion')).toBe(false);
+    expect(client.send('/choose move 1|2', 'battle-gen9ou-1')).toBe(false);
+    client.send('/cmd rooms');
     expect(client.queuedCount()).toBe(1);
 
     client.connect();
@@ -63,8 +67,36 @@ describe('PS protocol helpers', () => {
     socket.onopen?.();
 
     expect(states).toContain('connected');
-    expect(socket.sent).toEqual(['|/search gen9ou']);
+    expect(socket.sent).toEqual(['|/cmd rooms']);
     expect(client.queuedCount()).toBe(0);
+  });
+
+  it('ignores late callbacks from a replaced socket', () => {
+    const client = new ProtocolClient(server, FakeWebSocket as unknown as typeof WebSocket);
+    client.connect();
+    const old = FakeWebSocket.instances[0];
+    const lateClose = old.onclose;
+    const lateOpen = old.onopen;
+    const lateError = old.onerror;
+    old.onopen?.();
+    client.reconnect();
+    const fresh = FakeWebSocket.instances[1];
+    fresh.onopen?.();
+    lateClose?.(); lateOpen?.(); lateError?.();
+    expect(client.state).toBe('connected');
+    expect(client.send('/choose move 1|2', 'battle-gen9ou-1')).toBe(true);
+    expect(fresh.sent).toEqual(['battle-gen9ou-1|/choose move 1|2']);
+    expect(old.sent).toEqual([]);
+    client.disconnect();
+  });
+
+  it('drops the previous server queue before opening a new server', () => {
+    const client = new ProtocolClient(server, FakeWebSocket as unknown as typeof WebSocket);
+    client.send('/cmd rooms');
+    client.setServer({ ...server, host: 'other.example' });
+    FakeWebSocket.instances[0].onopen?.();
+    expect(FakeWebSocket.instances[0].sent).toEqual([]);
+    client.disconnect();
   });
 
   it('emits parsed frames from websocket messages', () => {

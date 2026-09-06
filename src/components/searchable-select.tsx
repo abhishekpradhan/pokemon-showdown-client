@@ -116,6 +116,11 @@ export function SearchableSelect({
     return sections;
   }, [visibleOptions]);
 
+  const enabledOptions = useMemo(() => grouped.flatMap(section => section.options).filter(option => !option.disabled), [grouped]);
+
+  const enabledIndices = useMemo(() => new Map(enabledOptions.map((option, index) => [option.value, index])), [enabledOptions]);
+  const optionId = (optionValue: string) => `${ariaLabel.replace(/\s+/g, '-').toLowerCase()}-${encodeURIComponent(optionValue)}`;
+
   const choose = (nextValue: string) => {
     onValueChange(nextValue);
     setOpen(false);
@@ -124,11 +129,11 @@ export function SearchableSelect({
 
   useEffect(() => {
     if (!open) return;
-    optionRefs.current[activeIndex]?.scrollIntoView({ block: 'nearest' });
+    optionRefs.current[activeIndex]?.scrollIntoView?.({ block: 'nearest' });
   }, [activeIndex, open]);
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    const enabledOptions = visibleOptions.filter(option => !option.disabled);
+    if (open && ['ArrowDown', 'ArrowUp', 'Home', 'End', 'Enter', 'Escape'].includes(event.key)) event.stopPropagation();
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault();
       if (!open) {
@@ -185,11 +190,11 @@ export function SearchableSelect({
         aria-haspopup="listbox"
         onClick={() => {
           setOpen(current => !current);
-          setActiveIndex(Math.max(0, visibleOptions.filter(option => !option.disabled).findIndex(option => option.value === value)));
+          setActiveIndex(Math.max(0, enabledOptions.findIndex(option => option.value === value)));
         }}
       >
         <span>
-          <strong>{selected?.label || placeholder}</strong>
+          <strong>{selected?.label || value || placeholder}</strong>
           {selected?.meta && <em>{selected.meta}</em>}
         </span>
         <ChevronDown size={16} aria-hidden />
@@ -200,8 +205,6 @@ export function SearchableSelect({
           className="select-popover"
           ref={popRef}
           style={popStyle}
-          role="listbox"
-          aria-label={ariaLabel}
           tabIndex={-1}
           onKeyDown={handleKeyDown}
           onBlur={closeIfFocusLeft}
@@ -211,7 +214,7 @@ export function SearchableSelect({
             <input
               autoFocus
               aria-label={`${ariaLabel} filter`}
-              aria-activedescendant={visibleOptions.filter(option => !option.disabled)[activeIndex] ? `${ariaLabel.replace(/\s+/g, '-').toLowerCase()}-${visibleOptions.filter(option => !option.disabled)[activeIndex].value}` : undefined}
+              aria-activedescendant={enabledOptions[activeIndex] ? optionId(enabledOptions[activeIndex].value) : undefined}
               aria-controls={`${ariaLabel.replace(/\s+/g, '-').toLowerCase()}-options`}
               role="combobox"
               aria-expanded="true"
@@ -223,25 +226,25 @@ export function SearchableSelect({
               }}
             />
           </label>
-          <div className="select-options" id={`${ariaLabel.replace(/\s+/g, '-').toLowerCase()}-options`}>
+          <div className="select-options" role="listbox" aria-label={ariaLabel} id={`${ariaLabel.replace(/\s+/g, '-').toLowerCase()}-options`}>
             {grouped.length ? grouped.map(section => (
               <div className="select-section" key={section.group}>
                 <span>{section.group}</span>
                 {section.options.map(option => {
-                  const enabledIndex = visibleOptions.filter(entry => !entry.disabled).findIndex(entry => entry.value === option.value);
+                  const enabledIndex = enabledIndices.get(option.value) ?? -1;
                   return (
                   <button
                     ref={element => { if (enabledIndex >= 0) optionRefs.current[enabledIndex] = element; }}
                     type="button"
                     role="option"
-                    id={`${ariaLabel.replace(/\s+/g, '-').toLowerCase()}-${option.value}`}
+                    id={optionId(option.value)}
                     aria-selected={option.value === value}
                     className={clsx('select-option', option.value === value && 'is-selected', enabledIndex === activeIndex && 'is-active')}
                     disabled={option.disabled}
                     key={option.value}
                     onMouseDown={event => event.preventDefault()}
                     onMouseEnter={() => enabledIndex >= 0 && setActiveIndex(enabledIndex)}
-                    onClick={() => choose(option.value)}
+                    onClick={() => { choose(option.value); triggerRef.current?.focus(); }}
                   >
                     <span className="select-option-gutter" aria-hidden>
                       {option.value === value && <Check size={14} />}

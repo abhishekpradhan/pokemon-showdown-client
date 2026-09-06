@@ -5,7 +5,7 @@ import reactRefresh from 'eslint-plugin-react-refresh';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['dist', 'node_modules', 'playwright-report', 'test-results'] },
+  { ignores: ['dist', 'node_modules', 'playwright-report*', 'test-results*'] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ['src/**/*.{ts,tsx}'],
@@ -23,10 +23,20 @@ export default tseslint.config(
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
     },
   },
+  {
+    extends: [js.configs.recommended],
+    files: ['public/*.js'],
+    languageOptions: { globals: { ...globals.browser, ...globals.serviceworker } },
+  },
+  {
+    extends: [js.configs.recommended],
+    files: ['scripts/*.cjs'],
+    languageOptions: { globals: globals.node },
+  },
   // Node contexts: the serverless proxy, e2e specs and maintenance scripts.
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
-    files: ['api/**/*.ts', 'e2e/**/*.ts', 'scripts/**/*.{js,mjs}', '*.config.{ts,js}'],
+    files: ['api/**/*.ts', 'server/**/*.ts', 'e2e/**/*.ts', 'scripts/**/*.{js,mjs}', '*.config.{ts,js}'],
     languageOptions: {
       ecmaVersion: 2022,
       globals: { ...globals.node, ...globals.browser },

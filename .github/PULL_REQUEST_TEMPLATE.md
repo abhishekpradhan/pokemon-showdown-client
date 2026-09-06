@@ -1,32 +1,24 @@
-## Summary
+## Behavior
 
-<!-- What changes for the person using the client, and why. -->
+<!-- Describe the concrete problem, resulting behavior and linked issue/audit acceptance criteria. -->
 
-## Verification
+## Evidence
 
-- [ ] `npm run check` (typecheck, lint, unit tests)
-- [ ] `npm run test:e2e`
+- [ ] `npm run check` (includes API/E2E typechecking and unit tests)
+- [ ] `npm run check:licenses`
+- [ ] `npm run build` (includes bundle budgets/provenance)
+- [ ] Relevant desktop/mobile, accessibility and production tests
+- [ ] `npm run test:integration` for changed protocol/battle/tournament workflows
+- [ ] Visual changes reviewed with before/after screenshots and intentional baseline updates
 
-If this touches `src/compat/`, `api/`, or anything else on the protocol path:
+<!-- List the commands/results and any real limitations. For protocol changes include affected formats, transition fixtures, and controlled real-server evidence. The live handshake smoke alone does not validate a battle. -->
 
-- [ ] `LIVE_PS_TESTS=1 npm run test:live`
-- [ ] Played a real battle against a live server
+## Compatibility and maintenance
 
-<!-- Say how you verified it. "Tests pass" is not sufficient on its own for
-     protocol changes: the suites are mocked, and a mock that shares your
-     assumption will keep confirming it. -->
+- [ ] Failure, cancellation, reconnect and storage migration behavior considered where affected
+- [ ] Regression demonstrates the prior failure, including mock rejection when applicable
+- [ ] Privacy/security-sensitive data is absent from logs, screenshots and fixtures
+- [ ] Documentation, compatibility status and changelog match the final change
+- [ ] Upstream attribution, dependency notices and deployed source link preserved
 
-## Regression coverage
-
-- [ ] If this fixes a bug, a test now fails without the fix
-
-<!-- For protocol bugs that usually means teaching e2e/mock-ps.ts to reject the
-     wrong behaviour too. -->
-
-## Screenshots
-
-<!-- For UI changes. Before and after, if you changed something that existed. -->
-
-## Licence
-
-- [ ] AGPLv3 attribution and source-availability link remain intact
+<!-- Document remaining limitations or why a checklist item is not applicable. -->

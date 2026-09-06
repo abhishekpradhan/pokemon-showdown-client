@@ -20,15 +20,17 @@ export const requestNotifyPermission = async (): Promise<boolean> => {
   }
 };
 
-export const desktopNotify = (title: string, body: string, tag: string): void => {
+export const desktopNotify = (title: string, body: string, tag: string, path?: string): void => {
   if (!canNotify() || !document.hidden) return;
   try {
     const notification = new Notification(title, { body, tag, icon: '/icon-512.png' });
     notification.onclick = () => {
       window.focus();
+      if (path) window.dispatchEvent(new CustomEvent('arena:open-room', { detail: path }));
       notification.close();
     };
   } catch {
-    // Notification constructors can throw in service-worker-only contexts.
+    // Installed mobile browsers require the service worker notification API.
+    if ('serviceWorker' in navigator) void navigator.serviceWorker.getRegistration().then(registration => registration?.showNotification(title, { body, tag, icon: '/icon-512.png', data: { path } })).catch(() => {});
   }
 };

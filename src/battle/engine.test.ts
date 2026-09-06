@@ -1,7 +1,7 @@
 import { Dex } from '@pkmn/dex';
 import { Generations, ID } from '@pkmn/data';
 import { Battle } from '@pkmn/client';
-import { projectEngineBattle } from './engine';
+import { createBattleHistory, feedLine, flipBattleView, loadEngine, projectEngineBattle, projectEngineLog } from './engine';
 import singlesLog from '../compat/__fixtures__/gen9ou-singles.log?raw';
 import doublesLog from '../compat/__fixtures__/gen9-doubles.log?raw';
 import playerLog from '../compat/__fixtures__/player-gen9ou.log?raw';
@@ -29,6 +29,12 @@ const run = (log: string, player?: string) => {
 };
 
 describe('@pkmn/client engine over fixtures', () => {
+  it('does not mark a revealed but unsent roster member as fainted', () => {
+    const engine = run('|gen|9\n|teamsize|p2|6\n|poke|p2|Gholdengo|');
+    const view = projectEngineBattle(engine, { roomId: 'battle-unknown-hp', perspective: null });
+    expect(view.opponentTeam[0]).toMatchObject({ hp: 100, hpKnown: false, fainted: false });
+    expect(view.opponentTeamSize).toBe(6);
+  });
   it('replays a real singles battle to completion', () => {
     const battle = run(singlesLog);
     expect(battle.turn).toBeGreaterThan(10);
@@ -102,5 +108,60 @@ describe('@pkmn/client engine over fixtures', () => {
     const battle = run(playerLog);
     battle.add('|inactive|Time left: 150 sec this turn | 300 sec total');
     expect(battle.kickingInactive).not.toBe('off');
+  });
+});
+
+describe('battle information and history', () => {
+  beforeAll(async () => { await loadEngine(); });
+
+  it('retains total unrevealed slots, public move usage and possible speed', () => {
+    const battle = new Battle(gens, null);
+    for (const line of ['|gametype|singles', '|gen|9', '|player|p1|Alice', '|player|p2|Bob', '|teamsize|p1|6', '|teamsize|p2|6', '|start', '|switch|p1a: Pikachu|Pikachu|100/100', '|switch|p2a: Bulbasaur|Bulbasaur|100/100', '|move|p2a: Bulbasaur|Tackle|p1a: Pikachu']) feedLine(battle, line);
+    const view = projectEngineBattle(battle, { roomId: 'battle-test', perspective: null });
+    expect(view.opponentTeam).toHaveLength(1);
+    expect(view.opponentTeamSize).toBe(6);
+    expect(view.opponentActive.knownMoves).toContainEqual(expect.objectContaining({ name: 'Tackle', used: 1 }));
+    expect(view.opponentActive.speedRange?.[0]).toBeLessThan(view.opponentActive.speedRange![1]);
+    expect(view.opponentActive.currentHp).toBeUndefined();
+  });
+
+  it('does not invent exact HP when a public replay happens to name the viewer', () => {
+    const view = projectEngineLog(singlesLog.split('\n'), { username: 'Jogarame' });
+    expect(view?.team.every(pokemon => pokemon.currentHp === undefined)).toBe(true);
+  });
+
+  it('projects contextual information and finite condition durations', () => {
+    const battle = run(playerLog, 'arenatester');
+    feedLine(battle, '|-sidestart|p1: ArenaTester|Reflect');
+    const view = projectEngineBattle(battle, { roomId: 'battle-test', perspective: 'p1' });
+    expect(view.active.item).toBe('Black Glasses');
+    expect(view.opponentTeam.find(pokemon => pokemon.species === 'Heatran')?.lastItem).toBe('Air Balloon');
+    expect(view.sideConditions?.find(condition => condition.name === 'Reflect')?.duration).toEqual([5, 8]);
+  });
+
+  it('builds incremental history without duplicating old points and supports viewpoints', () => {
+    const lines = singlesLog.split('\n').filter(Boolean);
+    const split = lines.findIndex(line => line === '|turn|3');
+    const history = createBattleHistory('battle-test')!;
+    const first = [...history.synchronize(lines.slice(0, split))];
+    const all = [...history.synchronize(lines)];
+    expect(all.length).toBeGreaterThan(first.length);
+    expect(all.slice(0, first.length)).toEqual(first);
+    expect(history.synchronize(lines)).toHaveLength(all.length);
+    const flipped = flipBattleView(all.at(-1)!.battle);
+    expect(flipped.team).toEqual(all.at(-1)!.battle.opponentTeam);
+    expect(flipped.opponentTeam).toEqual(all.at(-1)!.battle.team);
+    expect(flipBattleView(flipped).team).toEqual(all.at(-1)!.battle.team);
+  });
+
+  it('offers bounded turn-only replay points and resets on a replaced transcript', () => {
+    const history = createBattleHistory('battle-test', '', { turnsOnly: true, maxPoints: 5_000 })!;
+    const points = [...history.synchronize(singlesLog.split('\n'))];
+    expect(points[0].turn).toBeLessThanOrEqual(1);
+    expect(points.at(-1)?.battle.ended).toBe(true);
+    expect(points.length).toBeLessThan(40);
+    const reset = history.synchronize(['|gen|9', '|gametype|singles', '|turn|1']);
+    expect(reset).toHaveLength(1);
+    expect(reset[0].turn).toBe(1);
   });
 });
