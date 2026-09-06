@@ -6,6 +6,10 @@ import {
   defensiveTypes,
   battleSupport,
   isBattleRequest,
+  isBattleSideID,
+  battleSideIndex,
+  isFourPlayerBattle,
+  type BattleSideID,
   requestFlags,
   type BattleRequest,
 } from '../compat/battle-adapter';
@@ -14,7 +18,10 @@ import { describeBattleLine } from '../compat/battle-text';
 import type { PsFrame, PsLine } from '../compat/protocol-client';
 import { playCry, playTurnPing } from '../battle/sound';
 import { desktopNotify } from '../compat/desktop-notify';
+import { parseBattleInvitations, parseChallengeDetails } from '../compat/battle-invitations';
 import { replayUploadUrl } from '../compat/replay-upload';
+import { isServerLanguage } from '../preferences/options';
+import { cancelAuthentication, matchesAuthenticationIdentity } from '../compat/auth-session';
 import { useWorkspaceStore } from '../stores/workspace-store';
 import {
   parseChatRoomList,
@@ -35,6 +42,7 @@ import {
   upsert,
 } from '../rooms/registry';
 import type { BattleRoom, ChatMessage, ChatRoom, Room, TournamentState } from '../rooms/types';
+import { setRoomError } from '../rooms/errors';
 import type { ArenaState } from '../stores/arena-store';
 
 /**
@@ -149,23 +157,39 @@ const handleGlobal = (line: PsLine, store: ArenaStoreApi): boolean => {
   }
 
   case 'updateuser': {
-    const rawName = line.args[0] || '';
+    const rawName = (line.args[0] || '').replace(/@!$/, '');
+    const previousUser = getState();
+    let serverLanguage: string | undefined;
+    try {
+      const settings: unknown = JSON.parse(line.args[3] || '{}');
+      if (settings && typeof settings === 'object' && 'language' in settings && isServerLanguage(settings.language)) serverLanguage = settings.language;
+    } catch { /* Older servers omit settings metadata. */ }
     const hasGroupPrefix = /^[^A-Za-z0-9]/.test(rawName);
+    const username = (hasGroupPrefix ? rawName.slice(1) : rawName) || 'Guest';
+    const named = line.args[1] === '1';
+    const confirmsLogin = previousUser.loginPending && named && matchesAuthenticationIdentity(username);
+    const identityChanged = previousUser.named !== named || toId(previousUser.username) !== toId(username);
+    const settlesIdentity = confirmsLogin || (!previousUser.loginPending && identityChanged);
     setState({
-      username: (hasGroupPrefix ? rawName.slice(1) : rawName) || 'Guest',
+      username,
       userGroup: hasGroupPrefix ? rawName.charAt(0).trim() : '',
-      named: line.args[1] === '1',
+      named,
       avatar: line.args[2] || undefined,
+      serverLanguage,
       connection: 'connected',
-      loginPending: false,
-      needsPassword: false,
-      lastError: undefined,
+      // Avatar/language/status updates also use updateuser. They describe the
+      // current identity, not completion of an unrelated sign-in operation.
+      ...(settlesIdentity ? { loginPending: false, needsPassword: false, lastError: undefined } : {}),
     });
-    getState().onLoginSettled();
+    if (confirmsLogin) cancelAuthentication();
+    const confirmed = getState();
+    if (settlesIdentity) confirmed.onLoginSettled();
     return true;
   }
 
   case 'nametaken':
+    if (getState().loginPending && !matchesAuthenticationIdentity(line.args[0] || '', true)) return true;
+    cancelAuthentication();
     setState({
       loginPending: false,
       lastError: line.args.slice(1).join('|') || `${line.args[0] || 'That name'} is not available.`,
@@ -210,8 +234,8 @@ const handleGlobal = (line: PsLine, store: ArenaStoreApi): boolean => {
           if (!previous[user]) desktopNotify(`${user} challenged you`, format, `challenge-${user}`);
         }
       }
-      setState(() => ({
-        challenges: { from, to: data.challengeTo || null },
+      setState(state => ({
+        challenges: { from, to: data.challengeTo || null, details: Object.fromEntries(Object.entries(state.challenges.details || {}).filter(([user, detail]) => Object.entries(from).some(([name, format]) => toId(name) === user && format === detail.format))) },
       }));
     } catch {
       // Malformed challenge payloads are not actionable.
@@ -251,15 +275,24 @@ const handleGlobal = (line: PsLine, store: ArenaStoreApi): boolean => {
     if (incoming && (preferences.ignoredUsers.includes(toId(from)) || (message.startsWith('/challenge') ? preferences.blockChallenges : preferences.blockPms))) return true;
     const pmRoomId = `pm-${toId(partner) || 'system'}`;
     // Challenge plumbing rides over PMs; don't render it as chat.
-    if (message.startsWith('/challenge')) {
-      const format = message.slice('/challenge'.length).trim().split('|')[0];
+    if (/^\/challenge(?: |$)/.test(message)) {
+      const detail = parseChallengeDetails(message);
+      const format = detail?.format;
       const self = toId(from) === toId(state.username);
       setState(current => {
-        const challenges = { ...current.challenges, from: { ...current.challenges.from } };
+        const challenges = { ...current.challenges, from: { ...current.challenges.from }, details: { ...current.challenges.details } };
         if (self) challenges.to = format ? { to: partner, format } : null;
-        else if (format) challenges.from[partner.replace(/^[^A-Za-z0-9]/, '')] = format;
-        else delete challenges.from[partner.replace(/^[^A-Za-z0-9]/, '')];
-        return { challenges };
+        else {
+          for (const name of Object.keys(challenges.from)) if (toId(name) === toId(partner)) delete challenges.from[name];
+          if (format && detail) {
+            challenges.from[partner.replace(/^[^A-Za-z0-9]/, '')] = format;
+            challenges.details[toId(partner)] = detail;
+          } else delete challenges.details[toId(partner)];
+        }
+        const rooms = self && !format ? Object.fromEntries(Object.entries(current.rooms).map(([id, room]) => [id,
+          room.type === 'battle' && room.invitations?.some(seat => seat.invited === toId(partner)) ? { ...room, invitations: room.invitations.map(seat => seat.invited === toId(partner) ? { slot: seat.slot, canInvite: true } : seat) } : room,
+        ])) : current.rooms;
+        return { challenges, rooms };
       });
       return true;
     }
@@ -336,7 +369,7 @@ const handleLifecycle = (roomId: string, line: PsLine, store: ArenaStoreApi): bo
       }
       return {
         rooms: upsert(state.rooms, room),
-        roomErrors: { ...state.roomErrors, [roomId]: '' },
+        roomErrors: setRoomError(state.roomErrors, roomId),
       };
     });
     return true;
@@ -352,19 +385,19 @@ const handleLifecycle = (roomId: string, line: PsLine, store: ArenaStoreApi): bo
   case 'noinit':
     setState(state => ({
       lastError: line.args.join(' '),
-      roomErrors: { ...state.roomErrors, [roomId]: line.args.slice(1).join(' ') || line.args.join(' ') || 'This room is unavailable.' },
+      roomErrors: setRoomError(state.roomErrors, roomId, line.args.slice(1).join(' ') || line.args.join(' ') || 'This room is unavailable.'),
       rooms: patchRoom(state.rooms, roomId, { connected: false }),
     }));
     return true;
 
   case 'cantleave':
     setState(state => ({
-      roomErrors: { ...state.roomErrors, [roomId]: 'You are still playing this battle. Finish it or forfeit before leaving.' },
+      roomErrors: setRoomError(state.roomErrors, roomId, 'You are still playing this battle. Finish it or forfeit before leaving.'),
       rooms: patchRoom(state.rooms, roomId, { connected: true }),
     }));
     return true;
   case 'allowleave':
-    setState(state => ({ roomErrors: { ...state.roomErrors, [roomId]: '' } }));
+    setState(state => ({ roomErrors: setRoomError(state.roomErrors, roomId) }));
     return true;
 
   case 'tournament': {
@@ -538,7 +571,8 @@ const handleBattleLine = (roomId: string, line: PsLine, store: ArenaStoreApi) =>
     return;
   }
 
-  const chat = parseChatLine(line);
+  const invitations = ['uhtml', 'uhtmlchange'].includes(line.command) && line.args[0] === 'invites' ? parseBattleInvitations(line.args.slice(1).join('|'), roomId) : undefined;
+  const chat = invitations ? null : parseChatLine(line);
   const pretty = chat ? '' : describeBattleLine(line);
   const parsedRequest = line.command === 'request' ? parseBattleRequest(line) : null;
   const request = isBattleRequest(parsedRequest) ? parsedRequest : null;
@@ -549,6 +583,8 @@ const handleBattleLine = (roomId: string, line: PsLine, store: ArenaStoreApi) =>
     const rooms = updateBattleRoom(state.rooms, roomId, room => {
       let next: typeof room = { ...room, rawLog: [...room.rawLog.slice(-49_999), line.raw],
         battle: { ...room.battle, logTruncated: room.battle.logTruncated || room.rawLog.length >= 50_000 } };
+      if (invitations) next.invitations = invitations;
+      if (line.command === 'start') next.invitations = undefined;
       if (line.command === 'request' && !request) {
         const withdrawn = ['', 'null'].includes(line.args.join('|').trim());
         return { ...next, lastRequest: undefined, choiceSession: undefined, choiceDraft: { choices: [] }, choicePending: false,
@@ -562,12 +598,13 @@ const handleBattleLine = (roomId: string, line: PsLine, store: ArenaStoreApi) =>
 
       // Perspective and result are protocol facts the engine does not model.
       if (line.command === 'player') {
-        if (line.args[0] !== 'p1' && line.args[0] !== 'p2') return next;
-        const side = line.args[0] === 'p2' ? 'p2' : 'p1';
+        if (!isBattleSideID(line.args[0])) return next;
+        const side = line.args[0];
         const name = toId(line.args[1] || '');
         const displayName = line.args[1] || '';
         const rating = Number(line.args[3]) || 0;
         const mine = !!name && name === userId;
+        if (name) next.invitations = next.invitations?.map(entry => entry.slot === side ? { slot: side, name: displayName, canInvite: false } : entry);
         next = {
           ...next,
           perspective: mine ? side : next.perspective,
@@ -575,7 +612,7 @@ const handleBattleLine = (roomId: string, line: PsLine, store: ArenaStoreApi) =>
           // (the second or two before the chunk resolves) is not blank.
           battle: {
             ...next.battle,
-            [side]: { name: displayName || next.battle[side].name, rating },
+            [side]: { name: displayName || next.battle[side]?.name || side.toUpperCase(), rating },
             playerSide: mine ? side : next.battle.playerSide,
             mode: mine ? 'player' : next.battle.mode,
           },
@@ -592,8 +629,8 @@ const handleBattleLine = (roomId: string, line: PsLine, store: ArenaStoreApi) =>
       if ((line.command === 'callback' || line.command === 'error') && next.lastRequest) {
         const requestCopy: BattleRequest = { ...next.lastRequest, active: next.lastRequest.active?.map(active => active ? { ...active, moves: active.moves?.map(move => ({ ...move })) } : null) };
         if (line.command === 'callback') {
-          const identSlot = /p[12]([a-z])/.exec(line.args[1] || '')?.[1];
-          const index = identSlot ? identSlot.charCodeAt(0) - 97 : Number(line.args[1]) || 0;
+          const identSlot = /p[1-4]([a-z])/.exec(line.args[1] || '')?.[1];
+          const index = identSlot ? isFourPlayerBattle(next.battle.gameType) ? 0 : identSlot.charCodeAt(0) - 97 : Number(line.args[1]) || 0;
           const active = requestCopy.active?.[index];
           if (active && line.args[0] === 'trapped') active.trapped = true;
           if (active && line.args[0] === 'cant') active.moves = active.moves?.map(move => toId(move.id || move.move) === toId(line.args[3] || '') ? { ...move, disabled: true } : move);
@@ -622,7 +659,7 @@ const handleBattleLine = (roomId: string, line: PsLine, store: ArenaStoreApi) =>
         (line.command === 'switch' || line.command === 'drag')
       ) {
         const species = (line.args[1] || '').split(',')[0].trim();
-        if (species) playCry(species, useWorkspaceStore.getState().volume / 100 * 0.9);
+        if (species) playCry(species, useWorkspaceStore.getState().effectsVolume / 100 * 0.9);
       }
 
       if (request) {
@@ -634,9 +671,9 @@ const handleBattleLine = (roomId: string, line: PsLine, store: ArenaStoreApi) =>
           state.activeRoomId === roomId && !document.hidden &&
           !request.wait
         ) {
-          playTurnPing(useWorkspaceStore.getState().volume / 100 * 0.5);
+          playTurnPing(useWorkspaceStore.getState().notificationVolume / 100 * 0.5);
         }
-        const perspective = request.side?.id === 'p1' || request.side?.id === 'p2' ?
+        const perspective = isBattleSideID(request.side?.id) ?
           request.side.id :
           next.perspective;
         const flags = requestFlags(normalizedRequest);
@@ -721,24 +758,25 @@ const NOTE_LINES: Record<string, string> = {
 export function battleEventFromLine(
   command: string,
   args: string[],
-  perspective: 'p1' | 'p2' | null | undefined,
+  perspective: BattleSideID | null | undefined,
   previous?: FieldEvent
 ): FieldEvent | undefined {
   if (NOTE_LINES[command] && previous) {
     return { ...previous, kind: 'note', at: Date.now(), label: NOTE_LINES[command] };
   }
   if (command !== 'move' && command !== '-damage' && command !== 'faint') return undefined;
-  const ident = /^(p[12])([a-z])?: ?(.*)$/.exec(args[0] || '');
+  const ident = /^(p[1-4])([a-z])?: ?(.*)$/.exec(args[0] || '');
   if (!ident) return undefined;
   const ownSide = perspective ?? 'p1';
-  const side = ident[1] === ownSide ? 'near' : 'far';
-  const slot = ident[2] ? ident[2].charCodeAt(0) - 97 : 0;
+  const sideId = ident[1] as BattleSideID;
+  const side = battleSideIndex(sideId) % 2 === battleSideIndex(ownSide) % 2 ? 'near' : 'far';
+  const slot = sideId === 'p3' || sideId === 'p4' ? 0 : ident[2] ? ident[2].charCodeAt(0) - 97 : 0;
   const kind = command === 'move' ? 'attack' : command === 'faint' ? 'faint' : 'hit';
   // A hit is part of the action already announced — it must not clear the
   // banner mid-sequence, only move the shake to the target.
   const label = command === 'move' ? `${ident[3]} used ${args[1]}!` :
     command === 'faint' ? `${ident[3]} fainted!` : previous?.label;
-  return { kind, side, slot, at: Date.now(), label };
+  return { kind, side, sideId, slot, at: Date.now(), label };
 }
 
 export function routeFrame(frame: PsFrame, store: ArenaStoreApi) {

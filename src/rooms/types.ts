@@ -1,9 +1,11 @@
 import type { Battle } from '@pkmn/client';
+import type { BattleInvitationSlot } from '../compat/battle-invitations';
 import type {
   ArenaBattle,
   BattleChoiceDraft,
   BattleChoiceSession,
   BattleRequest,
+  BattleSideID,
 } from '../compat/battle-adapter';
 
 /**
@@ -84,6 +86,7 @@ export type BattleTimer = {
 };
 
 export type BattleRoom = RoomBase & {
+  invitations?: BattleInvitationSlot[];
   type: 'battle';
   /** Projected view the components render. */
   battle: ArenaBattle;
@@ -91,7 +94,7 @@ export type BattleRoom = RoomBase & {
       point rawLog is replayed through a fresh instance. */
   engine?: Battle;
   /** Our seat when playing; null while spectating. */
-  perspective: 'p1' | 'p2' | null;
+  perspective: BattleSideID | null;
   /** Tracked from |win|/|tie| — the engine does not model game end. */
   result?: { winner?: string; ended: boolean };
   /** Raw protocol lines, in order — feeds the engine, replays and /savereplay. */
@@ -108,6 +111,7 @@ export type BattleRoom = RoomBase & {
   lastEvent?: {
     kind: 'attack' | 'hit' | 'faint' | 'note';
     side: 'near' | 'far';
+    sideId?: BattleSideID;
     slot?: number;
     at: number;
     label?: string;

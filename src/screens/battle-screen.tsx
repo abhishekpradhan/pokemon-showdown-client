@@ -18,8 +18,9 @@ import {
   X,
 } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
-import { availableSwitches, buildMoveDeck, canPassBattleChoice, defensiveTypes, isBattleChoiceComplete, isReviving } from '../compat/battle-adapter';
+import { availableSwitches, battleTargetAt, buildMoveDeck, canPassBattleChoice, canShiftBattleChoice, defensiveTypes, isBattleChoiceComplete, isFourPlayerBattle, isReviving } from '../compat/battle-adapter';
 import { BattleField } from '../components/battle-field';
+import { BattleInvitations } from '../components/battle-invitations';
 import { JoiningState } from '../components/joining-state';
 import { BattleTimerChip } from '../components/battle-timer';
 import { ChatFeed } from '../components/chat-feed';
@@ -88,7 +89,7 @@ export function BattleScreen() {
   const [historyCursor, setHistoryCursor] = useState<number | null>(null);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
-  const [flipped, setFlipped] = useState(false);
+  const [viewpointSteps, setViewpointSteps] = useState(0);
   const [narration, setNarration] = useState<readonly BattleHistoryPoint[]>([]);
   const narratedThrough = useRef(-1);
   const rawLog = battleRoom?.rawLog;
@@ -182,7 +183,9 @@ export function BattleScreen() {
   const decision = getBattleDecision(battle.id);
   const historyPoint = historyCursor !== null ? history[Math.min(historyCursor, history.length - 1)] : undefined;
   const fieldBattle = historyPoint?.battle || battle;
-  const viewBattle = flipped ? flipBattleView(fieldBattle) : fieldBattle;
+  let viewBattle = fieldBattle;
+  for (let step = 0; step < viewpointSteps; step++) viewBattle = flipBattleView(viewBattle);
+  const flipped = viewpointSteps % 2 === 1;
   const pendingTarget = decision.draft.pendingMove;
 
   // Doubles: the session collects one choice per active slot; the deck and
@@ -210,35 +213,34 @@ export function BattleScreen() {
   const pendingBase = pendingTarget ? activeDeck.find(move => move.slot === pendingTarget.slot) : undefined;
   const pendingMoveCard = pendingTarget?.z ? pendingBase?.zMove : pendingTarget?.max ? pendingBase?.maxMove : pendingBase;
   const targetOptions = pendingTarget ? pendingMoveCard?.targetOptions || [] : [];
-  /** Resolves a protocol target slot (+foe / −ally) to the Pokémon standing there. */
+  /** Resolve protocol locations; FFA opponents can occupy negative locations. */
   const describeTarget = (target: number) => {
-    const foe = target > 0;
-    const pool = foe ?
-      (battle.opponentActives?.length ? battle.opponentActives : [battle.opponentActive]) :
-      (battle.actives?.length ? battle.actives : [battle.active]);
-    const pokemon = pool.find(entry => entry.slot === Math.abs(target));
-    const self = !foe && Math.abs(target) - 1 === (pendingTarget?.activeIndex ?? choiceCursor);
+    const position = battleTargetAt(battle, target);
+    const foe = position?.relation === 'opponent';
+    const pokemon = position?.pokemon;
+    const self = position?.sideId === battle.playerSide && pokemon?.slot === (pendingTarget?.activeIndex ?? choiceCursor) + 1;
     const targetBase = pokemon && battleRoom?.lastRequest ? buildMoveDeck(battleRoom.lastRequest, defensiveTypes(pokemon),
       `gen${battle.generation || 9}`, choiceCursor, pokemon, battle.actives?.find(entry => entry.slot === choiceCursor + 1) || battle.active, battle.weather)
       .find(move => move.slot === pendingTarget?.slot) : undefined;
     const targetMove = pendingTarget?.z ? targetBase?.zMove : pendingTarget?.max ? targetBase?.maxMove : targetBase;
+    // The server accepts legal locations even when empty, then resolves
+    // retargeting or failure. Disabling them can strand a triples edge.
     return {
       foe,
-      name: pokemon?.name,
+      name: pokemon?.fainted ? `Empty position ${Math.abs(target)}` : pokemon?.name,
+      owner: position?.owner,
+      relation: self ? 'Your Pokémon' : position?.relation === 'ally' ? 'Partner' : foe ? 'Opponent' : 'Your side',
       effectiveness: targetMove?.effectiveness,
-      // Empty or fainted slots are not legal targets; your own slot only is
-      // for adjacentAllyOrSelf moves.
-      disabled: !pokemon || pokemon.fainted || pokemon.hp <= 0 ||
-        (self && pendingMoveCard?.target !== 'adjacentAllyOrSelf'),
     };
   };
-  const playerControls = decision.mode === 'player' && decision.requestType !== 'wait' && !battle.waiting && !battle.ended &&
+  const playerControls = !!session && decision.mode === 'player' && decision.requestType !== 'wait' && !battle.waiting && !battle.ended &&
     !battle.supportReason && !battle.engineWarning && connection === 'connected' && !!battleRoom?.connected && session?.status !== 'submitted' && session?.status !== 'cancelling';
   const previewSelection = decision.draft.choices.map(choice => /^team (\d+)$/.exec(choice)?.[1]).filter(Boolean).map(Number);
   const revival = session ? isReviving(session) : false;
   const decisionTitle = battle.ended ?
     battle.winner ? `${battle.winner} won the battle` : 'Battle ended in a tie' :
     session?.status === 'cancelling' ? 'Waiting for cancellation' :
+    battleRoom?.invitations?.length ? 'Waiting for players' :
     battle.waiting ? 'Waiting for opponent' :
     revival ? 'Choose a Pokémon to revive' :
     battle.requestType === 'team' ? `Choose your team · ${previewSelection.length}/${decision.requestLength}` :
@@ -273,7 +275,7 @@ export function BattleScreen() {
           <div className="battle-room-title">
             <span className="battle-state-dot" data-state={battle.ended ? 'ended' : battle.waiting ? 'waiting' : 'live'} />
             <span>
-              <strong>{battle.p1.name} <i>vs</i> {battle.p2.name}</strong>
+              <strong>{isFourPlayerBattle(battle.gameType) ? battle.gameType === 'freeforall' ? 'Free-for-all · 4 players' : `${battle.p1.name} + ${battle.p3?.name || 'Partner'} vs ${battle.p2.name} + ${battle.p4?.name || 'Partner'}` : <>{battle.p1.name} <i>vs</i> {battle.p2.name}</>}</strong>
               <small>{battle.format} · Turn {battle.turn || '—'}</small>
             </span>
           </div>
@@ -303,6 +305,7 @@ export function BattleScreen() {
           </div>
         </header>
 
+        {battleRoom && <BattleInvitations key={battleRoom.id} room={battleRoom} />}
         {(decision.mode === 'spectator' || battle.ended) && history.length > 0 && !battle.logTruncated && <div className="battle-playback" aria-label="Battle playback">
           <button type="button" onClick={() => { if (historyCursor === null) setHistoryCursor(0); setPlaying(!playing); }}>{playing ? 'Pause' : 'Play history'}</button>
           <button type="button" aria-label="Previous turn" onClick={() => {
@@ -318,7 +321,7 @@ export function BattleScreen() {
           <input type="range" aria-label="Battle history position" min={0} max={Math.max(0, history.length - 1)} value={historyCursor ?? history.length - 1} onChange={event => { setPlaying(false); setHistoryCursor(Number(event.currentTarget.value)); }} />
           <label>Speed <select aria-label="Playback speed" value={speed} onChange={event => setSpeed(Number(event.currentTarget.value))}><option value={0.5}>0.5×</option><option value={1}>1×</option><option value={2}>2×</option><option value={4}>4×</option></select></label>
           <button type="button" onClick={() => { setPlaying(false); setHistoryCursor(null); }}>{battle.ended ? 'Latest' : 'Live'}</button>
-          <button type="button" aria-pressed={flipped} onClick={() => setFlipped(!flipped)}>Switch viewpoint</button>
+          <button type="button" aria-pressed={viewpointSteps !== 0} onClick={() => setViewpointSteps((viewpointSteps + 1) % (isFourPlayerBattle(battle.gameType) ? 4 : 2))}>Switch viewpoint</button>
           <span role="status">{historyPoint ? `Turn ${historyPoint.turn}` : battle.ended ? 'Final position' : 'Live position'}</span>
         </div>}
         {!historyPoint && narration.length > 1 && <div className="battle-playback" aria-label="Battle narration">
@@ -367,13 +370,12 @@ export function BattleScreen() {
                     className="target-button"
                     key={target}
                     data-side={described.foe ? 'foe' : 'ally'}
-                    disabled={described.disabled}
                     onClick={() => { focusNextDecision.current = true; submitBattleTarget(target, battle.id); }}
                   >
                     <Crosshair size={15} aria-hidden />
                     <span>
-                      <strong>{described.name ?? `Slot ${Math.abs(target)}`}</strong>
-                      <small>{described.foe ? 'Opponent' : 'Your side'}{described.effectiveness ? ` · ${described.effectiveness}` : ''}</small>
+                      <strong>{described.name ?? `Empty position ${Math.abs(target)}`}</strong>
+                      <small>{described.relation}{isFourPlayerBattle(battle.gameType) && described.owner ? ` · ${described.owner}` : ''}{described.effectiveness ? ` · ${described.effectiveness}` : ''}</small>
                     </span>
                   </button>
                 );
@@ -385,18 +387,21 @@ export function BattleScreen() {
           <div className="decision-controls" data-readonly={decision.mode !== 'player'}>
             {decision.mode === 'player' && <div className="move-deck">
               {playerControls && battle.requestType !== 'switch' && battle.requestType !== 'team' && !pendingTarget ? (
-                <MoveControls key={`${battle.id}-${battle.rqid}-${choiceCursor}`} moves={activeDeck} format={`gen${battle.generation || 9}`} onChoose={choice => { lastMoveSlot.current = choice.slot; focusNextDecision.current = true; submitBattleChoice(choice, battle.id); }} />
+                <>
+                  <MoveControls key={`${battle.id}-${battle.rqid}-${choiceCursor}`} moves={activeDeck} format={`gen${battle.generation || 9}`} onChoose={choice => { lastMoveSlot.current = choice.slot; focusNextDecision.current = true; submitBattleChoice(choice, battle.id); }} />
+                  {session && canShiftBattleChoice(session) && <button type="button" className="secondary-action shift-action" onClick={() => { focusNextDecision.current = true; submitBattleChoice({ kind: 'shift' }, battle.id); }}>Shift to center</button>}
+                </>
               ) : !pendingTarget && (
                 <div className="waiting-state" role="status" aria-live="polite">
                   <span className="waiting-pulse" />
-                  <span>{battle.ended ? 'This session is complete.' : battle.waiting ? 'Your choice has been submitted.' : battle.requestType === 'team' ? 'Choose and review your team below.' : revival ? 'Select a fainted teammate below.' : battle.requestType === 'switch' ? `Choose a replacement for position ${choiceCursor + 1}.` : 'Battle controls are read-only.'}</span>
+                  <span>{battle.ended ? 'This session is complete.' : battleRoom?.invitations?.length ? 'Complete the roster above to start the battle.' : battle.waiting ? 'Your choice has been submitted.' : battle.requestType === 'team' ? 'Choose and review your team below.' : revival ? 'Select a fainted teammate below.' : battle.requestType === 'switch' ? `Choose a replacement for position ${choiceCursor + 1}.` : 'Battle controls are read-only.'}</span>
                 </div>
               )}
             </div>}
             {battle.team.length > 0 && (
               <div className="bench-deck">
                 <span className="deck-label">
-                  {decision.mode === 'player' ? battle.requestType === 'team' ? 'Team order' : playerControls && !pendingTarget ? 'Switch Pokémon' : 'Your team' : `${battle.playerSide === 'p2' ? battle.p2.name : battle.p1.name}’s team`}
+                  {decision.mode === 'player' ? battle.requestType === 'team' ? 'Team order' : playerControls && !pendingTarget ? 'Switch Pokémon' : 'Your team' : `${battle[battle.playerSide || 'p1']?.name || 'Player'}’s team`}
                 </span>
                 <TeamBench team={battle.team} format={`gen${battle.generation || 9}`} preview={battle.requestType === 'team'} selection={previewSelection}
                   allowedSlots={battle.requestType === 'team' ? undefined : session ? session.request.active?.[choiceCursor]?.trapped ? [] : availableSwitches(session) : []}

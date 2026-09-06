@@ -24,3 +24,7 @@ npm-debug.log*
 .claude/
 .env*
 !.env.example
+
+# Generated synthetic integration/stress evidence (release notes link CI).
+test-results-local-corpus.json
+test-results-session-stress.json

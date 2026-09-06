@@ -6,8 +6,14 @@ import {
   type TypeName,
 } from '../data/dex';
 
+export type BattleSideID = 'p1' | 'p2' | 'p3' | 'p4';
+export const isBattleSideID = (value: unknown): value is BattleSideID => typeof value === 'string' && /^p[1-4]$/.test(value);
+export const battleSideIndex = (side: BattleSideID) => Number(side[1]) - 1;
+export const isFourPlayerBattle = (gameType?: string) => gameType === 'multi' || gameType === 'freeforall';
+
 export type PokemonSet = {
   slot: number;
+  sideId?: BattleSideID;
   name: string;
   /** Display species, e.g. `Pikachu-Original`. Sprite lookup uses this. */
   species: string;
@@ -84,6 +90,26 @@ export type BattleChoice = {
   notes?: string[];
 };
 
+export type ArenaBattleSide = {
+  id: BattleSideID;
+  name: string;
+  rating: number;
+  team: PokemonSet[];
+  teamSize: number;
+  actives: PokemonSet[];
+  conditions: SideCondition[];
+};
+
+export type BattleFieldPosition = {
+  sideId: BattleSideID;
+  owner: string;
+  half: 'near' | 'far';
+  /** One-based location within a field half; independent of the owner's roster. */
+  slot: number;
+  pokemon?: PokemonSet;
+  relation: 'you' | 'ally' | 'opponent';
+};
+
 export type ArenaBattle = {
   id: string;
   format: string;
@@ -96,9 +122,12 @@ export type ArenaBattle = {
   engineWarning?: string;
   logTruncated?: boolean;
   turn: number;
-  playerSide?: 'p1' | 'p2';
+  playerSide?: BattleSideID;
   p1: { name: string; rating: number };
   p2: { name: string; rating: number };
+  p3?: { name: string; rating: number };
+  p4?: { name: string; rating: number };
+  sides?: ArenaBattleSide[];
   active: PokemonSet;
   opponentActive: PokemonSet;
   /** All active slots per side, in position order — doubles renders these. */
@@ -166,6 +195,12 @@ export type BattleRequest = {
   forceSwitch?: boolean | boolean[];
   teamPreview?: boolean;
   side?: {
+    id?: string;
+    name?: string;
+    pokemon?: BattleRequestPokemon[];
+  };
+  /** Explicit server-disclosed partner data in multi battles; never present in FFA. */
+  ally?: {
     id?: string;
     name?: string;
     pokemon?: BattleRequestPokemon[];
@@ -263,12 +298,36 @@ export type BattleChoiceSession = {
 
 /** Only advertise game types whose complete choice/field model is implemented. */
 export function battleSupport(formatId = '', gameType?: string): { supported: boolean; reason?: string } {
-  const unsupported = gameType && !['singles', 'doubles'].includes(gameType) ||
-    /triples|rotation|freeforall|free-for-all|(?:^|gen\d+)multi/.test(formatId.toLowerCase());
-  return unsupported ? {
+  const rotation = gameType === 'rotation' || /rotation/i.test(formatId);
+  const unsupported = gameType && !['singles', 'doubles', 'triples', 'multi', 'freeforall'].includes(gameType);
+  return rotation || unsupported ? {
     supported: false,
-    reason: 'This client supports singles and doubles. Play this game type in the original Pokémon Showdown client.',
+    reason: rotation ? 'Rotation battles have no playable rotation rules or choice command in the supported Pokémon Showdown server.' : 'This server game type is not recognized by this client.',
   } : { supported: true };
+}
+
+export function battleFieldPositions(battle: ArenaBattle): BattleFieldPosition[] {
+  const viewpoint = battle.playerSide || 'p1';
+  const nearParity = battleSideIndex(viewpoint) % 2;
+  const four = isFourPlayerBattle(battle.gameType);
+  const sides = battle.sides || [
+    { id: viewpoint, name: battle[viewpoint]?.name || battle.p1.name, actives: battle.actives || [battle.active] },
+    { id: (nearParity ? 'p1' : 'p2') as BattleSideID, name: (nearParity ? battle.p1 : battle.p2).name, actives: battle.opponentActives || [battle.opponentActive] },
+  ];
+  const count = four ? 1 : battle.gameType === 'triples' ? 3 : battle.gameType === 'doubles' ? 2 : 1;
+  return sides.flatMap(side => Array.from({ length: count }, (_, index) => {
+    const near = battleSideIndex(side.id) % 2 === nearParity;
+    return {
+      sideId: side.id, owner: side.name, half: near ? 'near' as const : 'far' as const,
+      slot: four ? Math.floor(battleSideIndex(side.id) / 2) + 1 : index + 1,
+      pokemon: side.actives.find(pokemon => pokemon.slot === index + 1),
+      relation: side.id === viewpoint ? 'you' as const : near && battle.gameType !== 'freeforall' ? 'ally' as const : 'opponent' as const,
+    };
+  }));
+}
+
+export function battleTargetAt(battle: ArenaBattle, target: number): BattleFieldPosition | undefined {
+  return battleFieldPositions(battle).find(position => position.half === (target > 0 ? 'far' : 'near') && position.slot === Math.abs(target));
 }
 
 /** Stellar preserves the Pokémon's original defensive typing. */
@@ -283,9 +342,12 @@ export function isBattleRequest(value: unknown): value is BattleRequest {
   if (request.rqid !== undefined && (!Number.isSafeInteger(request.rqid) || request.rqid < 0)) return false;
   if (request.forceSwitch !== undefined && typeof request.forceSwitch !== 'boolean' &&
     (!Array.isArray(request.forceSwitch) || request.forceSwitch.some(flag => typeof flag !== 'boolean'))) return false;
-  if (request.side !== undefined && (!request.side || typeof request.side !== 'object' ||
-    !Array.isArray(request.side.pokemon) || request.side.pokemon.some(pokemon => !pokemon ||
-      typeof pokemon.ident !== 'string' || typeof pokemon.details !== 'string' || typeof pokemon.condition !== 'string'))) return false;
+  for (const side of [request.side, request.ally]) {
+    if (side !== undefined && (!side || typeof side !== 'object' ||
+      side.id !== undefined && !isBattleSideID(side.id) ||
+      !Array.isArray(side.pokemon) || side.pokemon.some(pokemon => !pokemon ||
+        typeof pokemon.ident !== 'string' || typeof pokemon.details !== 'string' || typeof pokemon.condition !== 'string'))) return false;
+  }
   if (request.active !== undefined && (!Array.isArray(request.active) || request.active.some(active => active !== null &&
     (!active || typeof active !== 'object' || !Array.isArray(active.moves) || active.moves.some(move =>
       !move || typeof move !== 'object' || typeof move.move !== 'string' || move.target !== undefined && typeof move.target !== 'string'))))) return false;
@@ -460,17 +522,31 @@ const canChooseTarget = (target?: string) => ['normal', 'any', 'adjacentAlly', '
 
 /**
  * Slots a chosen-target move may point at, in PS protocol convention:
- * positive numbers are foe slots, negative are your own side's slots.
- * `normal` moves can hit an ally in doubles, which is why they list both.
+ * Positive numbers identify the opposite half; negative numbers identify
+ * the viewer's half. FFA opponents also occupy that negative half. The
+ * mirrored adjacency rule matches sim/battle.ts validTargetLoc.
  */
-export const moveTargetOptions = (target: string | undefined, slots = 2, activeIndex = 0): number[] => {
-  const foes = Array.from({ length: slots }, (_, index) => index + 1);
-  const allies = foes.map(slot => -slot).filter(slot => target === 'adjacentAllyOrSelf' || -slot !== activeIndex + 1);
-  if (target === 'adjacentAlly' || target === 'adjacentAllyOrSelf') return allies;
-  if (target === 'any' || target === 'normal') return [...foes, ...allies];
-  if (target === 'adjacentFoe') return foes;
-  return [];
+export const moveTargetOptions = (target: string | undefined, slots = 2, activeIndex = 0, gameType?: string, side: BattleSideID = 'p1'): number[] => {
+  const source = -(activeIndex + 1 + (isFourPlayerBattle(gameType) ? Math.floor(battleSideIndex(side) / 2) : 0));
+  const count = isFourPlayerBattle(gameType) ? 2 : slots;
+  const positive = Array.from({ length: count }, (_, index) => index + 1);
+  return [...positive, ...positive.map(slot => -slot)].filter(location => {
+    const self = location === source;
+    const foe = gameType === 'freeforall' ? !self : location > 0;
+    const adjacent = location > 0 ? Math.abs(-(count + 1 - location) - source) <= 1 : Math.abs(location - source) === 1;
+    if (target === 'adjacentAlly' && gameType === 'freeforall') return adjacent;
+    if (target === 'normal') return adjacent;
+    if (target === 'any') return !self;
+    if (target === 'adjacentAlly') return adjacent && !foe;
+    if (target === 'adjacentAllyOrSelf') return adjacent && !foe || self;
+    if (target === 'adjacentFoe') return adjacent && foe;
+    return false;
+  });
 };
+
+export const requestTargetOptions = (request: BattleRequest, target: string | undefined, activeIndex = 0) =>
+  moveTargetOptions(target, request.active?.length || (request.gameType === 'triples' ? 3 : 2), activeIndex,
+    request.gameType, isBattleSideID(request.side?.id) ? request.side.id : 'p1');
 
 const normalizeSpecialMoves = (active: NonNullable<BattleRequest['active']>[number]) => {
   if (!active || !active.maxMoves) return [];
@@ -519,7 +595,7 @@ export function normalizeBattleRequest(request: BattleRequest, previousBattle?: 
     requestType: normalizedType,
     chosenTeamSize,
     noCancel: !!request.noCancel || normalizedType === 'wait',
-    targetable: request.targetable ?? (active.length > 1 || gameType === 'doubles'),
+    targetable: request.targetable ?? (active.length > 1 || ['doubles', 'triples', 'multi', 'freeforall'].includes(gameType || '')),
   };
 }
 
@@ -599,7 +675,7 @@ export function buildMoveDeck(
       target: move.target || data?.target,
       requiresTarget: normalized.targetable && canChooseTarget(move.target || data?.target),
       targetOptions: normalized.targetable && canChooseTarget(move.target || data?.target) ?
-        moveTargetOptions(move.target || data?.target, normalized.active?.length || 2, activeIndex) : undefined,
+        requestTargetOptions(normalized, move.target || data?.target, activeIndex) : undefined,
       canMegaEvo: !!activeRequest?.canMegaEvo,
       canUltraBurst: !!activeRequest?.canUltraBurst,
       canZMove: Array.isArray(activeRequest?.zMoves) ? !!activeRequest.zMoves[index] : !!activeRequest?.canZMove,
@@ -621,7 +697,7 @@ export function buildMoveDeck(
         basePower: power || (specialData?.basePower && specialData.basePower > 1 ? specialData.basePower : undefined),
         accuracy: specialData?.accuracy, description: specialData?.shortDesc || specialData?.desc,
         target, requiresTarget: normalized.targetable && canChooseTarget(target),
-        targetOptions: normalized.targetable ? moveTargetOptions(target, normalized.active?.length || 2, activeIndex) : undefined,
+        targetOptions: normalized.targetable ? requestTargetOptions(normalized, target, activeIndex) : undefined,
       };
     };
     if (activeRequest?.zMoves?.[index]) card.zMove = specialCard(activeRequest.zMoves[index]!, 'zmove');
@@ -753,6 +829,12 @@ export function canPassBattleChoice(session: BattleChoiceSession): boolean {
   return remaining > availableSwitches(session).length;
 }
 
+export function canShiftBattleChoice(session: BattleChoiceSession): boolean {
+  return session.request.gameType === 'triples' && session.request.requestType === 'move' &&
+    session.status !== 'submitted' && session.status !== 'cancelling' && !session.draft.pendingMove &&
+    choiceIndex(session) !== 1 && !!currentMoveRequest(session);
+}
+
 const cloneSession = (session: BattleChoiceSession): BattleChoiceSession => ({
   ...session,
   draft: {
@@ -799,9 +881,7 @@ export function addBattleChoice(session: BattleChoiceSession, choice: BattleChoi
     if (!canPassBattleChoice(next)) return reject('This position needs a Pokémon.');
     next.draft.choices.push('pass');
   } else if (choice.kind === 'shift') {
-    if (next.request.requestType !== 'move') {
-      return { ok: false, complete: false, error: 'Shift is only available during move requests.', draft: next.draft, session: next };
-    }
+    if (!canShiftBattleChoice(next)) return reject('Only an active Pokémon at the edge of a triples battle can shift to the center.');
     next.draft.choices.push('shift');
   } else if (choice.kind === 'team') {
     if (next.request.requestType !== 'team') {
@@ -875,7 +955,7 @@ export function addBattleChoice(session: BattleChoiceSession, choice: BattleChoi
       next.draft.pendingMove = choice;
       return { ok: true, complete: false, draft: next.draft, session: next, message: 'Choose a target.' };
     }
-    if (choice.target && (!next.request.targetable || !moveTargetOptions(move.target, next.request.active?.length || 2, choiceIndex(next)).includes(choice.target))) return reject('That target is unavailable for this move.');
+    if (choice.target && (!next.request.targetable || !requestTargetOptions(next.request, move.target, choiceIndex(next)).includes(choice.target))) return reject('That target is unavailable for this move.');
     if (choice.mega) next.alreadyMega = true;
     if (choice.z) next.alreadyZ = true;
     if (choice.max) next.alreadyMax = true;

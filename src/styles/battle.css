@@ -1692,3 +1692,64 @@
 }
 [data-reduced-motion="true"] .battle-inspector-overlay,
 [data-reduced-motion="true"] .battle-inspector-sheet { animation: none; }
+
+/* Three active positions and four independently owned teams need explicit
+   field rows. Every card keeps its owner's name, health and sprite together. */
+.battle-invitations { padding: 12px; border-block-end: 1px solid var(--arena-line); }
+.battle-invitations header p { margin-block: 4px 10px; font-size: 12px; color: var(--arena-muted); }
+.battle-invitation-slots { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.battle-invitation-slots form { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-width: 0; }
+.battle-invitation-slots label { flex-basis: 100%; font-size: 11px; color: var(--arena-muted); }
+.battle-invitation-slots input { min-width: 0; flex: 1; width: 90px; min-height: 40px; padding: 6px 8px; color: var(--arena-text); background: var(--arena-ink-2); border: 1px solid var(--arena-line-strong); border-radius: 5px; }
+.battle-invitation-slots button { min-height: 40px; }
+.battle-invitation-slots form > span { font-size: 12px; overflow-wrap: anywhere; }
+.battle-console .battle-stage:has(> .battle-field.is-expanded) { grid-template-rows: auto minmax(min-content, 1fr) auto; }
+.battle-field.is-expanded { display: flex; flex-direction: column; gap: 10px; min-height: 440px; min-block-size: 440px; padding: 12px; }
+.is-expanded > :not(.field-backdrop, .field-vignette) { position: relative; z-index: 2; }
+.layout-field-heading { display: flex; justify-content: space-between; font-size: 12px; }
+.layout-field-heading span { font-variant-numeric: tabular-nums; }
+.layout-half { display: flex; gap: 12px; flex: 1; min-width: 0; }
+.layout-side { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.layout-owner { display: flex; justify-content: space-between; align-items: center; gap: 6px; padding: 5px 8px; border-radius: 6px; background: rgb(9 13 20 / 65%); }
+.layout-owner > span:first-child { display: flex; gap: 6px; min-width: 0; align-items: baseline; flex-wrap: wrap; }
+.layout-owner strong { font-size: 12px; overflow-wrap: anywhere; }
+.layout-owner small { color: var(--arena-muted); font-size: 10px; }
+.layout-owner .roster-pips { display: inline-flex; gap: 3px; flex-shrink: 0; }
+.layout-active-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; flex: 1; }
+.layout-active-grid[data-count="1"] { grid-template-columns: minmax(0, 1fr); }
+.is-expanded .combatant { position: relative; inset: auto; inline-size: 100%; width: 100%; display: grid; grid-template-areas: "sprite" "plate"; grid-template-columns: minmax(0, 1fr); align-content: end; gap: 4px; }
+.is-expanded .combatant-sprite { min-height: 60px; min-block-size: 60px; height: 60px; block-size: 60px; }
+.is-expanded .combatant-sprite img { max-height: 70px; max-block-size: 70px; width: auto; }
+.is-expanded .combatant-nameplate { padding: 6px 8px; min-width: 0; }
+.is-expanded .nameplate-row { flex-wrap: wrap; gap: 4px; align-items: center; }
+.is-expanded .nameplate-row strong { white-space: normal; overflow-wrap: anywhere; line-height: 1.25; }
+.is-expanded .hp-readout { white-space: nowrap; font-size: 11px; }
+.is-expanded .nameplate-tags { flex-wrap: wrap; }
+.layout-empty-position { display: grid; place-content: center; min-height: 100px; color: var(--arena-muted); font-size: 11px; border: 1px dashed var(--arena-line); border-radius: 6px; }
+.layout-side-conditions, .layout-field-effects { display: flex; flex-wrap: wrap; gap: 4px 8px; font-size: 10px; }
+.layout-side-conditions span, .layout-field-effects span { padding: 3px 5px; background: rgb(9 13 20 / 70%); border-radius: 4px; }
+.layout-announcement { margin: 0; padding: 5px 8px; font-size: 12px; background: rgb(9 13 20 / 80%); border-radius: 6px; }
+.layout-preview { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 5px; }
+.layout-preview-pokemon { display: flex; align-items: center; gap: 4px; min-height: 44px; background: rgb(9 13 20 / 65%); border-radius: 5px; padding: 3px; }
+.layout-preview-pokemon img { object-fit: contain; }
+.layout-preview-pokemon strong { font-size: 11px; overflow-wrap: anywhere; }
+.shift-action { margin-block-start: 8px; min-block-size: 44px; }
+@media (max-width: 560px) {
+  .battle-invitation-slots input { flex-basis: 100%; width: 100%; }
+  .battle-field.is-expanded { padding: 8px; min-height: 420px; min-block-size: 420px; gap: 8px; }
+  .layout-half { gap: 8px; }
+  .layout-owner { align-items: flex-start; flex-direction: column; padding: 4px 6px; }
+  .layout-owner > span:first-child { gap: 2px 5px; }
+  .layout-active-grid { gap: 5px; }
+  .is-expanded .combatant-nameplate { padding: 5px; gap: 4px; }
+  .is-expanded .combatant-sprite { height: 54px; block-size: 54px; min-height: 54px; min-block-size: 54px; }
+  .is-expanded .combatant-sprite img { max-height: 60px; max-block-size: 60px; }
+  .is-expanded .nameplate-row strong { font-size: 11px; }
+  .is-expanded .nameplate-row > .battle-tooltip-trigger { padding-inline-end: 0; padding-block-end: 32px; width: 100%; }
+  .is-expanded .nameplate-row .touch-inspect { inset-block-start: auto; inset-block-end: -4px; inset-inline-end: -3px; }
+  .is-expanded .type-chip { font-size: 8px; padding-inline: 3px; }
+  .is-expanded .hp-block { flex-wrap: wrap; gap: 3px; }
+  .is-expanded .hp-track { min-width: 45px; }
+  .layout-preview { grid-template-columns: minmax(0, 1fr); }
+  .layout-preview-pokemon { padding-inline-end: 44px; }
+}

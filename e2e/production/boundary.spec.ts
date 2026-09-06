@@ -2,6 +2,9 @@ import { expect, test } from '@playwright/test';
 import { installMockPs } from '../mock-ps';
 
 test('deployed handlers reject unsafe inputs and expose production headers', async ({ request }) => {
+  const notices = await request.get('/THIRD_PARTY_NOTICES.txt');
+  expect(notices.ok()).toBe(true);
+  expect(await notices.text()).toContain('BattleStatGuesser');
   const shell = await request.get('/');
   const csp = shell.headers()['content-security-policy'];
   expect(csp).toContain("script-src 'self';");

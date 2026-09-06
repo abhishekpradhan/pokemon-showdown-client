@@ -293,8 +293,9 @@ describe('battle request regression corpus', () => {
     expect(defensiveTypes({ types: ['Water'], terastallized: 'Stellar' })).toEqual(['Water']);
     expect(defensiveTypes({ types: ['Water'], terastallized: 'Fire' })).toEqual(['Fire']);
     expect(battleSupport('gen9ou').supported).toBe(true);
-    expect(battleSupport('gen9freeforall').supported).toBe(false);
-    expect(battleSupport('customgame', 'multi').supported).toBe(false);
+    expect(battleSupport('gen9freeforall').supported).toBe(true);
+    expect(battleSupport('customgame', 'multi').supported).toBe(true);
+    expect(battleSupport('customgame', 'rotation').supported).toBe(false);
   });
 
   it('uses effective abilities, grounded states and transformed move types for matchup hints', async () => {

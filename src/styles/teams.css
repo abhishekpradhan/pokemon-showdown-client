@@ -814,6 +814,17 @@
 .team-workspace .set-details { margin-top: 0; padding: 12px 0 0; }
 .set-iv-details .button-row { margin-top: 10px; }
 .set-details > summary { font-size: 13px; font-weight: 600; }
+.set-sample-section, .sample-set-browser, .set-spread-suggestion { display: grid; gap: 10px; min-width: 0; }
+.set-sample-section > button, .sample-set-browser > button, .set-spread-suggestion > button { justify-self: start; }
+.sample-set-browser { padding-block: 12px; }
+.sample-set-browser p, .set-spread-suggestion p { margin: 0; line-height: 1.55; }
+.set-suggestion-note { color: var(--arena-muted); font-size: 12px; }
+.set-suggestion-note a, .set-suggestion-heading a { color: var(--arena-accent-text); text-decoration: underline; text-underline-offset: 2px; }
+.sample-set-preview { margin: 0; padding: 12px; max-height: 300px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; border: 1px solid var(--arena-line); border-radius: 6px; background: var(--arena-ink-2); color: var(--arena-text); font-size: 12px; line-height: 1.6; }
+.set-spread-suggestion { padding: 12px 0; border-block: 1px solid var(--arena-line); font-size: 12px; }
+.set-suggestion-heading, .set-suggestion-applied { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.set-suggestion-applied { color: var(--arena-muted); font-size: 12px; }
+.set-suggestion-error { color: var(--arena-red-text); }
 .team-workspace .team-library-tools .secondary-action { font-size: 12px; min-height: 36px; }
 .team-workspace .new-team-button { margin: 0; font-size: 12px; }
 

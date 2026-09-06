@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.2.0 — 2026-09-06
+
+Complete the remaining implementable team, battle and preference workflows and expand their verification.
+
+- Import official sample sets with source previews, explicit apply/undo and preserved personal fields; infer EV/nature spreads with the pinned upstream heuristic and keep manual control.
+- Add triples targeting/Shift and four-player multi/free-for-all ownership, targets, private rosters, spectator viewpoints, seat invitations and responsive fields.
+- Add public avatars with server confirmation, twelve server languages, local backgrounds, separate audio levels and optional battle music that follows focus and visibility.
+- Keep OAuth pending until the expected named identity is acknowledged; preserve failed-login errors across unrelated profile updates.
+- Fix avatar sprite aliases, preference acknowledgements that rejoined rooms, accumulated room errors, mobile Settings overflow and WebKit image storage.
+- Expand controlled real-server, OAuth/replay, recorded protocol and long-session tests; patch the isolated test-server runtime lock and retain network isolation.
+- Extract feature/settings/integration modules, distribute upstream notices and publish concrete GitHub acceptance issues.
+
+See the [parity record](docs/parity-completion.md). Rotation remains gated until upstream implements it. [Physical-device/screen-reader](https://github.com/abhishekpradhan/pokemon-showdown-client/issues/12) and [registered production-account](https://github.com/abhishekpradhan/pokemon-showdown-client/issues/13) acceptance remain separate, explicitly unverified checks. Arena's interface is English; the language preference controls translated server messages.
+
 ## 1.1.1 — 2026-09-06
 
 Polish the main desktop and mobile workflows following a hands-on UX review.
