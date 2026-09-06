@@ -17,9 +17,11 @@ export function BattlesScreen() {
   const navigate = useNavigate();
   const refresh = () => { useArenaStore.getState().refreshRoomList(format); setRefreshed(Date.now()); };
   useEffect(() => { if (connection === 'connected') useArenaStore.getState().refreshRoomList(format); }, [connection, format]);
-  const matches = rooms.filter(room => (!query || `${room.p1} ${room.p2} ${room.id}`.toLowerCase().includes(query.toLowerCase())) && (!minimum || Number(room.minElo || 0) >= minimum) && battleSupport(room.format || room.id.split('-')[1]).supported).sort((a, b) => sort === 'rating' ? Number(b.minElo || 0) - Number(a.minElo || 0) : (a.p1 || '').localeCompare(b.p1 || ''));
+  const matches = rooms.filter(room => room.id.startsWith('battle-') && (!query || `${room.p1} ${room.p2} ${room.id}`.toLowerCase().includes(query.toLowerCase())) && (!minimum || Number(room.minElo || 0) >= minimum) && battleSupport(room.format || room.id.split('-')[1]).supported).sort((a, b) => sort === 'rating' ? Number(b.minElo || 0) - Number(a.minElo || 0) : (a.p1 || '').localeCompare(b.p1 || ''));
+  const lastPage = Math.max(1, Math.ceil(matches.length / 40));
+  if (page > lastPage) setPage(lastPage);
   return <section className="room-directory-surface" aria-label="Battle directory"><header className="stage-heading"><h1>Live battles</h1><Link to="/">Matchmaking</Link></header>
-    <div className="directory-tools battle-directory-tools"><label>Format<FormatSelector value={format} formats={[{ id: '', name: 'All formats', team: false }, ...formats.filter(entry => battleSupport(entry.id).supported)]} onValueChange={setFormat} /></label>
+    <div className="directory-tools battle-directory-tools"><label>Format<FormatSelector value={format} formats={[{ id: '', name: 'All formats', team: false }, ...formats.filter(entry => battleSupport(entry.id).supported)]} onValueChange={next => { setFormat(next); setPage(1); }} /></label>
       <label>Player or battle<input aria-label="Filter live battles" value={query} onChange={event => { setQuery(event.currentTarget.value); setPage(1); }} /></label>
       <label>Minimum rating<input aria-label="Minimum battle rating" type="number" min={0} max={4000} value={minimum} onChange={event => { setMinimum(Number(event.currentTarget.value)); setPage(1); }} /></label>
       <label>Sort<select aria-label="Sort battles" value={sort} onChange={event => setSort(event.currentTarget.value)}><option value="rating">Rating</option><option value="player">Player</option></select></label>

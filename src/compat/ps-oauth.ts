@@ -123,6 +123,11 @@ export const authorizeUrl = (challstr: string, state?: string): string => {
   // A static page, not an SPA route: the popup shouldn't boot a second copy
   // of the client, and this path resolves identically in dev and production.
   const callback = new URL('/oauth.html', location.origin);
+  // Showdown registers an origin, not an exact callback URL. Its authorize
+  // page preserves redirect_uri's query when adding the grant, but does not
+  // echo a top-level OAuth state parameter. Keep the nonce inside this URL.
+  // Provider: smogon/pokemon-showdown-loginserver src/oauth.ts validateOrigin
+  // and src/public/oauth-authorize.html getAssertion (fd609ab60b35).
   if (state) callback.searchParams.set('state', state);
   url.searchParams.set('redirect_uri', callback.toString());
   url.searchParams.set('client_id', oauthClientId());

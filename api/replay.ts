@@ -1,4 +1,4 @@
-import { proxyForm } from '../server/proxy';
+import { proxyForm } from '../server/proxy.js';
 
 export const config = { runtime: 'edge' };
 

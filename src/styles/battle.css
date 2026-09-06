@@ -1211,6 +1211,32 @@
     left: 4%;
   }
 
+  /* The mobile grid reserves at least 220px for the field. Keep singles
+     inside that track instead of letting a taller field run under the dock. */
+  .battle-field:not(:has(.combatant[data-positions="2"])) {
+    min-block-size: 220px;
+    min-height: 220px;
+  }
+  .combatant-far[data-positions="1"] { inset-block-start: 34px; }
+  .combatant-near[data-positions="1"] { inset-block-end: 32px; }
+  .combatant[data-positions="1"] .combatant-sprite {
+    block-size: 72px;
+    min-block-size: 72px;
+    height: 72px;
+    min-height: 72px;
+  }
+  .combatant[data-positions="1"] .combatant-sprite img {
+    max-block-size: 72px;
+    max-height: 72px;
+    inline-size: auto;
+    block-size: auto;
+  }
+  .combatant[data-positions="1"] .combatant-nameplate { padding: 6px 8px; gap: 3px; }
+  .battle-field:not(:has(.combatant[data-positions="2"])) .field-hud { padding: 8px 12px 10px; }
+  .battle-field:not(:has(.combatant[data-positions="2"])) .field-hud.is-near { padding: 10px 12px 8px; }
+  .battle-field:not(:has(.combatant[data-positions="2"])) .field-player,
+  .battle-field:not(:has(.combatant[data-positions="2"])) .field-turn { padding: 2px 7px; font-size: 11px; line-height: 16px; }
+
   .decision-dock {
     max-height: 47dvh;
     padding: 8px;

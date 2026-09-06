@@ -21,7 +21,11 @@ export function buildArtifacts(env: Record<string, string>): Plugin {
       const sourceRoot = env.VITE_SOURCE_URL || 'https://github.com/abhishekpradhan/pokemon-showdown-client';
       const source = /^[a-f0-9]{40}$/i.test(revision) ? `${sourceRoot.replace(/\/$/, '')}/tree/${revision}` : sourceRoot;
       let modified = false;
-      try { modified = !!execFileSync('git', ['status', '--porcelain', '--untracked-files=normal'], { encoding: 'utf8' }).trim(); }
+      try {
+        const status = execFileSync('git', ['status', '--porcelain', '--untracked-files=normal'], { encoding: 'utf8' }).trim();
+        modified = !!status;
+        if (modified) console.info('Source checkout has changes:', status.split('\n').slice(0, 20).join('\n'));
+      }
       catch { modified = true; }
       const info = { name: metadata.name, version: metadata.version, revision, source, modified, upstream: 'https://github.com/smogon/pokemon-showdown-client', license: metadata.license };
       writeFileSync(resolve(outDir, 'build-info.json'), JSON.stringify(info, null, 2));

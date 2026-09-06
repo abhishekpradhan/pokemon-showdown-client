@@ -55,6 +55,7 @@ test('never sends an unsigned /trn', async ({ page }) => {
 
 test('never collects a Showdown password; registered names go through OAuth', async ({ page }) => {
   await page.goto('/');
+  await expect(page.getByText('Online', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: /Unnamed guest/i }).click();
   const dialog = page.getByRole('dialog');
 
@@ -70,7 +71,7 @@ test('never collects a Showdown password; registered names go through OAuth', as
   const oauth = dialog.getByRole('button', { name: /Sign in with Pok/i });
   await expect(oauth).toBeVisible();
   if (await oauth.isDisabled()) {
-    await expect(dialog.getByText(/OAuth client ID/i)).toBeVisible();
+    await expect(dialog.getByText(/Registered sign-in is unavailable on this installation/i)).toBeVisible();
   }
 
   // A registered name refused by the login server must not send a bare /trn.

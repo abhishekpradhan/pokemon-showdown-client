@@ -1,6 +1,6 @@
 # September 2026 audit implementation
 
-The [audit](project-audit-2026-09-05.md) describes the original `f48e68fc` baseline. This document records the subsequent 1.1.0 candidate. Each of its 72 grouped findings has an implementation or an explicit supported-feature boundary below. This is not a claim of unrestricted parity with every official-client feature or every custom server.
+The [audit](project-audit-2026-09-05.md) describes the original `f48e68fc` baseline. This document records the subsequent 1.1.0 release. Each of its 72 grouped findings has an implementation or an explicit supported-feature boundary below. This is not a claim of unrestricted parity with every official-client feature or every custom server.
 
 ## Changes by audit ID
 
@@ -36,7 +36,7 @@ The [audit](project-audit-2026-09-05.md) describes the original `f48e68fc` basel
 | SEC01 | Compatible dependency updates and patched DOMPurify floor; advisory CI gate | npm audit reports zero affected dependencies in the shipped lockfile |
 | SEC02 | Private protocol payloads removed at capture time; reviewable diagnostic export; clipboard failures reported | Credential/team/chat/private-ID redaction fixtures |
 | SEC03–SEC04 | Shared actual API handlers, streamed byte/deadline bounds, origin/action restrictions, CSP, external callback script, safe rich-content policy | Production proxy, worker and sanitizer tests plus production browser checks |
-| SEC05 | Accurate storage, network and service disclosures in Settings and PRIVACY | Documentation/source cross-check |
+| SEC05 | Accurate storage, network and service disclosures in Settings and [privacy documentation](privacy.md) | Documentation/source cross-check |
 | PWA01–PWA03 | Correct versioned shell, OAuth/API exclusion, manifest-bounded current/previous caches, user-applied updates/repair, offline team/replay tools | Executable worker lifecycle tests and production offline workflow |
 | Q01–Q03 | Required desktop/mobile/Firefox/WebKit/visual/production checks; real production handlers; mocks isolate simulator socket and all workflows fail on page errors | Full browser and release CI gates |
 | Q04 | Pinned real upstream server harness with two ProtocolClient users, unrated battle and complete tournament; isolated loopback runtime and drift check | test:integration artifact and scheduled advisory live check |
@@ -46,12 +46,12 @@ The [audit](project-audit-2026-09-05.md) describes the original `f48e68fc` basel
 
 ## Verification record
 
-- Integrated TypeScript/ESLint/unit checks passed with 175 tests in 27 files before the final browser-integration pass; the release record will carry the final count.
-- The new six social/recovery workflows passed on desktop and mobile (12 checks).
+- Integrated TypeScript/ESLint checks and 195 unit tests in 32 files passed on Node 24. API handlers also pass NodeNext module-resolution checks used by the deployment runtime.
+- The full Chromium/mobile/Firefox/WebKit workflow matrix passed 277 checks, with three intentional desktop skips for the mobile-only touch test. The four desktop/mobile visual references were regenerated and visually reviewed. CI repeats these gates against the committed tree.
 - The pinned real-server run completed guest handshakes, a real unrated battle through turn 2, and a complete private tournament. See [local integration](local-integration.md). Its isolated upstream test dependencies are distinct from the shipped dependency lock.
-- Production build and license inventory pass. Initial gzip bundle is within the 300 KiB gate; all shipped assets remain within the documented budgets.
-- Private vulnerability reporting, Dependabot alerts/security fixes and secret push protection are enabled on the public repository.
-- Full matching-browser matrix, reviewed visual baselines, production deployment/provenance and required-main checks are recorded in the release evidence after the candidate is committed.
+- Production build, three production browser checks, and the 390-entry license inventory pass. Initial gzip bundle is within the 300 KiB gate; all shipped assets remain within the documented budgets. The shipped dependency audit reports zero advisories.
+- Private vulnerability reporting, Dependabot alerts/security fixes and secret scanning/push protection are enabled on the public repository. Main requires an up-to-date pull request, the aggregate Release checks status, resolved conversations and linear history; administrator bypass, force pushes and deletion are disabled. The single-maintainer workflow does not claim an independent approving review.
+- Exact committed CI and production deployment/provenance results are retained in the [1.1.0 release evidence](https://github.com/abhishekpradhan/pokemon-showdown-client/releases/tag/v1.1.0).
 
 ## Explicit support limits
 

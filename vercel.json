@@ -1,9 +1,22 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "vite",
+  "installCommand": "npm ci",
   "rewrites": [
     {
-      "source": "/((?!api/).*)",
+      "source": "/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/(teambuilder|settings|rooms|battles|ladder|replays)",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/(room|battle)/:id",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/:legacy(battle-[a-z0-9-]+|pm-[a-z0-9]+|lobby)",
       "destination": "/index.html"
     }
   ],
@@ -52,7 +65,7 @@
       ]
     },
     {
-      "source": "/(sw.js|index.html|build-info.json|third-party-licenses.json)",
+      "source": "/(sw.js|index.html|build-info.json|third-party-licenses.json|THIRD_PARTY_NOTICES.txt)",
       "headers": [
         {
           "key": "Cache-Control",

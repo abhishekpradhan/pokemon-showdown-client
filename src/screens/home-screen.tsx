@@ -25,7 +25,7 @@ export function HomeScreen() {
   );
   const navigate = useNavigate();
   const [challengeTarget, setChallengeTarget] = useState('');
-  const liveBattles = roomList.rooms.slice(0, 12);
+  const liveBattles = roomList.rooms.filter(room => room.id.startsWith('battle-') && battleSupport(room.format || room.id.split('-')[1]).supported).slice(0, 12);
 
   useEffect(() => {
     if (connection === 'connected') refreshRoomList();
@@ -80,83 +80,57 @@ export function HomeScreen() {
 
   return (
     <section className="match-workspace" aria-label="Matchmaking">
-      <div className="match-main">
-        <section className={`match-stage is-${searchState}`}>
-          <div className="match-stage-toolbar">
-            <span className={`live-label is-${connection}`}>
-              <Signal size={13} aria-hidden />
-              {connection === 'connected' ? 'Battle server live' : `Server ${connection}`}
-            </span>
+      <section className={`match-stage is-${searchState}`}>
+        <div className="match-stage-toolbar">
+          <span className={`live-label is-${connection}`}>
+            <Signal size={13} aria-hidden />
+            {connection === 'connected' ? 'Battle server live' : `Server ${connection}`}
+          </span>
+        </div>
+
+        <div className="match-stage-copy">
+          <span className="eyebrow">Matchmaking</span>
+          <h1>{searchState === 'searching' ? 'Looking for an opponent.' : 'Ready when you are.'}</h1>
+          <p>
+            {searchState === 'searching' ?
+              `${formats.find(format => format.id === searchFormats[0])?.name || selected?.name || 'Selected format'} is in the queue.` :
+              'Choose the ruleset and team for your next battle.'}
+          </p>
+        </div>
+
+        {searchState === 'idle' ? (
+          <div className="queue-controls" key="setup">
+            <label className="control-field">
+              <span>Format</span>
+              <FormatSelector value={selectedFormat} formats={formats.filter(format => battleSupport(format.id).supported)} onValueChange={setSelectedFormat} />
+            </label>
+            <label className="control-field">
+              <span>Battle team</span>
+              <SearchableSelect
+                ariaLabel="Select active team"
+                emptyLabel="No saved teams"
+                options={teamOptions}
+                placeholder={requiresTeam ? 'Choose team' : 'Preset team'}
+                value={activeTeamId}
+                onValueChange={selectTeam}
+              />
+            </label>
+            <button className="queue-action" type="button" onClick={startSearch} disabled={!canSearch}>
+              <Radio size={17} aria-hidden />
+              Find battle
+            </button>
           </div>
-
-          <div className="match-stage-copy">
-            <span className="eyebrow">Matchmaking</span>
-            <h1>{searchState === 'searching' ? 'Looking for an opponent.' : 'Ready when you are.'}</h1>
-            <p>
-              {searchState === 'searching' ?
-                `${formats.find(format => format.id === searchFormats[0])?.name || selected?.name || 'Selected format'} is in the queue.` :
-                'Choose the ruleset and team for your next battle.'}
-            </p>
-          </div>
-
-          {searchState === 'idle' ? (
-            <div className="queue-controls" key="setup">
-              <label className="control-field">
-                <span>Format</span>
-                <FormatSelector value={selectedFormat} formats={formats.filter(format => battleSupport(format.id).supported)} onValueChange={setSelectedFormat} />
-              </label>
-              <label className="control-field">
-                <span>Battle team</span>
-                <SearchableSelect
-                  ariaLabel="Select active team"
-                  emptyLabel="No saved teams"
-                  options={teamOptions}
-                  placeholder={requiresTeam ? 'Choose team' : 'Preset team'}
-                  value={activeTeamId}
-                  onValueChange={selectTeam}
-                />
-              </label>
-              <button className="queue-action" type="button" onClick={startSearch} disabled={!canSearch}>
-                <Radio size={17} aria-hidden />
-                Find battle
-              </button>
-            </div>
-          ) : (
-            <div className="searching-deck" key="searching" role="status" aria-live="polite">
-              <span className="searching-radar" aria-hidden><i /><i /><i /></span>
-              <span>
-                <strong>Searching {selected?.name || selectedFormat}</strong>
-                <small>Keep this workspace open. The battle will take focus when matched.</small>
-              </span>
-              <button className="queue-cancel" type="button" onClick={cancelSearch}>Cancel</button>
-            </div>
-          )}
-        </section>
-
-        <section className="live-now" aria-label="Live battles">
-          <div className="live-now-heading">
+        ) : (
+          <div className="searching-deck" key="searching" role="status" aria-live="polite">
+            <span className="searching-radar" aria-hidden><i /><i /><i /></span>
             <span>
-              <small>Spectate</small>
-              <h2>Live now</h2>
+              <strong>Searching {selected?.name || selectedFormat}</strong>
+              <small>Keep this workspace open. The battle will take focus when matched.</small>
             </span>
-            <Link to="/battles" className="stage-link">
-              Browse battles <ArrowUpRight size={13} aria-hidden />
-            </Link>
+            <button className="queue-cancel" type="button" onClick={cancelSearch}>Cancel</button>
           </div>
-          <div className="live-grid">
-            {liveBattles.map(room => (
-              <button type="button" className="live-card" key={room.id} onClick={() => watchBattle(room.id)}>
-                <small>{room.format || room.id.replace(/^battle-/, '').replace(/-\d+$/, '')}</small>
-                <strong>{room.p1 ? `${room.p1} vs ${room.p2 || '?'}` : room.title}</strong>
-                <span className="live-card-action"><Swords size={13} aria-hidden /> Watch</span>
-              </button>
-            ))}
-            {!liveBattles.length && (
-              <p className="pane-empty">{connection === 'connected' ? 'Loading live battles…' : 'Connect to browse battles.'}</p>
-            )}
-          </div>
-        </section>
-      </div>
+        )}
+      </section>
 
       <aside className="match-inspector" aria-label="Queue readiness">
         <div className="inspector-heading">
@@ -249,6 +223,30 @@ export function HomeScreen() {
           <span>Battle decisions remain available in the bottom action deck.</span>
         </div>
       </aside>
+
+      <section className="live-now" aria-label="Live battles">
+        <div className="live-now-heading">
+          <span>
+            <small>Spectate</small>
+            <h2>Live now</h2>
+          </span>
+          <Link to="/battles" className="stage-link">
+            Browse battles <ArrowUpRight size={13} aria-hidden />
+          </Link>
+        </div>
+        <div className="live-grid">
+          {liveBattles.map(room => (
+            <button type="button" className="live-card" key={room.id} onClick={() => watchBattle(room.id)}>
+              <small>{room.format || room.id.replace(/^battle-/, '').replace(/-\d+$/, '')}</small>
+              <strong>{room.p1 ? `${room.p1} vs ${room.p2 || '?'}` : room.title}</strong>
+              <span className="live-card-action"><Swords size={13} aria-hidden /> Watch</span>
+            </button>
+          ))}
+          {!liveBattles.length && (
+            <p className="pane-empty">{connection === 'connected' ? 'No live battles available in the latest server snapshot.' : 'Connect to browse battles.'}</p>
+          )}
+        </div>
+      </section>
     </section>
   );
 }

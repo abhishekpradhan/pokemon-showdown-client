@@ -10,10 +10,11 @@ const shell = '<html><meta name="arena-build" content="new"><div id="root">APP S
 type WorkerEvent = {
   request?: { url: string; method: string; mode: string };
   data?: { type: string };
+  ports?: Array<{ postMessage: (value: unknown) => void }>;
   waitUntil?: (promise: Promise<unknown>) => void;
   respondWith?: (promise: Promise<Response>) => void;
 };
-function worker(options: { quota?: boolean; mismatchedShell?: boolean } = {}) {
+function worker(options: { quota?: boolean; mismatchedShell?: boolean; htmlAsset?: boolean } = {}) {
   const stores = new Map<string, Map<string, Response>>();
   const handlers = new Map<string, (event: WorkerEvent) => void>();
   let skipped = false;
@@ -29,7 +30,7 @@ function worker(options: { quota?: boolean; mismatchedShell?: boolean } = {}) {
         async match(path: string) { return store.get(path)?.clone(); },
         async addAll(paths: string[]) {
           if (options.quota) throw new DOMException('Storage full', 'QuotaExceededError');
-          for (const path of paths) store.set(path, new Response(path));
+          for (const path of paths) store.set(path, new Response(path, { headers: { 'Content-Type': options.htmlAsset ? 'text/html' : 'application/javascript' } }));
         },
       };
     },
@@ -55,10 +56,24 @@ function worker(options: { quota?: boolean; mismatchedShell?: boolean } = {}) {
     handlers.get('fetch')!({ request: { url: origin + path, method: 'GET', mode }, respondWith(promise) { result = promise; } });
     return result;
   };
-  return { stores, lifecycle, navigate, context, get skipped() { return skipped; }, get claimed() { return claimed; } };
+  const status = async () => {
+    let work: Promise<unknown> | undefined;
+    let reply: unknown;
+    handlers.get('message')!({ data: { type: 'ARENA_OFFLINE_STATUS' }, ports: [{ postMessage(value) { reply = value; } }], waitUntil(promise) { work = promise; } });
+    await work;
+    return reply;
+  };
+  return { stores, lifecycle, navigate, status, context, get skipped() { return skipped; }, get claimed() { return claimed; } };
 }
 
 describe('versioned app worker', () => {
+  it('claims offline readiness only while every required resource is present', async () => {
+    const subject = worker();
+    await subject.lifecycle('install');
+    expect(await subject.status()).toEqual({ revision: 'new', ready: true });
+    subject.stores.get('arena-build-new')!.delete('/assets/editor-new.js');
+    expect(await subject.status()).toEqual({ revision: 'new', ready: false });
+  });
   it('preloads the matching shell and local tools, never OAuth/API documents', async () => {
     const subject = worker();
     await subject.lifecycle('install');
@@ -67,6 +82,10 @@ describe('versioned app worker', () => {
     expect(subject.navigate('/api/action')).toBeUndefined();
     subject.context.fetch = async () => { throw new Error('offline'); };
     expect(await (await subject.navigate('/teambuilder'))!.text()).toContain('APP SHELL');
+    for (const path of ['/battle-gen9ou-123', '/pm-alice', '/lobby']) {
+      expect(await (await subject.navigate(path))!.text()).toContain('APP SHELL');
+    }
+    expect(subject.navigate('/missing-script.js')).toBeUndefined();
     expect(await (await subject.navigate('/assets/editor-new.js', 'cors'))!.text()).toBe('/assets/editor-new.js');
     expect(subject.skipped).toBe(false);
     await subject.lifecycle('message', { type: 'ARENA_APPLY_UPDATE' });
@@ -84,7 +103,7 @@ describe('versioned app worker', () => {
     expect(await (await subject.navigate('/assets/editor-old.js', 'cors'))!.text()).toBe('previous editor');
   });
 
-  it.each([{ quota: true }, { mismatchedShell: true }])('failed install leaves the earlier offline version intact (%j)', async options => {
+  it.each([{ quota: true }, { mismatchedShell: true }, { htmlAsset: true }])('failed install leaves the earlier offline version intact (%j)', async options => {
     const subject = worker(options);
     subject.stores.set('arena-build-previous', new Map([['/', new Response('working old shell')]]));
     await expect(subject.lifecycle('install')).rejects.toThrow();

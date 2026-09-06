@@ -774,22 +774,35 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
         set({ lastError: `That challenge needs a valid team: ${validation.errors.join(' ')}` });
         return;
       }
-      get().protocol.send(`/utm ${exportPackedTeam(activeTeam)}`);
+      if (get().protocol.send(`/utm ${exportPackedTeam(activeTeam)}`) === false) {
+        set({ lastError: 'The team was not sent. Reconnect before accepting this challenge.' });
+        return;
+      }
     }
-    get().protocol.send(`/accept ${toId(user)}`);
+    if (get().protocol.send(`/accept ${toId(user)}`) === false) {
+      set({ lastError: 'The challenge acceptance was not sent. Reconnect and retry.' });
+      return;
+    }
+    set({ lastError: undefined });
   },
   rejectChallenge: user => {
-    get().protocol.send(`/reject ${toId(user)}`);
+    if (get().connection !== 'connected' || get().protocol.send(`/reject ${toId(user)}`) === false) {
+      set({ lastError: 'The challenge rejection was not sent. Reconnect and retry.' });
+      return;
+    }
     set(state => {
       const from = { ...state.challenges.from };
       delete from[user];
       delete from[toId(user)];
-      return { challenges: { ...state.challenges, from } };
+      return { lastError: undefined, challenges: { ...state.challenges, from } };
     });
   },
   cancelChallenge: () => {
-    get().protocol.send('/cancelchallenge');
-    set(state => ({ challenges: { ...state.challenges, to: null } }));
+    if (get().connection !== 'connected' || get().protocol.send('/cancelchallenge') === false) {
+      set({ lastError: 'The challenge cancellation was not sent. Reconnect and retry.' });
+      return;
+    }
+    set(state => ({ lastError: undefined, challenges: { ...state.challenges, to: null } }));
   },
 
   submitBattleChoice: (choice, roomId) => {

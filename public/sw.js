@@ -3,7 +3,7 @@ const BUILD = /* @arena-manifest */ { revision: 'development', assets: ['/', '/f
 const PREFIX = 'arena-build-';
 const CACHE = `${PREFIX}${BUILD.revision}`;
 const CORE = new Set(BUILD.assets);
-const isAppPath = pathname => /^\/(?:index\.html|teambuilder|settings|rooms|battles|ladder|replays)?$/.test(pathname) || /^\/(?:room|battle)\/[^/]+$/.test(pathname);
+const isAppPath = pathname => /^\/(?:index\.html|teambuilder|settings|rooms|battles|ladder|replays)?$/.test(pathname) || /^\/(?:room|battle)\/[^/]+$/.test(pathname) || /^\/(?:battle-[a-z0-9-]+|pm-[a-z0-9]+|lobby)$/.test(pathname);
 
 self.addEventListener('install', event => {
   event.waitUntil((async () => {
@@ -14,7 +14,17 @@ self.addEventListener('install', event => {
       const html = await shell.clone().text();
       if (!shell.ok || !html.includes(`name="arena-build" content="${BUILD.revision}"`)) throw new Error('Deployment changed during install');
       await cache.put('/', shell);
-      await cache.addAll(BUILD.assets.filter(path => path !== '/'));
+      const resources = BUILD.assets.filter(path => path !== '/');
+      await cache.addAll(resources);
+      // Some SPA hosts return their HTML fallback with 200 for missing chunks.
+      // Such a cache must never become the installed offline application.
+      for (const path of resources) {
+        const response = await cache.match(path);
+        const type = response?.headers.get('Content-Type') || '';
+        if (!response || (/\.js$/.test(path) && !/(java|ecma)script/i.test(type)) || (/\.css$/.test(path) && !/text\/css/i.test(type))) {
+          throw new Error('Incomplete deployment resources');
+        }
+      }
     } catch (error) {
       await caches.delete(CACHE);
       throw error;
@@ -26,6 +36,13 @@ self.addEventListener('install', event => {
 
 self.addEventListener('message', event => {
   if (event.data?.type === 'ARENA_APPLY_UPDATE') event.waitUntil(self.skipWaiting());
+  if (event.data?.type === 'ARENA_OFFLINE_STATUS' && event.ports?.[0]) {
+    event.waitUntil((async () => {
+      const cache = await caches.open(CACHE);
+      const present = await Promise.all(BUILD.assets.map(path => cache.match(path)));
+      event.ports[0].postMessage({ revision: BUILD.revision, ready: present.every(Boolean) });
+    })());
+  }
 });
 
 self.addEventListener('notificationclick', event => {

@@ -5,6 +5,7 @@ import type { ChatMessage } from '../rooms/types';
 import { sanitizeChatHtml, isSafeChatCommand, normalizeChatHref } from './chat-html';
 import { useWorkspaceStore } from '../stores/workspace-store';
 import { toId } from '../compat/protocol-parsers';
+import { useChatAnnouncements } from './chat-announcements';
 
 /**
  * The one chat renderer: rooms, PMs and battle chat all feed through here.
@@ -75,16 +76,20 @@ const formatTime = (timestamp?: number) => {
   return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
-export const ChatFeed = memo(function ChatFeed({ messages, selfName, onCommand, onUserClick }: {
+export const ChatFeed = memo(function ChatFeed({ messages, selfName, onCommand, onUserClick, announce = false, label = 'Chat history' }: {
   messages: ChatMessage[];
   selfName?: string;
+  /** Opt in only for live conversation; replay/history views stay quiet. */
+  announce?: boolean;
+  label?: string;
   /** Receives the `value` of sanitized HTML command buttons (poll votes, etc.). */
   onCommand?: (command: string) => void;
   /** Makes author names clickable (user cards). */
-  onUserClick?: (name: string, at: { x: number; y: number }) => void;
+  onUserClick?: (name: string, at: { x: number; y: number; trigger: HTMLElement }) => void;
 }) {
   const navigate = useNavigate();
   const { timestamps, ignoredUsers, highlights } = useWorkspaceStore();
+  const announcements = useChatAnnouncements(messages, announce, selfName);
   const handleHtmlClick = (event: MouseEvent<HTMLDivElement>) => {
     const target = (event.target as HTMLElement).closest<HTMLElement>('[data-cmd],button[value],[data-href],a[href]');
     if (!target || !event.currentTarget.contains(target)) return;
@@ -100,12 +105,10 @@ export const ChatFeed = memo(function ChatFeed({ messages, selfName, onCommand, 
     if (href?.startsWith('/')) { event.preventDefault(); void navigate({ to: href }); }
   };
 
-  if (!messages.length) {
-    return <p className="chat-empty">No messages yet.</p>;
-  }
-
   return (
-    <ol className="chat-feed-list">
+    <>
+    <div role="log" aria-label={label} aria-live="off">
+    {!messages.length ? <p className="chat-empty">No messages yet.</p> : <ol className="chat-feed-list">
       {messages.filter(message => !ignoredUsers.includes(toId(message.user))).map((message, index) => {
         const key = message.uhtmlName || `${message.timestamp || index}-${index}`;
         const self = !!selfName && message.user.toLowerCase() === selfName.toLowerCase();
@@ -148,7 +151,7 @@ export const ChatFeed = memo(function ChatFeed({ messages, selfName, onCommand, 
                 className="chat-author"
                 onClick={event => {
                   const rect = event.currentTarget.getBoundingClientRect();
-                  onUserClick(message.user, { x: rect.left, y: rect.bottom });
+                  onUserClick(message.user, { x: rect.left, y: rect.bottom, trigger: event.currentTarget });
                 }}
               >
                 {message.user}
@@ -161,6 +164,9 @@ export const ChatFeed = memo(function ChatFeed({ messages, selfName, onCommand, 
           </li>
         );
       })}
-    </ol>
+    </ol>}
+    </div>
+    <div ref={announcements} className="visually-hidden" role="status" aria-label="New chat messages" aria-live={announce ? 'polite' : 'off'} aria-atomic="true" />
+    </>
   );
 });

@@ -113,9 +113,14 @@ describe('recoverable team storage', () => {
   });
 
   it('reports quota errors instead of claiming a durable save', () => {
-    const spy = vi.spyOn(localStorage, 'setItem').mockImplementation(() => { throw new DOMException('Full', 'QuotaExceededError'); });
-    expect(saveStoredTeams([fixtureTeam()])).toMatchObject({ ok: false });
-    spy.mockRestore();
+    // jsdom's Storage proxy does not support replacing methods on the
+    // instance. The Node fallback in setup owns its methods directly.
+    const methods = Object.hasOwn(localStorage, 'setItem') ? localStorage : Object.getPrototypeOf(localStorage) as Storage;
+    const spy = vi.spyOn(methods, 'setItem').mockImplementation(() => { throw new DOMException('Full', 'QuotaExceededError'); });
+    try {
+      expect(saveStoredTeams([fixtureTeam()])).toMatchObject({ ok: false });
+      expect(spy).toHaveBeenCalledWith(TEAM_STORAGE_KEY, expect.any(String));
+    } finally { spy.mockRestore(); }
   });
 
   it('keeps incomplete drafts and detects concurrent edits without overwriting them', () => {

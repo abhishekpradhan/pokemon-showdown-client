@@ -194,11 +194,13 @@ test('keeps mobile battle controls usable without horizontal overflow', async ({
   expect((decisionDeck?.y || 0) + (decisionDeck?.height || 0)).toBeLessThanOrEqual(844 - 58);
 });
 
-test('provides keyboard access to the main workspace', async ({ page }) => {
+test('provides keyboard access to the main workspace', async ({ page, browserName }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Ready when you are.' })).toBeVisible();
-  await page.keyboard.press('Tab');
-  await expect(page.getByRole('button', { name: /skip to workspace/i })).toBeFocused();
+  // Safari on macOS uses Option-Tab to include links with default keyboard settings.
+  // https://support.apple.com/guide/safari/keyboard-shortcuts-and-gestures-cpsh003/mac
+  await page.keyboard.press(browserName === 'webkit' && process.platform === 'darwin' ? 'Alt+Tab' : 'Tab');
+  await expect(page.getByRole('link', { name: /skip to workspace/i })).toBeFocused();
   await page.keyboard.press('Enter');
   await expect(page.locator('#workspace')).toBeFocused();
 });

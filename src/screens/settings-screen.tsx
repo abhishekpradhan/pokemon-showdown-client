@@ -21,6 +21,7 @@ import { requestNotifyPermission } from '../compat/desktop-notify';
 import { getDefaultServerConfig } from '../compat/protocol-client';
 import { useArenaStore } from '../stores/arena-store';
 import { useWorkspaceStore } from '../stores/workspace-store';
+import { normalizePreferenceList } from '../compat/preference-input';
 import { diagnosticReport } from '../compat/diagnostics';
 import { getClientUpdateState, onClientUpdate, checkClientUpdate, applyClientUpdate, repairClientCache } from '../pwa';
 
@@ -66,14 +67,14 @@ export function SettingsScreen() {
         <h2 id="appearance-settings"><Paintbrush size={15} aria-hidden /> Appearance</h2>
         <div className="setting-row">
           <span><strong>Theme</strong><small>Match the system, or pin light or dark.</small></span>
-          <div className="setting-segmented" aria-label="Theme">
-            <button type="button" className={theme === 'light' ? 'is-active' : ''} onClick={() => setTheme('light')}>
+          <div className="setting-segmented" role="group" aria-label="Theme">
+            <button type="button" aria-pressed={theme === 'light'} className={theme === 'light' ? 'is-active' : ''} onClick={() => setTheme('light')}>
               <Sun size={13} aria-hidden /> Light
             </button>
-            <button type="button" className={theme === 'dark' ? 'is-active' : ''} onClick={() => setTheme('dark')}>
+            <button type="button" aria-pressed={theme === 'dark'} className={theme === 'dark' ? 'is-active' : ''} onClick={() => setTheme('dark')}>
               <Moon size={13} aria-hidden /> Dark
             </button>
-            <button type="button" className={theme === 'system' ? 'is-active' : ''} onClick={() => setTheme('system')}>
+            <button type="button" aria-pressed={theme === 'system'} className={theme === 'system' ? 'is-active' : ''} onClick={() => setTheme('system')}>
               <Monitor size={13} aria-hidden /> System
             </button>
           </div>
@@ -91,7 +92,7 @@ export function SettingsScreen() {
         <label className="setting-row"><strong>Sound volume</strong><input aria-label="Sound volume" type="range" min={0} max={100} value={preferences.volume} onChange={event => setPreference('volume', Number(event.currentTarget.value))} /></label>
         {([
           ['highlights', 'Highlight words'], ['ignoredUsers', 'Ignored users'], ['mutedRooms', 'Muted rooms'], ['autojoinRooms', 'Rooms to join on sign-in'],
-        ] as const).map(([key, label]) => <label className="setting-field" key={key}><span><strong>{label}</strong><small>Separate entries with commas.</small></span><input aria-label={label} defaultValue={preferences[key].join(', ')} onBlur={event => setPreference(key, event.currentTarget.value.split(',').map(value => value.trim().toLowerCase()).filter(Boolean).slice(0, 100))} /></label>)}
+        ] as const).map(([key, label]) => <label className="setting-field" key={key}><span><strong>{label}</strong><small>Separate entries with commas.</small></span><input aria-label={label} defaultValue={preferences[key].join(', ')} onBlur={event => setPreference(key, normalizePreferenceList(key, event.currentTarget.value))} /></label>)}
         <p>Desktop permission: {typeof Notification === 'undefined' ? 'unavailable in this browser' : Notification.permission}. Browser and device notification settings also apply.</p>
       </section>
 

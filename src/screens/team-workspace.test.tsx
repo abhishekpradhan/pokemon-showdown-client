@@ -25,11 +25,16 @@ describe('team workspace draft lifecycle', () => {
     fireEvent.click(screen.getAllByRole('button', { name: 'New team' })[0]);
     fireEvent.change(screen.getByLabelText('Team name'), { target: { value: 'Incomplete' } });
     const original = localStorage.setItem.bind(localStorage);
-    const spy = vi.spyOn(localStorage, 'setItem').mockImplementation((key, value) => { if (key === TEAM_STORAGE_KEY) throw new Error('Quota'); original(key, value); });
-    fireEvent.click(screen.getByRole('button', { name: 'Save as new team' }));
-    expect(screen.getByLabelText('Team name')).toHaveValue('Incomplete');
-    expect(useArenaStore.getState().teams).toHaveLength(1);
-    spy.mockRestore();
+    // Intercept the prototype method on real jsdom Storage, or the own
+    // method on setup's fallback, so the quota fault fires on both runtimes.
+    const methods = Object.hasOwn(localStorage, 'setItem') ? localStorage : Object.getPrototypeOf(localStorage) as Storage;
+    const spy = vi.spyOn(methods, 'setItem').mockImplementation((key, value) => { if (key === TEAM_STORAGE_KEY) throw new Error('Quota'); original(key, value); });
+    try {
+      fireEvent.click(screen.getByRole('button', { name: 'Save as new team' }));
+      expect(screen.getByLabelText('Team name')).toHaveValue('Incomplete');
+      expect(useArenaStore.getState().teams).toHaveLength(1);
+      expect(spy).toHaveBeenCalledWith(TEAM_STORAGE_KEY, expect.any(String));
+    } finally { spy.mockRestore(); }
     fireEvent.click(screen.getByRole('button', { name: 'Save as new team' }));
     expect(useArenaStore.getState().teams[0]).toMatchObject({ name: 'Incomplete', sets: [] });
   });

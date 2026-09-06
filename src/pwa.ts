@@ -7,12 +7,29 @@ const update = (next: ClientUpdateState) => { state = next; listeners.forEach(li
 export const getClientUpdateState = () => state;
 export const onClientUpdate = (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; };
 
+function hasOfflineResources(worker: ServiceWorker): Promise<boolean> {
+  return new Promise(resolve => {
+    const channel = new MessageChannel();
+    const finish = (ready: boolean) => { clearTimeout(timer); channel.port1.close(); channel.port2.close(); resolve(ready); };
+    const timer = setTimeout(() => finish(false), 2_000);
+    channel.port1.onmessage = event => finish(event.data?.ready === true);
+    try { worker.postMessage({ type: 'ARENA_OFFLINE_STATUS' }, [channel.port2]); }
+    catch { finish(false); }
+  });
+}
+
 /** Called once from startup; production only. Installation includes the offline team editor. */
 export async function registerClientWorker() {
   if (!('serviceWorker' in navigator) || !import.meta.env.PROD) return;
   try {
     registration = await navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' });
-    const sync = () => update({ available: !!registration?.waiting, offlineReady: !!registration?.active });
+    const sync = () => {
+      const active = registration?.active;
+      update({ available: !!registration?.waiting, offlineReady: state.offlineReady && !!active });
+      if (active) void hasOfflineResources(active).then(ready => {
+        if (registration?.active === active) update({ ...state, offlineReady: ready });
+      });
+    };
     sync();
     registration.addEventListener('updatefound', () => {
       const worker = registration?.installing;

@@ -137,7 +137,7 @@ export function RoomScreen() {
         }}>Export chat</button>
         <small>Latest 2,000 messages retained locally in this session.</small>
       </div>
-      {roster && <div className="room-roster" aria-label="Room users">{room.users.filter(user => user.toLowerCase().includes(filter.toLowerCase())).map(user => <button type="button" className="secondary-action" key={user} onClick={event => { const rect = event.currentTarget.getBoundingClientRect(); setUserCard({ name: user, x: rect.left, y: rect.bottom }); }}>{user}</button>)}</div>}
+      {roster && <div className="room-roster" aria-label="Room users">{room.users.filter(user => user.toLowerCase().includes(filter.toLowerCase())).map(user => <button type="button" className="secondary-action" key={user} onClick={event => { const rect = event.currentTarget.getBoundingClientRect(); setUserCard({ name: user, x: rect.left, y: rect.bottom, trigger: event.currentTarget }); }}>{user}</button>)}</div>}
 
       {room.type === 'chat' && room.tournament && (
         <TournamentBanner
@@ -152,6 +152,9 @@ export function RoomScreen() {
         setAtBottom(bottom); if (bottom) setLastSeen(room.chat.at(-1));
       }}>
         <ChatFeed
+          key={room.id}
+          announce={connection === 'connected' && (roster || !filter)}
+          label={`${room.title} chat history`}
           messages={!roster && filter ? room.chat.filter(entry => `${entry.user} ${entry.message}`.toLowerCase().includes(filter.toLowerCase())) : room.chat}
           selfName={username}
           onCommand={command => sendRoomMessage(room.id, command)}

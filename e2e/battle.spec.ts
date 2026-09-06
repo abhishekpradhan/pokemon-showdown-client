@@ -84,6 +84,11 @@ test('mobile touch inspection is independent of submitting a move', async ({ pag
   const far = await page.locator('.combatant-far .combatant-sprite').boundingBox();
   const near = await page.locator('.combatant-near .combatant-sprite').boundingBox();
   expect(far && near && far.y + far.height <= near.y + 1).toBeTruthy();
+  const field = await page.getByLabel('Battle field').boundingBox();
+  const nearHealth = await page.locator('.combatant-near .combatant-nameplate').boundingBox();
+  const dock = await page.getByLabel('Battle action deck').boundingBox();
+  expect(field && dock && field.y + field.height <= dock.y + 1).toBeTruthy();
+  expect(field && near && nearHealth && Math.max(near.y + near.height, nearHealth.y + nearHealth.height) <= field.y + field.height).toBeTruthy();
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(1);
 });

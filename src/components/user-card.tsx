@@ -27,7 +27,7 @@ const GROUP_LABELS: Record<string, string> = {
   '§': 'Section Leader',
 };
 
-export type UserCardAnchor = { name: string; x: number; y: number };
+export type UserCardAnchor = { name: string; x: number; y: number; trigger?: HTMLElement };
 
 export function UserCard({ anchor, onClose }: { anchor: UserCardAnchor; onClose: () => void }) {
   const userid = toId(anchor.name);
@@ -50,6 +50,8 @@ export function UserCard({ anchor, onClose }: { anchor: UserCardAnchor; onClose:
   }, [anchor.name, requestUserDetails]);
 
   useLayoutEffect(() => {
+    const trigger = anchor.trigger || document.activeElement;
+    const cardElement = cardRef.current;
     const place = () => {
       const el = cardRef.current;
       if (!el) return;
@@ -72,8 +74,15 @@ export function UserCard({ anchor, onClose }: { anchor: UserCardAnchor; onClose:
     place();
     // Fonts and the avatar can change the card's size a frame later.
     const raf = requestAnimationFrame(place);
-    cardRef.current?.focus();
-    return () => cancelAnimationFrame(raf);
+    cardElement?.focus();
+    return () => {
+      cancelAnimationFrame(raf);
+      const focused = document.activeElement;
+      // Preserve focus that moved elsewhere (for example into a challenge
+      // dialog); Escape/Close returns keyboard users to the invoking name.
+      if (trigger instanceof HTMLElement && trigger.isConnected &&
+        (focused === document.body || focused === cardElement || cardElement?.contains(focused))) trigger.focus();
+    };
   }, [anchor]);
 
   useEffect(() => {

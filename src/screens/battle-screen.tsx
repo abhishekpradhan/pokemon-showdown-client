@@ -392,6 +392,9 @@ export function BattleScreen() {
             <section className="battle-chat-panel" aria-label="Battle chat">
               <div className="chat-feed">
                 <ChatFeed
+                  key={battle.id}
+                  announce={connection === 'connected'}
+                  label="Battle chat history"
                   messages={battleRoom?.chat ?? []}
                   selfName={username}
                   onCommand={command => sendBattleChat(command, battle.id)}

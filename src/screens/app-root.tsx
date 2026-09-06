@@ -133,9 +133,9 @@ export function AppRoot() {
 
   return (
     <div className="arena-app">
-        <button className="skip-link" type="button" onClick={focusWorkspace}>
+        <a className="skip-link" href="#workspace" onClick={event => { event.preventDefault(); focusWorkspace(); }}>
           Skip to workspace
-        </button>
+        </a>
         <aside className="primary-rail" aria-label="Primary">
           <Link to="/" className="brand-mark" aria-label="Showdown Arena home">
             <img src="/favicon.svg" alt="" />

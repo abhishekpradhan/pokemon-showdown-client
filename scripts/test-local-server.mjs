@@ -147,7 +147,7 @@ try {
   await playTurnAndFinish(alice, bob, tournamentBattle.roomId, Math.min(...offsets));
   await alice.wait(line('tournament', args => args[0] === 'end'), 'tournament result');
   evidence.push('Private two-player tournament: create, join, pairing, challenge, accept, real battle choices and tournament end.');
-  const report = { upstreamRevision: revision, source: `https://github.com/smogon/pokemon-showdown/tree/${revision}`, clientRevision: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(), transport: 'real ProtocolClient + loopback SockJS WebSocket', endpoint: `127.0.0.1:${port}`, externalNetwork: 'denied for server and workers; login/replay APIs disabled', evidence };
+  const report = { node: process.version, upstreamRevision: revision, source: `https://github.com/smogon/pokemon-showdown/tree/${revision}`, clientRevision: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(), clientModified: !!execFileSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' }).trim(), transport: 'real ProtocolClient + loopback SockJS WebSocket', endpoint: `127.0.0.1:${port}`, externalNetwork: 'denied for server and workers; login/replay APIs disabled', evidence };
   writeFileSync(resolve('test-results-local-server.json'), JSON.stringify(report, null, 2));
   console.log(JSON.stringify(report, null, 2));
 } catch (error) {
