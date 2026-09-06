@@ -5,36 +5,53 @@ import { challenge, identify, line, playUntil, finishBattle } from './local-serv
 
 const team = Teams => Teams.pack(Array.from({ length: 6 }, (_, index) => ({ name: `Test${index + 1}`, species: 'Mew', ability: 'Synchronize', moves: ['Tackle', 'Helping Hand', 'Splash'], nature: 'Hardy', level: 100 })));
 
-export async function verifyProfileConfirmation({ player, evidence }) {
+export async function verifyProfileConfirmation({ player, evidence, setThrottle }) {
   const userid = player.name.toLowerCase().replace(/[^a-z0-9]/g, '');
-  const from = player.frames.length;
-  player.send('/avatar dawn');
-  const preview = await player.wait(frame => frame.lines.some(item =>
-    (item.command === 'raw' || (item.command === 'pm' && item.args[2]?.startsWith('/raw '))) &&
-    item.args.join('|').includes('/dawn.png')), 'server avatar preview', from);
+  const ownDetails = avatar => line('queryresponse', args => args[0] === 'userdetails' &&
+    JSON.parse(args[1]).userid === userid && JSON.parse(args[1]).avatar === avatar);
+  const seededFrom = player.frames.length;
+  player.send('/avatar lucas');
   player.send(`/cmd userdetails ${userid}`);
-  const detailsFrame = await player.wait(line('queryresponse', args => args[0] === 'userdetails' && JSON.parse(args[1]).userid === userid), 'own user-details avatar confirmation', from);
-  const details = JSON.parse(detailsFrame.lines.find(item => item.command === 'queryresponse' && item.args[0] === 'userdetails').args[1]);
-  assert.equal(details.name, player.name);
-  assert.equal(details.avatar, 'dawn');
-  // The query response is an ordered round-trip boundary. At this pinned
-  // revision /avatar sends text/raw preview, not an updateuser acknowledgement.
-  const avatarFrames = player.frames.slice(from, player.frames.indexOf(detailsFrame) + 1);
-  assert(!avatarFrames.some(line('updateuser')), '/avatar must not be mistaken for the language updateuser contract.');
-  const languageFrom = player.frames.length;
-  player.send('/language french');
-  const languageFrame = await player.wait(line('updateuser', args => JSON.parse(args[3] || '{}').language === 'french'), 'server language metadata confirmation', languageFrom);
-  const language = languageFrame.lines.find(item => item.command === 'updateuser').args;
-  assert.equal(language[0].trim(), player.name);
-  assert.equal(language[1], '1');
-  assert.equal(language[2], 'dawn');
-  const resetFrom = player.frames.length;
-  player.send('/language english');
-  await player.wait(line('updateuser', args => JSON.parse(args[3] || '{}').language === 'english'), 'restore English for later scenario assertions', resetFrom);
-  evidence.push('Real profile confirmation: /avatar dawn sends raw preview without updateuser; own /cmd userdetails confirms dawn. /language french independently confirms authoritative updateuser metadata.');
-  return { avatar: 'dawn', avatarPreview: preview.lines.some(item => item.command === 'pm') ? 'PM /raw directive' : 'raw command',
-    avatarConfirmation: 'own queryresponse userdetails', avatarUpdateuserBeforeQuery: false,
-    language: 'french', languageConfirmation: 'updateuser settings.language', englishRestored: true };
+  await player.wait(ownDetails('lucas'), 'seeded avatar confirmed before enabling normal throttling', seededFrom);
+  await setThrottle(true);
+  try {
+    const from = player.frames.length;
+    // No waits between these sends: the language command consumes the normal
+    // guest slot, then /avatar and /query must use the real 600ms server queue.
+    // /cmd userdetails deliberately bypasses that queue and exposes the bug.
+    player.send('/language english');
+    player.send('/avatar dawn');
+    player.send(`/cmd userdetails ${userid}`);
+    player.send(`/query userdetails ${userid}`);
+    const primer = await player.wait(line('updateuser', args => args[2] === 'lucas' && JSON.parse(args[3] || '{}').language === 'english'), 'normal command queue primed', from);
+    const stale = await player.wait(ownDetails('lucas'), 'exempt cmd query demonstrates stale avatar', from);
+    const preview = await player.wait(frame => frame.lines.some(item =>
+      (item.command === 'raw' || (item.command === 'pm' && item.args[2]?.startsWith('/raw '))) &&
+      item.args.join('|').includes('/dawn.png')), 'queued avatar preview', from);
+    const confirmed = await player.wait(ownDetails('dawn'), 'queued query confirms updated own avatar', from);
+    const details = JSON.parse(confirmed.lines.find(item => item.command === 'queryresponse' && item.args[0] === 'userdetails').args[1]);
+    assert.equal(details.name, player.name);
+    assert(player.frames.indexOf(stale) < player.frames.indexOf(preview), 'The exempt query must overtake the queued avatar change.');
+    assert(player.frames.indexOf(preview) < player.frames.indexOf(confirmed), 'The queued query must confirm after the avatar mutation.');
+    const avatarFrames = player.frames.slice(player.frames.indexOf(primer) + 1, player.frames.indexOf(confirmed) + 1);
+    assert(!avatarFrames.some(line('updateuser')), '/avatar must not be mistaken for the language updateuser contract.');
+    const languageFrom = player.frames.length;
+    player.send('/language french');
+    const languageFrame = await player.wait(line('updateuser', args => JSON.parse(args[3] || '{}').language === 'french'), 'server language metadata confirmation', languageFrom);
+    const language = languageFrame.lines.find(item => item.command === 'updateuser').args;
+    assert.equal(language[0].trim(), player.name);
+    assert.equal(language[1], '1');
+    assert.equal(language[2], 'dawn');
+    const resetFrom = player.frames.length;
+    player.send('/language english');
+    await player.wait(line('updateuser', args => JSON.parse(args[3] || '{}').language === 'english'), 'restore English for later scenario assertions', resetFrom);
+    evidence.push('Real throttled profile confirmation: exempt /cmd userdetails overtakes /avatar and returns stale Lucas; queued /query userdetails returns Dawn after its raw preview. /language french confirms authoritative updateuser metadata.');
+    return { normalGuestThrottling: true, queueImplementation: 'unmodified upstream guest command queue',
+      initialAvatar: 'lucas', exemptCmdReturnedStaleAvatar: true, avatar: 'dawn',
+      avatarPreview: preview.lines.some(item => item.command === 'pm') ? 'PM /raw directive' : 'raw command',
+      avatarConfirmation: 'queued /query userdetails', avatarUpdateuserBeforeQuery: false,
+      language: 'french', languageConfirmation: 'updateuser settings.language', englishRestored: true };
+  } finally { await setThrottle(false); }
 }
 
 export async function verifyReconnect({ alice, bob, Teams, evidence }) {

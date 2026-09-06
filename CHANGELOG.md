@@ -8,7 +8,7 @@ Complete the remaining implementable team, battle and preference workflows and e
 - Add triples targeting/Shift and four-player multi/free-for-all ownership, targets, private rosters, spectator viewpoints, seat invitations and responsive fields.
 - Add public avatars with server confirmation, twelve server languages, local backgrounds, separate audio levels and optional battle music that follows focus and visibility.
 - Keep OAuth pending until the expected named identity is acknowledged; preserve failed-login errors across unrelated profile updates.
-- Fix avatar sprite aliases and confirm avatar changes through the server's own-user details response; fix preference acknowledgements that rejoined rooms, accumulated room errors, mobile Settings overflow and WebKit image storage.
+- Fix avatar sprite aliases and confirm avatar changes through queued own-user details, including throttled servers; fix preference acknowledgements that rejoined rooms, accumulated room errors, mobile Settings overflow and WebKit image storage.
 - Expand controlled real-server, OAuth/replay, recorded protocol and long-session tests; patch the isolated test-server runtime lock and retain network isolation.
 - Extract feature/settings/integration modules, distribute upstream notices and publish concrete GitHub acceptance issues.
 

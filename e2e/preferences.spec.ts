@@ -67,7 +67,12 @@ test('avatar preview applies only on confirmation and waits for server acknowled
   await dialog.getByRole('button', { name: 'Apply avatar', exact: true }).click();
   await expect(choose).toBeFocused();
   await expect.poll(() => sent(page)).toContain('|/avatar dawn');
-  await expect.poll(() => sent(page)).toContain('|/cmd userdetails preferencetester');
+  await expect.poll(() => sent(page)).toContain('|/query userdetails preferencetester');
+  // The queued alias must follow /avatar; /cmd userdetails can overtake it on
+  // real servers because that spelling is exempt from command throttling.
+  expect((await sent(page)).filter(line => /\/(?:avatar|query|cmd userdetails) /.test(line))).toEqual([
+    '|/avatar dawn', '|/query userdetails preferencetester',
+  ]);
   await page.evaluate(() => (window as unknown as { __emitProfileFixture: (line: string) => void }).__emitProfileFixture('|pm|~|PreferenceTester|/raw <img src="https://play.pokemonshowdown.com/sprites/trainers/dawn.png" />'));
   await confirmAvatarDetails(page, '2', 'someoneelse');
   await expect(currentAvatar).toHaveAttribute('src', /\/lucas\.png$/);
@@ -102,7 +107,7 @@ test('unacknowledged avatar preferences offer a retry without claiming success',
   await expect(page.getByText('The server has not confirmed these preferences. Try again, or check your connection.', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Retry profile preferences', exact: true }).click();
   await expect.poll(async () => (await sent(page)).filter(line => line === '|/avatar dawn').length).toBe(3);
-  await expect.poll(async () => (await sent(page)).filter(line => line === '|/cmd userdetails preferencetester').length).toBe(3);
+  await expect.poll(async () => (await sent(page)).filter(line => line === '|/query userdetails preferencetester').length).toBe(3);
   await confirmAvatarDetails(page, '2');
   await expect(page.getByText('Profile preferences are in sync.', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Retry profile preferences', exact: true })).toHaveCount(0);
