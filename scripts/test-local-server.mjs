@@ -100,15 +100,32 @@ function participant(name) {
 }
 const line = (command, predicate = () => true) => frame => frame.lines.some(item => item.command === command && predicate(item.args));
 async function playTurnAndFinish(alice, bob, room, from = 0) {
-  const requests = await Promise.all([alice, bob].map(player => player.wait(frame => frame.roomId === room && line('request', args => !!JSON.parse(args.join('|')).active)(frame), 'battle request', from)));
-  requests.forEach((frame, index) => {
-    const request = JSON.parse(frame.lines.find(item => item.command === 'request').args.join('|'));
-    assert(request.rqid > 0 && request.side.pokemon.length === 6, 'Real simulator must provide a full team and request ID.');
-    [alice, bob][index].send(`/choose default|${request.rqid}`, room);
-  });
-  await Promise.all([alice, bob].map(player => player.wait(frame => frame.roomId === room && line('turn', args => Number(args[0]) >= 2)(frame), 'resolved turn', from)));
+  const choices = { move: 0, teamPreview: 0, forceSwitch: 0 };
+  await Promise.all([alice, bob].map(async (player, index) => {
+    let cursor = Array.isArray(from) ? from[index] : from;
+    const submitted = new Set();
+    // Pivots such as Shed Tail can issue several requests before turn 2. Follow
+    // each new authoritative request instead of assuming one choice per turn.
+    while (true) {
+      const frame = await player.wait(frame => frame.roomId === room && frame.lines.some(item => ['request', 'error', 'turn'].includes(item.command)), 'next battle request or resolved turn', cursor);
+      cursor = player.frames.indexOf(frame, cursor) + 1;
+      const error = frame.lines.find(item => item.command === 'error');
+      assert(!error, `Real simulator rejected a choice: ${error?.args.join('|')}`);
+      if (line('turn', args => Number(args[0]) >= 2)(frame)) break;
+      const requestLine = frame.lines.findLast(item => item.command === 'request');
+      const request = requestLine ? JSON.parse(requestLine.args.join('|')) : null;
+      if (!request || request.wait || submitted.has(request.rqid)) continue;
+      const kind = request.teamPreview ? 'teamPreview' : request.forceSwitch?.some(Boolean) ? 'forceSwitch' : request.active ? 'move' : null;
+      if (!kind) continue;
+      assert(request.rqid > 0 && request.side.pokemon.length === 6, 'Real simulator must provide a full team and request ID.');
+      submitted.add(request.rqid);
+      choices[kind]++;
+      player.send(`/choose default|${request.rqid}`, room);
+    }
+  }));
   alice.send('/forfeit', room);
-  await Promise.all([alice, bob].map(player => player.wait(frame => frame.roomId === room && line('win', args => args[0] === 'ArenaBob')(frame), 'battle win', from)));
+  await Promise.all([alice, bob].map((player, index) => player.wait(frame => frame.roomId === room && line('win', args => args[0] === 'ArenaBob')(frame), 'battle win', Array.isArray(from) ? from[index] : from)));
+  return choices;
 }
 try {
   await childMessage('ready');
@@ -129,12 +146,28 @@ try {
   assert(!initial.lines.some(item => item.command === 'rated'), 'Direct challenge must be unrated.');
   await playTurnAndFinish(alice, bob, initial.roomId);
   evidence.push('Unrated Gen9 random battle: challenge, accept, request/rqid, legal choices, resolved turn, forfeit and authoritative win.');
+  // This fixed team guarantees the mid-turn switch that random battles only
+  // occasionally exercise. Custom Game also verifies team-preview requests.
+  const { default: { Teams } } = await import(pathToFileURL(join(directory, 'dist/sim/teams.js')).href);
+  const magikarp = { species: 'Magikarp', ability: 'Swift Swim', moves: ['Splash'], nature: 'Hardy', level: 100 };
+  alice.send(`/utm ${Teams.pack([{ species: 'Cyclizar', ability: 'Shed Skin', moves: ['Shed Tail'], nature: 'Jolly', level: 100 }, ...Array.from({ length: 5 }, () => ({ ...magikarp }))])}`);
+  bob.send(`/utm ${Teams.pack(Array.from({ length: 6 }, () => ({ ...magikarp })))}`);
+  const pivotOffsets = [alice.frames.length, bob.frames.length];
+  alice.send('/challenge ArenaBob, gen9customgame');
+  await bob.wait(line('pm', args => args[0].trim() === 'ArenaAlice' && args[2] === '/challenge gen9customgame'), 'fixed-team challenge', pivotOffsets[1]);
+  bob.send('/accept ArenaAlice');
+  const pivotBattle = await alice.wait(frame => frame.roomId.startsWith('battle-') && line('init', args => args[0] === 'battle')(frame), 'fixed-team battle initialization', pivotOffsets[0]);
+  const pivotChoices = await playTurnAndFinish(alice, bob, pivotBattle.roomId, pivotOffsets);
+  assert.equal(pivotChoices.teamPreview, 2, 'Both players must complete team preview.');
+  assert(pivotChoices.forceSwitch >= 1, 'Shed Tail must receive a mid-turn switch choice before turn 2.');
+  evidence.push(`Fixed-team Gen9 battle: two team previews, Shed Tail and ${pivotChoices.forceSwitch} forced-switch request answered before turn 2.`);
+  for (const player of [alice, bob]) player.send('/utm null');
   const roomReady = childMessage('room-ready'); server.send({ type: 'prepare-room' }); await roomReady;
   for (const player of [alice, bob]) { player.send('/join arenatest'); await player.wait(frame => frame.roomId === 'arenatest' && line('init')(frame), 'private tournament room'); }
   alice.send('/tour new gen9randombattle, elimination', 'arenatest');
   await bob.wait(line('tournament', args => args[0] === 'create'), 'tournament creation');
   for (const player of [alice, bob]) player.send('/tour join', 'arenatest');
-  await alice.wait(line('tournament', args => args[0] === 'join' && args[1] === 'ArenaBob'), 'tournament signup');
+  await Promise.all(['ArenaAlice', 'ArenaBob'].map(name => alice.wait(line('tournament', args => args[0] === 'join' && args[1] === name), `${name} tournament signup`)));
   alice.send('/tour start', 'arenatest');
   const candidates = await Promise.all([alice, bob].map(player => player.wait(line('tournament', args => args[0] === 'update' && (JSON.parse(args[1]).challenges?.length || JSON.parse(args[1]).challengeBys?.length)), 'available tournament pairing')));
   const challengerIndex = candidates.findIndex(frame => frame.lines.some(item => item.command === 'tournament' && item.args[0] === 'update' && JSON.parse(item.args[1]).challenges?.length));
@@ -143,8 +176,8 @@ try {
   await opponent.wait(line('tournament', args => args[0] === 'update' && !!JSON.parse(args[1]).challenged), 'incoming tournament challenge');
   const offsets = [alice.frames.length, bob.frames.length];
   opponent.send('/tour acceptchallenge', 'arenatest');
-  const tournamentBattle = await alice.wait(frame => frame.roomId.startsWith('battle-') && frame.roomId !== initial.roomId && line('init')(frame), 'tournament battle initialization');
-  await playTurnAndFinish(alice, bob, tournamentBattle.roomId, Math.min(...offsets));
+  const tournamentBattle = await alice.wait(frame => frame.roomId.startsWith('battle-') && line('init')(frame), 'tournament battle initialization', offsets[0]);
+  await playTurnAndFinish(alice, bob, tournamentBattle.roomId, offsets);
   await alice.wait(line('tournament', args => args[0] === 'end'), 'tournament result');
   evidence.push('Private two-player tournament: create, join, pairing, challenge, accept, real battle choices and tournament end.');
   const report = { node: process.version, upstreamRevision: revision, source: `https://github.com/smogon/pokemon-showdown/tree/${revision}`, clientRevision: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(), clientModified: !!execFileSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' }).trim(), transport: 'real ProtocolClient + loopback SockJS WebSocket', endpoint: `127.0.0.1:${port}`, externalNetwork: 'denied for server and workers; login/replay APIs disabled', evidence };

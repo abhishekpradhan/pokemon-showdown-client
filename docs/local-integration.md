@@ -9,6 +9,7 @@ The initial bootstrap only creates a private temporary chat room and grants one 
 - Two guest handshakes, real formats and acknowledged identities.
 - Modern structured PM challenge, acceptance and an unrated Gen 9 random battle.
 - Six-Pokémon simulator requests, nonzero request IDs, legal choices, a resolved turn and authoritative forfeit/winner events.
+- A deterministic Gen 9 Custom Game with two team-preview choices and Cyclizar using Shed Tail: the harness must answer its additional forced-switch request before turn 2 can resolve.
 - Private tournament creation, signup, pairing, challenge/acceptance, another real battle and the final tournament result.
 
 Successful evidence is written to ignored `test-results-local-server.json` and uploaded by the required CI job. Local verification on 2026-09-05 passed all assertions on supported Node 24.19.0 (also passed on Node 26.6.0 during investigation, without extending support to that line). This proves protocol interoperability for these workflows; browser rendering, OAuth provider behavior, replay publishing, doubles and reconnect remain separate tests. Do not turn this test into public matchmaking or public chat traffic.

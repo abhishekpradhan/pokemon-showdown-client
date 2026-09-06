@@ -10,6 +10,8 @@ Each build generates a manifest and identity shared by its shell and worker. Ins
 
 Applying an update reloads the tab. Finish live battles and ensure edits are saved first. The cache retains the active build and one previous build for older tabs, then removes earlier Arena caches. Close/reload old tabs when updating repeatedly; indefinitely running tabs across multiple releases are not supported. Unrelated applications' caches are left alone.
 
+The first upgrade from 1.0 clears its unversioned legacy caches, which could contain an incorrect OAuth shell. Close or reload other 1.0 tabs after applying 1.1. Versioned current/previous retention applies to subsequent releases.
+
 ## Recovery
 
 1. Reconnect to the network and check for updates in Settings.
