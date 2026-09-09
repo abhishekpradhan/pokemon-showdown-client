@@ -55,7 +55,12 @@ export type TournamentState = {
   isJoined: boolean;
   /** Signup roster from join/leave; the bracket takes over once started. */
   players: string[];
-  bracketData?: { type: string; rootNode?: BracketNode; tableHeaders?: { cols: string[]; rows: string[] }; tableContents?: Array<Array<{ state?: string; result?: string; score?: number[] } | null>> };
+  bracketData?: {
+    type: string;
+    rootNode?: BracketNode;
+    tableHeaders?: { cols: string[]; rows: string[] };
+    tableContents?: Array<Array<{ state?: string; result?: string; score?: number[] } | null>>;
+  };
   /** Opponents you can /tour challenge right now, and those challenging you. */
   challenges: string[];
   challengeBys: string[];

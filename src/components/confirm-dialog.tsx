@@ -30,7 +30,9 @@ export function ConfirmDialog({
               <Dialog.Title>{title}</Dialog.Title>
               <Dialog.Description>{description}</Dialog.Description>
             </div>
-            <Dialog.Close className="icon-button" aria-label="Close confirmation dialog"><X size={17} /></Dialog.Close>
+            <Dialog.Close className="icon-button" aria-label="Close confirmation dialog">
+              <X size={17} />
+            </Dialog.Close>
           </div>
           <div className="button-row">
             <button

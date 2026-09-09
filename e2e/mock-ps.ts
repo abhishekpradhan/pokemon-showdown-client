@@ -12,18 +12,42 @@ export async function installMockPs(page: Page) {
         id: 'p1',
         name: 'CodexTester',
         pokemon: [
-          { ident: 'p1: Iron Valiant', details: 'Iron Valiant, L80', condition: '156/200', active: true, moves: ['moonblast', 'closecombat'], ability: 'quarkdrive', item: '' },
-          { ident: 'p1: Heatran', details: 'Heatran, L80', condition: '184/200', moves: ['lavaplume'], ability: 'flashfire', item: 'leftovers' },
-          { ident: 'p1: Dragapult', details: 'Dragapult, L80', condition: '0 fnt', moves: ['shadowball'], ability: 'infiltrator', item: '' },
+          {
+            ident: 'p1: Iron Valiant',
+            details: 'Iron Valiant, L80',
+            condition: '156/200',
+            active: true,
+            moves: ['moonblast', 'closecombat'],
+            ability: 'quarkdrive',
+            item: '',
+          },
+          {
+            ident: 'p1: Heatran',
+            details: 'Heatran, L80',
+            condition: '184/200',
+            moves: ['lavaplume'],
+            ability: 'flashfire',
+            item: 'leftovers',
+          },
+          {
+            ident: 'p1: Dragapult',
+            details: 'Dragapult, L80',
+            condition: '0 fnt',
+            moves: ['shadowball'],
+            ability: 'infiltrator',
+            item: '',
+          },
         ],
       },
-      active: [{
-        moves: [
-          { move: 'Moonblast', id: 'moonblast', type: 'Fairy', pp: 11, maxpp: 16, target: 'normal' },
-          { move: 'Close Combat', id: 'closecombat', type: 'Fighting', pp: 7, maxpp: 8, disabled: true },
-        ],
-        canTerastallize: 'Fairy',
-      }],
+      active: [
+        {
+          moves: [
+            { move: 'Moonblast', id: 'moonblast', type: 'Fairy', pp: 11, maxpp: 16, target: 'normal' },
+            { move: 'Close Combat', id: 'closecombat', type: 'Fighting', pp: 7, maxpp: 8, disabled: true },
+          ],
+          canTerastallize: 'Fairy',
+        },
+      ],
       targetable: true,
     });
 
@@ -54,31 +78,46 @@ export async function installMockPs(page: Page) {
           this.emit('|challstr|1|mock-challenge');
           this.emit('|formats|,1|S/V Singles|[Gen 9] Random Battle,4f|[Gen 9] OU,e');
           this.emit('|updateuser|Guest 1000|0|0');
-          this.emit('>lobby\n|init|chat\n|title|Lobby\n|users|, Guest 1000,+Driver\n|c|Driver|Welcome to the mock lobby.');
+          this.emit(
+            '>lobby\n|init|chat\n|title|Lobby\n|users|, Guest 1000,+Driver\n|c|Driver|Welcome to the mock lobby.',
+          );
           // The server-HTML family: a bot /raw leaderboard, and a named
           // uhtml poll whose buttons must stay clickable after sanitizing.
           this.emit(
             '>lobby\n|c:|1735689600|*Scrappie|/raw <div class="infobox"><table><tr><th>Name</th><th>Score</th></tr>' +
-            '<tr><td>gen 9 is trash man</td><td align=\'right\'>259</td></tr></table></div>'
+              "<tr><td>gen 9 is trash man</td><td align='right'>259</td></tr></table></div>",
           );
           this.emit(
             '>lobby\n|uhtml|poll-e2e|<div class="infobox">Poll: Which team will win?<br />' +
-            '<button name="send" value="/poll vote 1">1. Spheal Ordeal</button></div>'
+              '<button name="send" value="/poll vote 1">1. Spheal Ordeal</button></div>',
           );
           // A signups-phase tournament with a partial bracket preview.
           this.emit('>lobby\n|tournament|create|gen9ou|Single Elimination|0');
           this.emit('>lobby\n|tournament|join|Driver');
           this.emit(
-            '>lobby\n|tournament|update|' + JSON.stringify({
-              format: '[Gen 9] OU', generator: 'Single Elimination', isStarted: false, isJoined: false,
-              bracketData: { type: 'tree', rootNode: {
-                state: 'unavailable',
-                children: [
-                  { team: 'Driver', children: [{ team: 'Driver' }, { team: 'Scrappie' }], state: 'finished', result: 'win', score: [2, 1] },
-                  { children: [{ team: 'gen 9 is trash man' }, { team: 'Bekama' }], state: 'available' },
-                ],
-              } },
-            })
+            '>lobby\n|tournament|update|' +
+              JSON.stringify({
+                format: '[Gen 9] OU',
+                generator: 'Single Elimination',
+                isStarted: false,
+                isJoined: false,
+                bracketData: {
+                  type: 'tree',
+                  rootNode: {
+                    state: 'unavailable',
+                    children: [
+                      {
+                        team: 'Driver',
+                        children: [{ team: 'Driver' }, { team: 'Scrappie' }],
+                        state: 'finished',
+                        result: 'win',
+                        score: [2, 1],
+                      },
+                      { children: [{ team: 'gen 9 is trash man' }, { team: 'Bekama' }], state: 'available' },
+                    ],
+                  },
+                },
+              }),
           );
           if (localStorage.getItem('__mockBattleStarted') === '1') this.emitBattle();
         }, 0);
@@ -108,14 +147,16 @@ export async function installMockPs(page: Page) {
           }
         }
         if (message.includes('/cmd roomlist')) {
-          this.emit(`|queryresponse|roomlist|${JSON.stringify({
-            rooms: {
-              lobby: { title: 'Lobby', userCount: 2 },
-              'battle-gen9ou-1': { p1: 'CodexTester', p2: 'MockRival', minElo: 1000 },
-            },
-            userCount: 2,
-            battleCount: 1,
-          })}`);
+          this.emit(
+            `|queryresponse|roomlist|${JSON.stringify({
+              rooms: {
+                lobby: { title: 'Lobby', userCount: 2 },
+                'battle-gen9ou-1': { p1: 'CodexTester', p2: 'MockRival', minElo: 1000 },
+              },
+              userCount: 2,
+              battleCount: 1,
+            })}`,
+          );
         }
         if (message.includes('/cancelsearch')) {
           this.emit('|updatesearch|{"searching":[],"games":{}}');
@@ -123,8 +164,12 @@ export async function installMockPs(page: Page) {
         if (message.includes('/join battle-gen9uu-spectate1')) {
           // A battle between two other players: the joiner is a spectator.
           // No |request| ever arrives for spectators.
-          this.emit('>battle-gen9uu-spectate1\n|init|battle\n|title|AlphaPlayer vs. BetaPlayer\n|player|p1|AlphaPlayer|60|1400\n|player|p2|BetaPlayer|61|1380\n|gametype|singles\n|gen|9\n|tier|[Gen 9] UU\n|clearpoke\n|poke|p1|Krookodile, M|\n|poke|p2|Reuniclus, F|\n|start\n|switch|p1a: Krookodile|Krookodile, M|100/100\n|switch|p2a: Reuniclus|Reuniclus, F|100/100\n|turn|1');
-          this.emit('>battle-gen9uu-spectate1\n|move|p1a: Krookodile|Knock Off|p2a: Reuniclus\n|-supereffective|p2a: Reuniclus\n|-damage|p2a: Reuniclus|38/100\n|turn|2');
+          this.emit(
+            '>battle-gen9uu-spectate1\n|init|battle\n|title|AlphaPlayer vs. BetaPlayer\n|player|p1|AlphaPlayer|60|1400\n|player|p2|BetaPlayer|61|1380\n|gametype|singles\n|gen|9\n|tier|[Gen 9] UU\n|clearpoke\n|poke|p1|Krookodile, M|\n|poke|p2|Reuniclus, F|\n|start\n|switch|p1a: Krookodile|Krookodile, M|100/100\n|switch|p2a: Reuniclus|Reuniclus, F|100/100\n|turn|1',
+          );
+          this.emit(
+            '>battle-gen9uu-spectate1\n|move|p1a: Krookodile|Knock Off|p2a: Reuniclus\n|-supereffective|p2a: Reuniclus\n|-damage|p2a: Reuniclus|38/100\n|turn|2',
+          );
         }
         if (message.includes('|/tour join')) {
           this.emit('>lobby\n|tournament|join|Guest 1000');
@@ -132,11 +177,16 @@ export async function installMockPs(page: Page) {
         }
         if (message.includes('/cmd userdetails')) {
           const id = message.split('/cmd userdetails ')[1]?.trim() || '';
-          this.emit(`|queryresponse|userdetails|${JSON.stringify({
-            userid: id, name: id === 'driver' ? 'Driver' : id, group: id === 'driver' ? '+' : '',
-            avatar: 167, status: id === 'driver' ? 'happy to help' : '',
-            rooms: { lobby: {} },
-          })}`);
+          this.emit(
+            `|queryresponse|userdetails|${JSON.stringify({
+              userid: id,
+              name: id === 'driver' ? 'Driver' : id,
+              group: id === 'driver' ? '+' : '',
+              avatar: 167,
+              status: id === 'driver' ? 'happy to help' : '',
+              rooms: { lobby: {} },
+            })}`,
+          );
         }
         if (message.includes('/poll vote 1')) {
           // Voting rewrites the named block in place, exactly like real polls.
@@ -174,8 +224,12 @@ export async function installMockPs(page: Page) {
       emitBattle() {
         // Real servers always send |gen| and |tier|; the engine needs them to
         // resolve species in the right generation.
-        this.emit('>battle-gen9ou-1\n|init|battle\n|title|CodexTester vs. MockRival\n|player|p1|CodexTester|266|1000\n|player|p2|MockRival|1|1000\n|gametype|singles\n|gen|9\n|tier|[Gen 9] OU');
-        this.emit('>battle-gen9ou-1\n|clearpoke\n|poke|p1|Iron Valiant, L80\n|poke|p1|Heatran, L80\n|poke|p1|Dragapult, L80\n|poke|p2|Great Tusk, L80\n|poke|p2|Gholdengo, L80\n|poke|p2|Dragonite, L80\n|start\n|switch|p1a: Iron Valiant|Iron Valiant, L80|156/200\n|switch|p2a: Great Tusk|Great Tusk, L80|88/200\n|turn|12');
+        this.emit(
+          '>battle-gen9ou-1\n|init|battle\n|title|CodexTester vs. MockRival\n|player|p1|CodexTester|266|1000\n|player|p2|MockRival|1|1000\n|gametype|singles\n|gen|9\n|tier|[Gen 9] OU',
+        );
+        this.emit(
+          '>battle-gen9ou-1\n|clearpoke\n|poke|p1|Iron Valiant, L80\n|poke|p1|Heatran, L80\n|poke|p1|Dragapult, L80\n|poke|p2|Great Tusk, L80\n|poke|p2|Gholdengo, L80\n|poke|p2|Dragonite, L80\n|start\n|switch|p1a: Iron Valiant|Iron Valiant, L80|156/200\n|switch|p2a: Great Tusk|Great Tusk, L80|88/200\n|turn|12',
+        );
         this.emit(`>battle-gen9ou-1\n|request|${battleRequest}`);
       }
     }
@@ -201,9 +255,13 @@ export async function installMockPs(page: Page) {
       }
       if (act === 'login') {
         const ok = body.get('pass') === 'correct-horse';
-        return Promise.resolve(new Response(ok ?
-          `]${JSON.stringify({ assertion: '4|mock-assertion-registered', curuser: { loggedin: true, username: body.get('name') } })}` :
-          `]${JSON.stringify({ actionsuccess: false, error: 'Wrong password.' })}`));
+        return Promise.resolve(
+          new Response(
+            ok
+              ? `]${JSON.stringify({ assertion: '4|mock-assertion-registered', curuser: { loggedin: true, username: body.get('name') } })}`
+              : `]${JSON.stringify({ actionsuccess: false, error: 'Wrong password.' })}`,
+          ),
+        );
       }
       return Promise.resolve(new Response(''));
     }) as typeof window.fetch;
@@ -214,7 +272,9 @@ export async function installMockPs(page: Page) {
     const routedWebSocket = new Proxy(realWebSocket, {
       construct(target, args) {
         const url = new URL(String(args[0]), window.location.href);
-        return url.pathname.endsWith('/websocket') ? new MockPsWebSocket(url.href) : Reflect.construct(target, args);
+        return url.pathname.endsWith('/websocket')
+          ? new MockPsWebSocket(url.href)
+          : Reflect.construct(target, args);
       },
     });
     Object.assign(window, {

@@ -37,10 +37,17 @@ const INLINE_PATTERN = /(\*\*[^*\n]+\*\*|__[^_\n]+__|`[^`\n]+`|~~[^~\n]+~~|\|\|[
 
 function Spoiler({ text }: { text: string }) {
   const [revealed, setRevealed] = useState(false);
-  return <button type="button" className={clsx('chat-spoiler', revealed && 'is-revealed')} aria-expanded={revealed}
-    aria-label={revealed ? `Hide spoiler: ${text}` : 'Reveal spoiler'} onClick={() => setRevealed(value => !value)}>
-    <span aria-hidden={!revealed}>{text}</span>
-  </button>;
+  return (
+    <button
+      type="button"
+      className={clsx('chat-spoiler', revealed && 'is-revealed')}
+      aria-expanded={revealed}
+      aria-label={revealed ? `Hide spoiler: ${text}` : 'Reveal spoiler'}
+      onClick={() => setRevealed(value => !value)}
+    >
+      <span aria-hidden={!revealed}>{text}</span>
+    </button>
+  );
 }
 
 const renderSegment = (segment: string, key: number): ReactNode => {
@@ -64,9 +71,13 @@ const renderSegment = (segment: string, key: number): ReactNode => {
 
 const linkify = (text: string): ReactNode[] =>
   text.split(URL_PATTERN).map((part, index) =>
-    /^https?:\/\//.test(part) ?
-      <a key={index} href={part} target="_blank" rel="noopener noreferrer">{part}</a> :
+    /^https?:\/\//.test(part) ? (
+      <a key={index} href={part} target="_blank" rel="noopener noreferrer">
+        {part}
+      </a>
+    ) : (
       <Fragment key={index}>{part}</Fragment>
+    ),
   );
 
 const renderChatText = (text: string): ReactNode => {
@@ -84,7 +95,15 @@ const formatTime = (timestamp?: number) => {
   return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
-export const ChatFeed = memo(function ChatFeed({ messages, selfName, onCommand, onUserClick, announce = false, label = 'Chat history', emptyText = 'No messages yet.' }: {
+export const ChatFeed = memo(function ChatFeed({
+  messages,
+  selfName,
+  onCommand,
+  onUserClick,
+  announce = false,
+  label = 'Chat history',
+  emptyText = 'No messages yet.',
+}: {
   messages: ChatMessage[];
   selfName?: string;
   /** Opt in only for live conversation; replay/history views stay quiet. */
@@ -101,7 +120,9 @@ export const ChatFeed = memo(function ChatFeed({ messages, selfName, onCommand, 
   const visibleMessages = messages.filter(message => !ignoredUsers.includes(toId(message.user)));
   const announcements = useChatAnnouncements(messages, announce, selfName);
   const handleHtmlClick = (event: MouseEvent<HTMLDivElement>) => {
-    const target = (event.target as HTMLElement).closest<HTMLElement>('[data-cmd],button[value],[data-href],a[href]');
+    const target = (event.target as HTMLElement).closest<HTMLElement>(
+      '[data-cmd],button[value],[data-href],a[href]',
+    );
     if (!target || !event.currentTarget.contains(target)) return;
     const command = target.getAttribute('data-cmd') || target.getAttribute('value');
     if (command && isSafeChatCommand(command)) {
@@ -112,71 +133,108 @@ export const ChatFeed = memo(function ChatFeed({ messages, selfName, onCommand, 
       return;
     }
     const href = normalizeChatHref(target.getAttribute('data-href') || target.getAttribute('href') || '');
-    if (href?.startsWith('/')) { event.preventDefault(); void navigate({ to: href }); }
+    if (href?.startsWith('/')) {
+      event.preventDefault();
+      void navigate({ to: href });
+    }
   };
 
   return (
     <>
-    <div role="log" aria-label={label} aria-live="off">
-    {!visibleMessages.length ? <p className="chat-empty">{messages.length ? 'Messages from ignored users are hidden.' : emptyText}</p> : <ol className="chat-feed-list">
-      {visibleMessages.map((message, index) => {
-        const key = message.uhtmlName || `${message.timestamp || index}-${index}`;
-        const self = !!selfName && toId(message.user) === toId(selfName);
+      <div role="log" aria-label={label} aria-live="off">
+        {!visibleMessages.length ? (
+          <p className="chat-empty">
+            {messages.length ? 'Messages from ignored users are hidden.' : emptyText}
+          </p>
+        ) : (
+          <ol className="chat-feed-list">
+            {visibleMessages.map((message, index) => {
+              const key = message.uhtmlName || `${message.timestamp || index}-${index}`;
+              const self = !!selfName && toId(message.user) === toId(selfName);
 
-        if (message.kind === 'html') {
-          return (
-            <li className="chat-line is-html" key={key}>
-              <div className="chat-rich-content" onClick={handleHtmlClick} dangerouslySetInnerHTML={sanitize(message.message)} />
-            </li>
-          );
-        }
-        if (message.kind === 'announce') {
-          return (
-            <li className="chat-line is-announce" key={key}>
-              <strong>{message.user}</strong>
-              <span>{renderChatText(message.message)}</span>
-            </li>
-          );
-        }
-        if (message.kind === 'me') {
-          return (
-            <li className="chat-line is-me" key={key}>
-              <em>● {message.user} {renderChatText(message.message)}</em>
-              {timestamps && <time>{formatTime(message.timestamp)}</time>}
-            </li>
-          );
-        }
-        if (message.kind === 'error' || message.kind === 'system') {
-          return (
-            <li className={clsx('chat-line', message.kind === 'error' ? 'is-error' : 'is-system')} key={key}>
-              <span>{message.message}</span>
-            </li>
-          );
-        }
-        return (
-          <li className={clsx('chat-line', self && 'is-self', highlights.some(word => message.message.toLowerCase().includes(word.toLowerCase())) && 'is-highlight')} key={key}>
-            {onUserClick ? (
-              <button
-                type="button"
-                className="chat-author"
-                onClick={event => {
-                  const rect = event.currentTarget.getBoundingClientRect();
-                  onUserClick(message.user, { x: rect.left, y: rect.bottom, trigger: event.currentTarget });
-                }}
-              >
-                {message.user}
-              </button>
-            ) : (
-              <strong className="chat-author">{message.user}</strong>
-            )}
-            <span className="chat-body">{renderChatText(message.message)}</span>
-            {timestamps && <time>{formatTime(message.timestamp)}</time>}
-          </li>
-        );
-      })}
-    </ol>}
-    </div>
-    <div ref={announcements} className="visually-hidden" role="status" aria-label="New chat messages" aria-live={announce ? 'polite' : 'off'} aria-atomic="true" />
+              if (message.kind === 'html') {
+                return (
+                  <li className="chat-line is-html" key={key}>
+                    <div
+                      className="chat-rich-content"
+                      onClick={handleHtmlClick}
+                      dangerouslySetInnerHTML={sanitize(message.message)}
+                    />
+                  </li>
+                );
+              }
+              if (message.kind === 'announce') {
+                return (
+                  <li className="chat-line is-announce" key={key}>
+                    <strong>{message.user}</strong>
+                    <span>{renderChatText(message.message)}</span>
+                  </li>
+                );
+              }
+              if (message.kind === 'me') {
+                return (
+                  <li className="chat-line is-me" key={key}>
+                    <em>
+                      ● {message.user} {renderChatText(message.message)}
+                    </em>
+                    {timestamps && <time>{formatTime(message.timestamp)}</time>}
+                  </li>
+                );
+              }
+              if (message.kind === 'error' || message.kind === 'system') {
+                return (
+                  <li
+                    className={clsx('chat-line', message.kind === 'error' ? 'is-error' : 'is-system')}
+                    key={key}
+                  >
+                    <span>{message.message}</span>
+                  </li>
+                );
+              }
+              return (
+                <li
+                  className={clsx(
+                    'chat-line',
+                    self && 'is-self',
+                    highlights.some(word => message.message.toLowerCase().includes(word.toLowerCase())) &&
+                      'is-highlight',
+                  )}
+                  key={key}
+                >
+                  {onUserClick ? (
+                    <button
+                      type="button"
+                      className="chat-author"
+                      onClick={event => {
+                        const rect = event.currentTarget.getBoundingClientRect();
+                        onUserClick(message.user, {
+                          x: rect.left,
+                          y: rect.bottom,
+                          trigger: event.currentTarget,
+                        });
+                      }}
+                    >
+                      {message.user}
+                    </button>
+                  ) : (
+                    <strong className="chat-author">{message.user}</strong>
+                  )}
+                  <span className="chat-body">{renderChatText(message.message)}</span>
+                  {timestamps && <time>{formatTime(message.timestamp)}</time>}
+                </li>
+              );
+            })}
+          </ol>
+        )}
+      </div>
+      <div
+        ref={announcements}
+        className="visually-hidden"
+        role="status"
+        aria-label="New chat messages"
+        aria-live={announce ? 'polite' : 'off'}
+        aria-atomic="true"
+      />
     </>
   );
 });

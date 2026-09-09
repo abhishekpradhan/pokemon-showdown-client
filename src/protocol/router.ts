@@ -63,10 +63,7 @@ export type ArenaStoreApi = {
  * lines through them. Interpret the ones with rendering semantics; anything
  * unrecognized stays visible as plain text.
  */
-export const displayCommand = (
-  base: { user: string; timestamp?: number },
-  text: string
-): ChatMessage => {
+export const displayCommand = (base: { user: string; timestamp?: number }, text: string): ChatMessage => {
   if (text.startsWith('//')) return { ...base, message: text.slice(1) };
   if (text.startsWith('/me ')) return { ...base, kind: 'me', message: text.slice(4) };
   if (text.startsWith('/announce ')) return { ...base, kind: 'announce', message: text.slice(10) };
@@ -97,28 +94,33 @@ export const displayCommand = (
 /** Chat-ish lines that can appear in any room. */
 const parseChatLine = (line: PsLine): ChatMessage | null => {
   switch (line.command) {
-  case 'c':
-  case 'chat':
-    return displayCommand({ user: line.args[0] || 'system' }, line.args.slice(1).join('|'));
-  case 'c:':
-    return displayCommand(
-      { timestamp: (Number(line.args[0]) || 0) * 1000 || undefined, user: line.args[1] || 'system' },
-      line.args.slice(2).join('|')
-    );
-  case 'raw':
-  case 'html':
-    return { kind: 'html', user: '', message: line.args.join('|') };
-  case 'uhtml':
-  case 'uhtmlchange':
-    // args[0] names the block; uhtmlchange rewrites it in place.
-    return { kind: 'html', user: '', uhtmlName: line.args[0] || undefined, message: line.args.slice(1).join('|') };
-  case 'error':
-    return { kind: 'error', user: 'error', message: line.args.join('|') };
-  case '-message':
-  case 'message':
-    return { kind: 'system', user: 'system', message: line.args.join('|') };
-  default:
-    return null;
+    case 'c':
+    case 'chat':
+      return displayCommand({ user: line.args[0] || 'system' }, line.args.slice(1).join('|'));
+    case 'c:':
+      return displayCommand(
+        { timestamp: (Number(line.args[0]) || 0) * 1000 || undefined, user: line.args[1] || 'system' },
+        line.args.slice(2).join('|'),
+      );
+    case 'raw':
+    case 'html':
+      return { kind: 'html', user: '', message: line.args.join('|') };
+    case 'uhtml':
+    case 'uhtmlchange':
+      // args[0] names the block; uhtmlchange rewrites it in place.
+      return {
+        kind: 'html',
+        user: '',
+        uhtmlName: line.args[0] || undefined,
+        message: line.args.slice(1).join('|'),
+      };
+    case 'error':
+      return { kind: 'error', user: 'error', message: line.args.join('|') };
+    case '-message':
+    case 'message':
+      return { kind: 'system', user: 'system', message: line.args.join('|') };
+    default:
+      return null;
   }
 };
 
@@ -134,7 +136,11 @@ const parseBattleRequest = (line: PsLine): BattleRequest | null => {
 
 /** `|inactive|Time left: 150 sec this turn | 300 sec total` and friends. */
 const parseTimerLine = (text: string, username = ''): { secondsLeft?: number; totalLeft?: number } => {
-  if (!/^Time left:/i.test(text) && !(username && text.toLowerCase().startsWith(`${username.toLowerCase()} has `))) return {};
+  if (
+    !/^Time left:/i.test(text) &&
+    !(username && text.toLowerCase().startsWith(`${username.toLowerCase()} has `))
+  )
+    return {};
   const seconds = [...text.matchAll(/(\d+) sec/g)].map(match => Number(match[1]));
   return {
     secondsLeft: seconds[0],
@@ -148,217 +154,297 @@ const handleGlobal = (line: PsLine, store: ArenaStoreApi): boolean => {
   const { setState, getState } = store;
 
   switch (line.command) {
-  case 'challstr': {
-    const challstr = line.args.join('|');
-    setState({ challstr });
-    // A stored OAuth token means this browser is already authorized: mint an
-    // assertion and sign in without prompting.
-    void getState().resumeSession(challstr);
-    return true;
-  }
+    case 'challstr': {
+      const challstr = line.args.join('|');
+      setState({ challstr });
+      // A stored OAuth token means this browser is already authorized: mint an
+      // assertion and sign in without prompting.
+      void getState().resumeSession(challstr);
+      return true;
+    }
 
-  case 'updateuser': {
-    const rawName = (line.args[0] || '').replace(/@!$/, '');
-    const previousUser = getState();
-    let serverLanguage: string | undefined;
-    try {
-      const settings: unknown = JSON.parse(line.args[3] || '{}');
-      if (settings && typeof settings === 'object' && 'language' in settings && isServerLanguage(settings.language)) serverLanguage = settings.language;
-    } catch { /* Older servers omit settings metadata. */ }
-    const hasGroupPrefix = /^[^A-Za-z0-9]/.test(rawName);
-    const username = (hasGroupPrefix ? rawName.slice(1) : rawName) || 'Guest';
-    const named = line.args[1] === '1';
-    const confirmsLogin = previousUser.loginPending && named && matchesAuthenticationIdentity(username);
-    const identityChanged = previousUser.named !== named || toId(previousUser.username) !== toId(username);
-    const settlesIdentity = confirmsLogin || (!previousUser.loginPending && identityChanged);
-    setState({
-      username,
-      userGroup: hasGroupPrefix ? rawName.charAt(0).trim() : '',
-      named,
-      avatar: line.args[2] || undefined,
-      serverLanguage,
-      connection: 'connected',
-      // Avatar/language/status updates also use updateuser. They describe the
-      // current identity, not completion of an unrelated sign-in operation.
-      ...(settlesIdentity ? { loginPending: false, needsPassword: false, lastError: undefined } : {}),
-    });
-    if (confirmsLogin) cancelAuthentication();
-    const confirmed = getState();
-    if (settlesIdentity) confirmed.onLoginSettled();
-    return true;
-  }
-
-  case 'nametaken':
-    if (getState().loginPending && !matchesAuthenticationIdentity(line.args[0] || '', true)) return true;
-    cancelAuthentication();
-    setState({
-      loginPending: false,
-      lastError: line.args.slice(1).join('|') || `${line.args[0] || 'That name'} is not available.`,
-    });
-    getState().onLoginSettled();
-    return true;
-
-  case 'formats':
-    setState(state => {
-      const parsed = parseFormats(line.args);
-      const formats = parsed.length ? parsed : state.formats;
-      const selectedFormat = formats.some(format => format.id === state.selectedFormat) ?
-        state.selectedFormat :
-        formats[0]?.id || state.selectedFormat;
-      return { formats, selectedFormat };
-    });
-    return true;
-
-  case 'updatesearch': {
-    const update = parseSearchUpdate(line.args.join('|'));
-    if (!update) return true;
-    getState().onSearchSettled();
-    setState({
-      searchFormats: update.searching,
-      searchState: update.searching.length ? 'searching' : 'idle',
-      lastError: undefined,
-    });
-    return true;
-  }
-
-  case 'updatechallenges': {
-    try {
-      const data = JSON.parse(line.args.join('|')) as {
-        challengesFrom?: Record<string, string>;
-        challengeTo?: { to: string; format: string } | null;
-      };
-      const preferences = useWorkspaceStore.getState();
-      const from = preferences.blockChallenges ? {} : Object.fromEntries(Object.entries(data.challengesFrom || {}).filter(([user]) => !preferences.ignoredUsers.includes(toId(user))));
-      if (useWorkspaceStore.getState().notificationsEnabled) {
-        const previous = getState().challenges.from;
-        for (const [user, format] of Object.entries(from)) {
-          if (!previous[user]) desktopNotify(`${user} challenged you`, format, `challenge-${user}`);
-        }
+    case 'updateuser': {
+      const rawName = (line.args[0] || '').replace(/@!$/, '');
+      const previousUser = getState();
+      let serverLanguage: string | undefined;
+      try {
+        const settings: unknown = JSON.parse(line.args[3] || '{}');
+        if (
+          settings &&
+          typeof settings === 'object' &&
+          'language' in settings &&
+          isServerLanguage(settings.language)
+        )
+          serverLanguage = settings.language;
+      } catch {
+        /* Older servers omit settings metadata. */
       }
-      setState(state => ({
-        challenges: { from, to: data.challengeTo || null, details: Object.fromEntries(Object.entries(state.challenges.details || {}).filter(([user, detail]) => Object.entries(from).some(([name, format]) => toId(name) === user && format === detail.format))) },
-      }));
-    } catch {
-      // Malformed challenge payloads are not actionable.
-    }
-    return true;
-  }
-
-  case 'popup': {
-    const text = line.args.join('|');
-    const validation = getState().teamValidation;
-    if (validation?.state === 'validating' && /team|valid|banned|pok.mon|move|ability|item/i.test(text)) {
-      const valid = /team (?:is )?valid|valid for|ready for/i.test(text) && !/invalid|not valid|rejected/i.test(text);
-      setState({ teamValidation: { ...validation, state: valid ? 'valid' : 'invalid', message: text } });
+      const hasGroupPrefix = /^[^A-Za-z0-9]/.test(rawName);
+      const username = (hasGroupPrefix ? rawName.slice(1) : rawName) || 'Guest';
+      const named = line.args[1] === '1';
+      const confirmsLogin = previousUser.loginPending && named && matchesAuthenticationIdentity(username);
+      const identityChanged = previousUser.named !== named || toId(previousUser.username) !== toId(username);
+      const settlesIdentity = confirmsLogin || (!previousUser.loginPending && identityChanged);
+      setState({
+        username,
+        userGroup: hasGroupPrefix ? rawName.charAt(0).trim() : '',
+        named,
+        avatar: line.args[2] || undefined,
+        serverLanguage,
+        connection: 'connected',
+        // Avatar/language/status updates also use updateuser. They describe the
+        // current identity, not completion of an unrelated sign-in operation.
+        ...(settlesIdentity ? { loginPending: false, needsPassword: false, lastError: undefined } : {}),
+      });
+      if (confirmsLogin) cancelAuthentication();
+      const confirmed = getState();
+      if (settlesIdentity) confirmed.onLoginSettled();
       return true;
     }
-    // The main server uploads replays itself and answers /savereplay with a
-    // popup; third-party servers hand the client a payload via queryresponse.
-    const pending = Object.values(getState().replayStatuses).filter(status => status.state === 'saving');
-    if (pending.length && /replay/i.test(text)) {
-      const url = replayUploadUrl(text);
-      const saving = pending.find(status => url && new URL(url).pathname.slice(1).startsWith(status.roomId.replace(/^battle-/, ''))) || (pending.length === 1 ? pending[0] : undefined);
-      if (saving) getState().finishReplay(saving.roomId, url ? { url } : { error: text.replace(/\|\|/g, ' ').trim() || 'No replay URL was returned. Retry saving.' });
-      return true;
-    }
-    setState({ lastError: text || 'Server popup received.' });
-    return true;
-  }
 
-  case 'pm': {
-    const from = line.args[0] || 'pm';
-    const to = line.args[1] || '';
-    const message = line.args.slice(2).join('|');
-    const state = getState();
-    const partner = toId(from) === toId(state.username) ? to : from;
-    const preferences = useWorkspaceStore.getState();
-    const incoming = toId(from) !== toId(state.username);
-    if (incoming && (preferences.ignoredUsers.includes(toId(from)) || (message.startsWith('/challenge') ? preferences.blockChallenges : preferences.blockPms))) return true;
-    const pmRoomId = `pm-${toId(partner) || 'system'}`;
-    // Challenge plumbing rides over PMs; don't render it as chat.
-    if (/^\/challenge(?: |$)/.test(message)) {
-      const detail = parseChallengeDetails(message);
-      const format = detail?.format;
-      const self = toId(from) === toId(state.username);
-      setState(current => {
-        const challenges = { ...current.challenges, from: { ...current.challenges.from }, details: { ...current.challenges.details } };
-        if (self) challenges.to = format ? { to: partner, format } : null;
-        else {
-          for (const name of Object.keys(challenges.from)) if (toId(name) === toId(partner)) delete challenges.from[name];
-          if (format && detail) {
-            challenges.from[partner.replace(/^[^A-Za-z0-9]/, '')] = format;
-            challenges.details[toId(partner)] = detail;
-          } else delete challenges.details[toId(partner)];
-        }
-        const rooms = self && !format ? Object.fromEntries(Object.entries(current.rooms).map(([id, room]) => [id,
-          room.type === 'battle' && room.invitations?.some(seat => seat.invited === toId(partner)) ? { ...room, invitations: room.invitations.map(seat => seat.invited === toId(partner) ? { slot: seat.slot, canInvite: true } : seat) } : room,
-        ])) : current.rooms;
-        return { challenges, rooms };
+    case 'nametaken':
+      if (getState().loginPending && !matchesAuthenticationIdentity(line.args[0] || '', true)) return true;
+      cancelAuthentication();
+      setState({
+        loginPending: false,
+        lastError: line.args.slice(1).join('|') || `${line.args[0] || 'That name'} is not available.`,
+      });
+      getState().onLoginSettled();
+      return true;
+
+    case 'formats':
+      setState(state => {
+        const parsed = parseFormats(line.args);
+        const formats = parsed.length ? parsed : state.formats;
+        const selectedFormat = formats.some(format => format.id === state.selectedFormat)
+          ? state.selectedFormat
+          : formats[0]?.id || state.selectedFormat;
+        return { formats, selectedFormat };
+      });
+      return true;
+
+    case 'updatesearch': {
+      const update = parseSearchUpdate(line.args.join('|'));
+      if (!update) return true;
+      getState().onSearchSettled();
+      setState({
+        searchFormats: update.searching,
+        searchState: update.searching.length ? 'searching' : 'idle',
+        lastError: undefined,
       });
       return true;
     }
-    setState(current => {
-      const existing = { ...(current.rooms[pmRoomId] || newPmRoom(pmRoomId, partner.replace(/^[^A-Za-z0-9]/, ''))), connected: true } as Room;
-      const focused = current.activeRoomId === pmRoomId && !document.hidden;
-      // Bots PM HTML and announcements through the same slash directives.
-      const parsed = displayCommand(
-        { user: from.replace(/^[^A-Za-z0-9]/, ''), timestamp: Date.now() },
-        message
-      );
-      const chatMessage: ChatMessage = { ...parsed, kind: parsed.kind ?? 'pm' };
-      return {
-        rooms: upsert(current.rooms, appendChat(existing, chatMessage, focused) as Room),
-      };
-    });
-    if (incoming && preferences.notificationsEnabled && !preferences.mutedRooms.includes(pmRoomId)) desktopNotify(`Message from ${partner}`, 'Open the conversation to read it.', `room-${pmRoomId}`, `/room/${pmRoomId}`);
-    return true;
-  }
 
-  case 'queryresponse': {
-    const response = parseQueryResponse(line);
-    if (!response) return true;
-    if (response.id === 'roomlist') {
-      const roomList = parseRoomList(response.data);
-      if (roomList) setState({ roomList });
-    }
-    if (response.id === 'rooms') {
-      const chatRoomList = parseChatRoomList(response.data);
-      if (chatRoomList) setState({ chatRoomList });
-    }
-    if (response.id === 'savereplay') {
-      getState().onReplaySaved(response.data as { id?: string; log?: string; password?: string });
-    }
-    if (response.id === 'userdetails') {
-      const data = response.data as {
-        userid?: string; name?: string; group?: string; avatar?: string | number;
-        status?: string; rooms?: Record<string, unknown> | false;
-      };
-      if (data?.userid) {
-        const card = {
-          userid: data.userid,
-          name: data.name || data.userid,
-          group: (data.group || '').trim(),
-          avatar: data.avatar !== undefined ? String(data.avatar) : undefined,
-          status: data.status || undefined,
-          rooms: data.rooms ? Object.keys(data.rooms) : [],
-          online: data.rooms !== false,
+    case 'updatechallenges': {
+      try {
+        const data = JSON.parse(line.args.join('|')) as {
+          challengesFrom?: Record<string, string>;
+          challengeTo?: { to: string; format: string } | null;
         };
+        const preferences = useWorkspaceStore.getState();
+        const from = preferences.blockChallenges
+          ? {}
+          : Object.fromEntries(
+              Object.entries(data.challengesFrom || {}).filter(
+                ([user]) => !preferences.ignoredUsers.includes(toId(user)),
+              ),
+            );
+        if (useWorkspaceStore.getState().notificationsEnabled) {
+          const previous = getState().challenges.from;
+          for (const [user, format] of Object.entries(from)) {
+            if (!previous[user]) desktopNotify(`${user} challenged you`, format, `challenge-${user}`);
+          }
+        }
         setState(state => ({
-          userCards: Object.fromEntries([...Object.entries(state.userCards).filter(([id]) => id !== card.userid).slice(-199), [card.userid, card]]),
-          // Only a structured response for the current connected identity can
-          // confirm its avatar. Other cards, stale identities and HTML cannot.
-          ...(state.named && state.connection === 'connected' && !state.loginPending &&
-            data.userid === toId(state.username) && data.rooms !== false &&
-            (typeof data.avatar === 'string' || typeof data.avatar === 'number') && avatarUrl(data.avatar)
-            ? { avatar: String(data.avatar) } : {}),
+          challenges: {
+            from,
+            to: data.challengeTo || null,
+            details: Object.fromEntries(
+              Object.entries(state.challenges.details || {}).filter(([user, detail]) =>
+                Object.entries(from).some(
+                  ([name, format]) => toId(name) === user && format === detail.format,
+                ),
+              ),
+            ),
+          },
         }));
+      } catch {
+        // Malformed challenge payloads are not actionable.
       }
+      return true;
     }
-    return true;
-  }
 
-  default:
-    return false;
+    case 'popup': {
+      const text = line.args.join('|');
+      const validation = getState().teamValidation;
+      if (validation?.state === 'validating' && /team|valid|banned|pok.mon|move|ability|item/i.test(text)) {
+        const valid =
+          /team (?:is )?valid|valid for|ready for/i.test(text) && !/invalid|not valid|rejected/i.test(text);
+        setState({ teamValidation: { ...validation, state: valid ? 'valid' : 'invalid', message: text } });
+        return true;
+      }
+      // The main server uploads replays itself and answers /savereplay with a
+      // popup; third-party servers hand the client a payload via queryresponse.
+      const pending = Object.values(getState().replayStatuses).filter(status => status.state === 'saving');
+      if (pending.length && /replay/i.test(text)) {
+        const url = replayUploadUrl(text);
+        const saving =
+          pending.find(
+            status => url && new URL(url).pathname.slice(1).startsWith(status.roomId.replace(/^battle-/, '')),
+          ) || (pending.length === 1 ? pending[0] : undefined);
+        if (saving)
+          getState().finishReplay(
+            saving.roomId,
+            url
+              ? { url }
+              : { error: text.replace(/\|\|/g, ' ').trim() || 'No replay URL was returned. Retry saving.' },
+          );
+        return true;
+      }
+      setState({ lastError: text || 'Server popup received.' });
+      return true;
+    }
+
+    case 'pm': {
+      const from = line.args[0] || 'pm';
+      const to = line.args[1] || '';
+      const message = line.args.slice(2).join('|');
+      const state = getState();
+      const partner = toId(from) === toId(state.username) ? to : from;
+      const preferences = useWorkspaceStore.getState();
+      const incoming = toId(from) !== toId(state.username);
+      if (
+        incoming &&
+        (preferences.ignoredUsers.includes(toId(from)) ||
+          (message.startsWith('/challenge') ? preferences.blockChallenges : preferences.blockPms))
+      )
+        return true;
+      const pmRoomId = `pm-${toId(partner) || 'system'}`;
+      // Challenge plumbing rides over PMs; don't render it as chat.
+      if (/^\/challenge(?: |$)/.test(message)) {
+        const detail = parseChallengeDetails(message);
+        const format = detail?.format;
+        const self = toId(from) === toId(state.username);
+        setState(current => {
+          const challenges = {
+            ...current.challenges,
+            from: { ...current.challenges.from },
+            details: { ...current.challenges.details },
+          };
+          if (self) challenges.to = format ? { to: partner, format } : null;
+          else {
+            for (const name of Object.keys(challenges.from))
+              if (toId(name) === toId(partner)) delete challenges.from[name];
+            if (format && detail) {
+              challenges.from[partner.replace(/^[^A-Za-z0-9]/, '')] = format;
+              challenges.details[toId(partner)] = detail;
+            } else delete challenges.details[toId(partner)];
+          }
+          const rooms =
+            self && !format
+              ? Object.fromEntries(
+                  Object.entries(current.rooms).map(([id, room]) => [
+                    id,
+                    room.type === 'battle' && room.invitations?.some(seat => seat.invited === toId(partner))
+                      ? {
+                          ...room,
+                          invitations: room.invitations.map(seat =>
+                            seat.invited === toId(partner) ? { slot: seat.slot, canInvite: true } : seat,
+                          ),
+                        }
+                      : room,
+                  ]),
+                )
+              : current.rooms;
+          return { challenges, rooms };
+        });
+        return true;
+      }
+      setState(current => {
+        const existing = {
+          ...(current.rooms[pmRoomId] || newPmRoom(pmRoomId, partner.replace(/^[^A-Za-z0-9]/, ''))),
+          connected: true,
+        } as Room;
+        const focused = current.activeRoomId === pmRoomId && !document.hidden;
+        // Bots PM HTML and announcements through the same slash directives.
+        const parsed = displayCommand(
+          { user: from.replace(/^[^A-Za-z0-9]/, ''), timestamp: Date.now() },
+          message,
+        );
+        const chatMessage: ChatMessage = { ...parsed, kind: parsed.kind ?? 'pm' };
+        return {
+          rooms: upsert(current.rooms, appendChat(existing, chatMessage, focused) as Room),
+        };
+      });
+      if (incoming && preferences.notificationsEnabled && !preferences.mutedRooms.includes(pmRoomId))
+        desktopNotify(
+          `Message from ${partner}`,
+          'Open the conversation to read it.',
+          `room-${pmRoomId}`,
+          `/room/${pmRoomId}`,
+        );
+      return true;
+    }
+
+    case 'queryresponse': {
+      const response = parseQueryResponse(line);
+      if (!response) return true;
+      if (response.id === 'roomlist') {
+        const roomList = parseRoomList(response.data);
+        if (roomList) setState({ roomList });
+      }
+      if (response.id === 'rooms') {
+        const chatRoomList = parseChatRoomList(response.data);
+        if (chatRoomList) setState({ chatRoomList });
+      }
+      if (response.id === 'savereplay') {
+        getState().onReplaySaved(response.data as { id?: string; log?: string; password?: string });
+      }
+      if (response.id === 'userdetails') {
+        const data = response.data as {
+          userid?: string;
+          name?: string;
+          group?: string;
+          avatar?: string | number;
+          status?: string;
+          rooms?: Record<string, unknown> | false;
+        };
+        if (data?.userid) {
+          const card = {
+            userid: data.userid,
+            name: data.name || data.userid,
+            group: (data.group || '').trim(),
+            avatar: data.avatar !== undefined ? String(data.avatar) : undefined,
+            status: data.status || undefined,
+            rooms: data.rooms ? Object.keys(data.rooms) : [],
+            online: data.rooms !== false,
+          };
+          setState(state => ({
+            userCards: Object.fromEntries([
+              ...Object.entries(state.userCards)
+                .filter(([id]) => id !== card.userid)
+                .slice(-199),
+              [card.userid, card],
+            ]),
+            // Only a structured response for the current connected identity can
+            // confirm its avatar. Other cards, stale identities and HTML cannot.
+            ...(state.named &&
+            state.connection === 'connected' &&
+            !state.loginPending &&
+            data.userid === toId(state.username) &&
+            data.rooms !== false &&
+            (typeof data.avatar === 'string' || typeof data.avatar === 'number') &&
+            avatarUrl(data.avatar)
+              ? { avatar: String(data.avatar) }
+              : {}),
+          }));
+        }
+      }
+      return true;
+    }
+
+    default:
+      return false;
   }
 };
 
@@ -368,190 +454,248 @@ const handleLifecycle = (roomId: string, line: PsLine, store: ArenaStoreApi): bo
   const { setState, getState } = store;
 
   switch (line.command) {
-  case 'init': {
-    const type = line.args[0] || (roomId.startsWith('battle-') ? 'battle' : 'chat');
-    setState(state => {
-      let room: Room = type === 'battle' ? newBattleRoom(roomId) : newChatRoom(roomId);
-      if (room.type === 'battle' && !room.engine) {
-        const engine = createEngineBattle(toId(state.username));
-        if (engine) room = { ...room, engine };
-      }
-      return {
-        rooms: upsert(state.rooms, room),
-        roomErrors: setRoomError(state.roomErrors, roomId),
+    case 'init': {
+      const type = line.args[0] || (roomId.startsWith('battle-') ? 'battle' : 'chat');
+      setState(state => {
+        let room: Room = type === 'battle' ? newBattleRoom(roomId) : newChatRoom(roomId);
+        if (room.type === 'battle' && !room.engine) {
+          const engine = createEngineBattle(toId(state.username));
+          if (engine) room = { ...room, engine };
+        }
+        return {
+          rooms: upsert(state.rooms, room),
+          roomErrors: setRoomError(state.roomErrors, roomId),
+        };
+      });
+      return true;
+    }
+
+    case 'deinit':
+      setState(state => ({
+        rooms:
+          state.rooms[roomId]?.type === 'battle'
+            ? upsert(state.rooms, { ...newBattleRoom(roomId), connected: false })
+            : patchRoom(state.rooms, roomId, { connected: false }),
+        activeRoomId: state.activeRoomId === roomId ? undefined : state.activeRoomId,
+      }));
+      return true;
+
+    case 'noinit':
+      setState(state => ({
+        lastError: line.args.join(' '),
+        roomErrors: setRoomError(
+          state.roomErrors,
+          roomId,
+          line.args.slice(1).join(' ') || line.args.join(' ') || 'This room is unavailable.',
+        ),
+        rooms: patchRoom(state.rooms, roomId, { connected: false }),
+      }));
+      return true;
+
+    case 'cantleave':
+      setState(state => ({
+        roomErrors: setRoomError(
+          state.roomErrors,
+          roomId,
+          'You are still playing this battle. Finish it or forfeit before leaving.',
+        ),
+        rooms: patchRoom(state.rooms, roomId, { connected: true }),
+      }));
+      return true;
+    case 'allowleave':
+      setState(state => ({ roomErrors: setRoomError(state.roomErrors, roomId) }));
+      return true;
+
+    case 'tournament': {
+      const sub = line.args[0];
+      const rest = line.args.slice(1);
+      const patchTournament = (
+        mutate: (tour: TournamentState, room: ChatRoom) => TournamentState | undefined,
+      ) => {
+        setState(state => {
+          const room = state.rooms[roomId];
+          if (room?.type !== 'chat') return {};
+          const base: TournamentState = room.tournament ?? {
+            format: '',
+            generator: '',
+            playerCap: 0,
+            isStarted: false,
+            isJoined: false,
+            players: [],
+            challenges: [],
+            challengeBys: [],
+          };
+          const tournament = mutate(base, room);
+          return { rooms: upsert(state.rooms, { ...room, tournament } as Room) };
+        });
       };
-    });
-    return true;
-  }
 
-  case 'deinit':
-    setState(state => ({
-      rooms: state.rooms[roomId]?.type === 'battle' ? upsert(state.rooms, { ...newBattleRoom(roomId), connected: false }) : patchRoom(state.rooms, roomId, { connected: false }),
-      activeRoomId: state.activeRoomId === roomId ? undefined : state.activeRoomId,
-    }));
-    return true;
+      switch (sub) {
+        case 'create':
+          patchTournament(() => ({
+            format: rest[0] || '',
+            generator: rest[1] || '',
+            playerCap: Number(rest[2]) || 0,
+            isStarted: false,
+            isJoined: false,
+            players: [],
+            challenges: [],
+            challengeBys: [],
+          }));
+          break;
+        case 'update':
+          try {
+            const data = JSON.parse(rest.join('|')) as Partial<TournamentState> & {
+              teambuilderFormat?: string;
+            };
+            patchTournament(tour => ({
+              ...tour,
+              ...(data.format !== undefined ? { format: data.format } : {}),
+              ...(data.generator !== undefined ? { generator: data.generator } : {}),
+              ...(data.playerCap !== undefined ? { playerCap: data.playerCap } : {}),
+              ...(data.isStarted !== undefined ? { isStarted: data.isStarted } : {}),
+              ...(data.isJoined !== undefined ? { isJoined: data.isJoined } : {}),
+              ...(data.bracketData !== undefined ? { bracketData: data.bracketData } : {}),
+              ...(data.challenges !== undefined ? { challenges: data.challenges } : {}),
+              ...(data.challengeBys !== undefined ? { challengeBys: data.challengeBys } : {}),
+              ...(data.challenged !== undefined ? { challenged: data.challenged } : {}),
+              ...(data.challenging !== undefined ? { challenging: data.challenging } : {}),
+              ...(data.teambuilderFormat !== undefined ? { teambuilderFormat: data.teambuilderFormat } : {}),
+              error: undefined,
+            }));
+          } catch {
+            /* malformed update: keep the last good state */
+          }
+          break;
+        case 'join':
+          patchTournament(tour => ({
+            ...tour,
+            players: tour.players.includes(rest[0]) ? tour.players : [...tour.players, rest[0]],
+            isJoined: tour.isJoined || toId(rest[0] || '') === toId(getState().username),
+          }));
+          break;
+        case 'leave':
+        case 'disqualify':
+          patchTournament(tour => ({
+            ...tour,
+            players: tour.players.filter(user => user !== rest[0]),
+            isJoined: toId(rest[0] || '') === toId(getState().username) ? false : tour.isJoined,
+          }));
+          break;
+        case 'start':
+          patchTournament(tour => ({ ...tour, isStarted: true }));
+          break;
+        case 'battlestart': {
+          const me = toId(getState().username);
+          const mine = toId(rest[0] || '') === me || toId(rest[1] || '') === me;
+          if (mine) patchTournament(tour => ({ ...tour, currentBattle: rest[2] }));
+          break;
+        }
+        case 'battleend':
+          patchTournament(tour => {
+            const me = toId(getState().username);
+            const mine = toId(rest[0] || '') === me || toId(rest[1] || '') === me;
+            return mine ? { ...tour, currentBattle: undefined } : tour;
+          });
+          break;
+        case 'end':
+        case 'forceend':
+          patchTournament(tour => {
+            let results = tour.results;
+            try {
+              results = (JSON.parse(rest.join('|')) as { results?: string[][] }).results;
+            } catch {
+              /* forceend has no result payload */
+            }
+            return {
+              ...tour,
+              isStarted: false,
+              ended: true,
+              challenges: [],
+              challengeBys: [],
+              currentBattle: undefined,
+              challenged: null,
+              challenging: null,
+              results,
+            };
+          });
+          break;
+        case 'error':
+          patchTournament(tour => ({
+            ...tour,
+            error: rest.join(' ') || 'Tournament action failed. Refresh and retry.',
+          }));
+          break;
+        default:
+          break;
+      }
+      return true;
+    }
 
-  case 'noinit':
-    setState(state => ({
-      lastError: line.args.join(' '),
-      roomErrors: setRoomError(state.roomErrors, roomId, line.args.slice(1).join(' ') || line.args.join(' ') || 'This room is unavailable.'),
-      rooms: patchRoom(state.rooms, roomId, { connected: false }),
-    }));
-    return true;
+    case 'notify':
+    case 'tempnotify': {
+      // |notify|TITLE|MESSAGE(|highlight token)| — surface on the desktop when
+      // the page is hidden; the in-app feed already shows the room activity.
+      if (
+        useWorkspaceStore.getState().notificationsEnabled &&
+        !useWorkspaceStore.getState().mutedRooms.includes(roomId)
+      ) {
+        const title = line.args[line.command === 'tempnotify' ? 1 : 0] || 'Showdown Arena';
+        const body = line.args[line.command === 'tempnotify' ? 2 : 1] || roomId;
+        desktopNotify(
+          title,
+          body,
+          `room-${roomId}`,
+          `/${roomId.startsWith('battle-') ? 'battle' : 'room'}/${roomId}`,
+        );
+      }
+      return true;
+    }
 
-  case 'cantleave':
-    setState(state => ({
-      roomErrors: setRoomError(state.roomErrors, roomId, 'You are still playing this battle. Finish it or forfeit before leaving.'),
-      rooms: patchRoom(state.rooms, roomId, { connected: true }),
-    }));
-    return true;
-  case 'allowleave':
-    setState(state => ({ roomErrors: setRoomError(state.roomErrors, roomId) }));
-    return true;
+    case 'title':
+      setState(state => ({
+        rooms: patchRoom(state.rooms, roomId, { title: line.args.join('|') || roomId }),
+      }));
+      return true;
 
-  case 'tournament': {
-    const sub = line.args[0];
-    const rest = line.args.slice(1);
-    const patchTournament = (
-      mutate: (tour: TournamentState, room: ChatRoom) => TournamentState | undefined
-    ) => {
+    case 'users':
+      setState(state => ({
+        rooms: patchRoom(state.rooms, roomId, {
+          users: line.args.join('|').split(',').slice(1).filter(Boolean),
+        }),
+      }));
+      return true;
+
+    case 'j':
+    case 'join':
+    case 'J':
       setState(state => {
         const room = state.rooms[roomId];
-        if (room?.type !== 'chat') return {};
-        const base: TournamentState = room.tournament ?? {
-          format: '', generator: '', playerCap: 0, isStarted: false, isJoined: false,
-          players: [], challenges: [], challengeBys: [],
-        };
-        const tournament = mutate(base, room);
-        return { rooms: upsert(state.rooms, { ...room, tournament } as Room) };
+        if (!room) return state;
+        const user = (line.args[0] || '').replace(/^[^A-Za-z0-9]/, '');
+        if (!user || room.users.includes(user)) return state;
+        return { rooms: upsert(state.rooms, { ...room, users: [...room.users, user] } as Room) };
       });
-    };
+      return true;
 
-    switch (sub) {
-    case 'create':
-      patchTournament(() => ({
-        format: rest[0] || '', generator: rest[1] || '', playerCap: Number(rest[2]) || 0,
-        isStarted: false, isJoined: false, players: [], challenges: [], challengeBys: [],
-      }));
-      break;
-    case 'update':
-      try {
-        const data = JSON.parse(rest.join('|')) as Partial<TournamentState> & { teambuilderFormat?: string };
-        patchTournament(tour => ({
-          ...tour,
-          ...(data.format !== undefined ? { format: data.format } : {}),
-          ...(data.generator !== undefined ? { generator: data.generator } : {}),
-          ...(data.playerCap !== undefined ? { playerCap: data.playerCap } : {}),
-          ...(data.isStarted !== undefined ? { isStarted: data.isStarted } : {}),
-          ...(data.isJoined !== undefined ? { isJoined: data.isJoined } : {}),
-          ...(data.bracketData !== undefined ? { bracketData: data.bracketData } : {}),
-          ...(data.challenges !== undefined ? { challenges: data.challenges } : {}),
-          ...(data.challengeBys !== undefined ? { challengeBys: data.challengeBys } : {}),
-          ...(data.challenged !== undefined ? { challenged: data.challenged } : {}),
-          ...(data.challenging !== undefined ? { challenging: data.challenging } : {}),
-          ...(data.teambuilderFormat !== undefined ? { teambuilderFormat: data.teambuilderFormat } : {}),
-          error: undefined,
-        }));
-      } catch { /* malformed update: keep the last good state */ }
-      break;
-    case 'join':
-      patchTournament(tour => ({
-        ...tour,
-        players: tour.players.includes(rest[0]) ? tour.players : [...tour.players, rest[0]],
-        isJoined: tour.isJoined || toId(rest[0] || '') === toId(getState().username),
-      }));
-      break;
+    case 'l':
     case 'leave':
-    case 'disqualify':
-      patchTournament(tour => ({ ...tour, players: tour.players.filter(user => user !== rest[0]), isJoined: toId(rest[0] || '') === toId(getState().username) ? false : tour.isJoined }));
-      break;
-    case 'start':
-      patchTournament(tour => ({ ...tour, isStarted: true }));
-      break;
-    case 'battlestart': {
-      const me = toId(getState().username);
-      const mine = toId(rest[0] || '') === me || toId(rest[1] || '') === me;
-      if (mine) patchTournament(tour => ({ ...tour, currentBattle: rest[2] }));
-      break;
-    }
-    case 'battleend':
-      patchTournament(tour => {
-        const me = toId(getState().username);
-        const mine = toId(rest[0] || '') === me || toId(rest[1] || '') === me;
-        return mine ? { ...tour, currentBattle: undefined } : tour;
+    case 'L':
+      setState(state => {
+        const room = state.rooms[roomId];
+        if (!room) return state;
+        const user = toId(line.args[0] || '');
+        return {
+          rooms: upsert(state.rooms, {
+            ...room,
+            users: room.users.filter(existing => toId(existing) !== user),
+          } as Room),
+        };
       });
-      break;
-    case 'end':
-    case 'forceend':
-      patchTournament(tour => {
-        let results = tour.results;
-        try { results = (JSON.parse(rest.join('|')) as { results?: string[][] }).results; } catch { /* forceend has no result payload */ }
-        return { ...tour, isStarted: false, ended: true, challenges: [], challengeBys: [], currentBattle: undefined, challenged: null, challenging: null, results };
-      });
-      break;
-    case 'error':
-      patchTournament(tour => ({ ...tour, error: rest.join(' ') || 'Tournament action failed. Refresh and retry.' }));
-      break;
+      return true;
+
     default:
-      break;
-    }
-    return true;
-  }
-
-  case 'notify':
-  case 'tempnotify': {
-    // |notify|TITLE|MESSAGE(|highlight token)| — surface on the desktop when
-    // the page is hidden; the in-app feed already shows the room activity.
-    if (useWorkspaceStore.getState().notificationsEnabled && !useWorkspaceStore.getState().mutedRooms.includes(roomId)) {
-      const title = line.args[line.command === 'tempnotify' ? 1 : 0] || 'Showdown Arena';
-      const body = line.args[line.command === 'tempnotify' ? 2 : 1] || roomId;
-      desktopNotify(title, body, `room-${roomId}`, `/${roomId.startsWith('battle-') ? 'battle' : 'room'}/${roomId}`);
-    }
-    return true;
-  }
-
-  case 'title':
-    setState(state => ({ rooms: patchRoom(state.rooms, roomId, { title: line.args.join('|') || roomId }) }));
-    return true;
-
-  case 'users':
-    setState(state => ({
-      rooms: patchRoom(state.rooms, roomId, {
-        users: line.args.join('|').split(',').slice(1).filter(Boolean),
-      }),
-    }));
-    return true;
-
-  case 'j':
-  case 'join':
-  case 'J':
-    setState(state => {
-      const room = state.rooms[roomId];
-      if (!room) return state;
-      const user = (line.args[0] || '').replace(/^[^A-Za-z0-9]/, '');
-      if (!user || room.users.includes(user)) return state;
-      return { rooms: upsert(state.rooms, { ...room, users: [...room.users, user] } as Room) };
-    });
-    return true;
-
-  case 'l':
-  case 'leave':
-  case 'L':
-    setState(state => {
-      const room = state.rooms[roomId];
-      if (!room) return state;
-      const user = toId(line.args[0] || '');
-      return {
-        rooms: upsert(state.rooms, {
-          ...room,
-          users: room.users.filter(existing => toId(existing) !== user),
-        } as Room),
-      };
-    });
-    return true;
-
-  default:
-    return false;
+      return false;
   }
 };
 
@@ -568,19 +712,29 @@ const handleBattleLine = (roomId: string, line: PsLine, store: ArenaStoreApi) =>
       rooms: updateBattleRoom(state.rooms, roomId, room => {
         if (room.engine) feedLine(room.engine, line.raw);
         const timing = parseTimerLine(text, username);
-        return ({
-        ...room,
-        rawLog: [...room.rawLog.slice(-49_999), line.raw],
-        timer: line.command === 'inactiveoff' ?
-          { ...room.timer, on: false } :
-          { ...room.timer, on: true, ...timing, asOf: timing.secondsLeft !== undefined ? Date.now() : room.timer.asOf },
-        battle: { ...room.battle, timerOn: line.command === 'inactive' },
-      }); }),
+        return {
+          ...room,
+          rawLog: [...room.rawLog.slice(-49_999), line.raw],
+          timer:
+            line.command === 'inactiveoff'
+              ? { ...room.timer, on: false }
+              : {
+                  ...room.timer,
+                  on: true,
+                  ...timing,
+                  asOf: timing.secondsLeft !== undefined ? Date.now() : room.timer.asOf,
+                },
+          battle: { ...room.battle, timerOn: line.command === 'inactive' },
+        };
+      }),
     }));
     return;
   }
 
-  const invitations = ['uhtml', 'uhtmlchange'].includes(line.command) && line.args[0] === 'invites' ? parseBattleInvitations(line.args.slice(1).join('|'), roomId) : undefined;
+  const invitations =
+    ['uhtml', 'uhtmlchange'].includes(line.command) && line.args[0] === 'invites'
+      ? parseBattleInvitations(line.args.slice(1).join('|'), roomId)
+      : undefined;
   const chat = invitations ? null : parseChatLine(line);
   const pretty = chat ? '' : describeBattleLine(line);
   const parsedRequest = line.command === 'request' ? parseBattleRequest(line) : null;
@@ -590,20 +744,49 @@ const handleBattleLine = (roomId: string, line: PsLine, store: ArenaStoreApi) =>
     let searchState = state.searchState;
 
     const rooms = updateBattleRoom(state.rooms, roomId, room => {
-      let next: typeof room = { ...room, rawLog: [...room.rawLog.slice(-49_999), line.raw],
-        battle: { ...room.battle, logTruncated: room.battle.logTruncated || room.rawLog.length >= 50_000 } };
+      let next: typeof room = {
+        ...room,
+        rawLog: [...room.rawLog.slice(-49_999), line.raw],
+        battle: { ...room.battle, logTruncated: room.battle.logTruncated || room.rawLog.length >= 50_000 },
+      };
       if (invitations) next.invitations = invitations;
       if (line.command === 'start') next.invitations = undefined;
       if (line.command === 'request' && !request) {
         const withdrawn = ['', 'null'].includes(line.args.join('|').trim());
-        return { ...next, lastRequest: undefined, choiceSession: undefined, choiceDraft: { choices: [] }, choicePending: false,
-          choiceError: withdrawn ? undefined : 'The server sent an invalid battle request. Synchronize the battle before choosing.',
-          battle: { ...next.battle, moves: [], requestType: 'wait', waiting: false, mode: withdrawn && !next.perspective ? 'spectator' : 'waiting' } };
+        return {
+          ...next,
+          lastRequest: undefined,
+          choiceSession: undefined,
+          choiceDraft: { choices: [] },
+          choicePending: false,
+          choiceError: withdrawn
+            ? undefined
+            : 'The server sent an invalid battle request. Synchronize the battle before choosing.',
+          battle: {
+            ...next.battle,
+            moves: [],
+            requestType: 'wait',
+            waiting: false,
+            mode: withdrawn && !next.perspective ? 'spectator' : 'waiting',
+          },
+        };
       }
-      if (request?.rqid !== undefined && next.lastRequest?.rqid !== undefined && request.rqid < next.lastRequest.rqid) return next;
-      if (line.command === 'gametype') next.battle = { ...next.battle, gameType: line.args[0], supportReason: battleSupport(next.battle.format, line.args[0]).reason };
-      if (line.command === 'teampreview') next.battle = { ...next.battle, teamPreviewCount: Number(line.args[0]) || undefined };
-      if (line.command === 'gen') next.battle = { ...next.battle, generation: Number(line.args[0]) || undefined };
+      if (
+        request?.rqid !== undefined &&
+        next.lastRequest?.rqid !== undefined &&
+        request.rqid < next.lastRequest.rqid
+      )
+        return next;
+      if (line.command === 'gametype')
+        next.battle = {
+          ...next.battle,
+          gameType: line.args[0],
+          supportReason: battleSupport(next.battle.format, line.args[0]).reason,
+        };
+      if (line.command === 'teampreview')
+        next.battle = { ...next.battle, teamPreviewCount: Number(line.args[0]) || undefined };
+      if (line.command === 'gen')
+        next.battle = { ...next.battle, generation: Number(line.args[0]) || undefined };
 
       // Perspective and result are protocol facts the engine does not model.
       if (line.command === 'player') {
@@ -613,7 +796,10 @@ const handleBattleLine = (roomId: string, line: PsLine, store: ArenaStoreApi) =>
         const displayName = line.args[1] || '';
         const rating = Number(line.args[3]) || 0;
         const mine = !!name && name === userId;
-        if (name) next.invitations = next.invitations?.map(entry => entry.slot === side ? { slot: side, name: displayName, canInvite: false } : entry);
+        if (name)
+          next.invitations = next.invitations?.map(entry =>
+            entry.slot === side ? { slot: side, name: displayName, canInvite: false } : entry,
+          );
         next = {
           ...next,
           perspective: mine ? side : next.perspective,
@@ -633,23 +819,60 @@ const handleBattleLine = (roomId: string, line: PsLine, store: ArenaStoreApi) =>
 
       if (line.command === 'sentchoice' && next.lastRequest) {
         const session = restoreBattleChoiceSession(next.lastRequest, line.args.join('|'));
-        next = { ...next, choiceSession: session, choiceDraft: session.draft, choicePending: session.status === 'submitted', choiceError: undefined };
+        next = {
+          ...next,
+          choiceSession: session,
+          choiceDraft: session.draft,
+          choicePending: session.status === 'submitted',
+          choiceError: undefined,
+        };
       }
       if ((line.command === 'callback' || line.command === 'error') && next.lastRequest) {
-        const requestCopy: BattleRequest = { ...next.lastRequest, active: next.lastRequest.active?.map(active => active ? { ...active, moves: active.moves?.map(move => ({ ...move })) } : null) };
+        const requestCopy: BattleRequest = {
+          ...next.lastRequest,
+          active: next.lastRequest.active?.map(active =>
+            active ? { ...active, moves: active.moves?.map(move => ({ ...move })) } : null,
+          ),
+        };
         if (line.command === 'callback') {
           const identSlot = /p[1-4]([a-z])/.exec(line.args[1] || '')?.[1];
-          const index = identSlot ? isFourPlayerBattle(next.battle.gameType) ? 0 : identSlot.charCodeAt(0) - 97 : Number(line.args[1]) || 0;
+          const index = identSlot
+            ? isFourPlayerBattle(next.battle.gameType)
+              ? 0
+              : identSlot.charCodeAt(0) - 97
+            : Number(line.args[1]) || 0;
           const active = requestCopy.active?.[index];
           if (active && line.args[0] === 'trapped') active.trapped = true;
-          if (active && line.args[0] === 'cant') active.moves = active.moves?.map(move => toId(move.id || move.move) === toId(line.args[3] || '') ? { ...move, disabled: true } : move);
+          if (active && line.args[0] === 'cant')
+            active.moves = active.moves?.map(move =>
+              toId(move.id || move.move) === toId(line.args[3] || '') ? { ...move, disabled: true } : move,
+            );
         }
         // Chat errors must not erase a submitted battle choice.
-        if (line.command === 'callback' || /\[(?:Invalid choice|Unavailable choice)\]|choice|trapped|disabled|can't undo|cannot undo/i.test(line.args.join('|'))) {
+        if (
+          line.command === 'callback' ||
+          /\[(?:Invalid choice|Unavailable choice)\]|choice|trapped|disabled|can't undo|cannot undo/i.test(
+            line.args.join('|'),
+          )
+        ) {
           const undoDenied = /can't undo|cannot undo|can't cancel|cannot cancel/i.test(line.args.join('|'));
-          const session = undoDenied && next.choiceSession ? { ...next.choiceSession, status: 'submitted' as const, noCancel: true } : createBattleChoiceSession(requestCopy);
-          next = { ...next, lastRequest: requestCopy, choiceSession: session, choiceDraft: session.draft, choicePending: !!undoDenied,
-            choiceError: line.command === 'callback' ? line.args[0] === 'trapped' ? 'Your Pokémon is trapped. Choose a move.' : 'That move is unavailable. Choose again.' : line.args.join('|') };
+          const session =
+            undoDenied && next.choiceSession
+              ? { ...next.choiceSession, status: 'submitted' as const, noCancel: true }
+              : createBattleChoiceSession(requestCopy);
+          next = {
+            ...next,
+            lastRequest: requestCopy,
+            choiceSession: session,
+            choiceDraft: session.draft,
+            choicePending: !!undoDenied,
+            choiceError:
+              line.command === 'callback'
+                ? line.args[0] === 'trapped'
+                  ? 'Your Pokémon is trapped. Choose a move.'
+                  : 'That move is unavailable. Choose again.'
+                : line.args.join('|'),
+          };
         }
       }
 
@@ -664,27 +887,31 @@ const handleBattleLine = (roomId: string, line: PsLine, store: ArenaStoreApi) =>
       // its cry (|switch|p1a: Nick|Species, details|hp).
       if (
         useWorkspaceStore.getState().soundEnabled &&
-        state.activeRoomId === roomId && !document.hidden &&
+        state.activeRoomId === roomId &&
+        !document.hidden &&
         (line.command === 'switch' || line.command === 'drag')
       ) {
         const species = (line.args[1] || '').split(',')[0].trim();
-        if (species) playCry(species, useWorkspaceStore.getState().effectsVolume / 100 * 0.9);
+        if (species) playCry(species, (useWorkspaceStore.getState().effectsVolume / 100) * 0.9);
       }
 
       if (request) {
-        const normalizedRequest = normalizeBattleRequest(request, { ...next.battle, gameType: next.engine?.gameType || next.battle.gameType, teamPreviewCount: next.engine?.teamPreviewCount || next.battle.teamPreviewCount });
+        const normalizedRequest = normalizeBattleRequest(request, {
+          ...next.battle,
+          gameType: next.engine?.gameType || next.battle.gameType,
+          teamPreviewCount: next.engine?.teamPreviewCount || next.battle.teamPreviewCount,
+        });
         // "Your move": two rising notes when a real decision arrives for the
         // battle you're looking at.
         if (
           useWorkspaceStore.getState().soundEnabled &&
-          state.activeRoomId === roomId && !document.hidden &&
+          state.activeRoomId === roomId &&
+          !document.hidden &&
           !request.wait
         ) {
-          playTurnPing(useWorkspaceStore.getState().notificationVolume / 100 * 0.5);
+          playTurnPing((useWorkspaceStore.getState().notificationVolume / 100) * 0.5);
         }
-        const perspective = isBattleSideID(request.side?.id) ?
-          request.side.id :
-          next.perspective;
+        const perspective = isBattleSideID(request.side?.id) ? request.side.id : next.perspective;
         const flags = requestFlags(normalizedRequest);
         const defender = next.battle.opponentActive;
         next = {
@@ -709,11 +936,7 @@ const handleBattleLine = (roomId: string, line: PsLine, store: ArenaStoreApi) =>
             waiting: !!request.wait,
             mode: 'player',
             playerSide: perspective ?? next.battle.playerSide,
-            moves: buildMoveDeck(
-              normalizedRequest,
-              defensiveTypes(defender),
-              next.battle.format
-            ),
+            moves: buildMoveDeck(normalizedRequest, defensiveTypes(defender), next.battle.format),
           },
         };
         searchState = 'idle';
@@ -726,19 +949,28 @@ const handleBattleLine = (roomId: string, line: PsLine, store: ArenaStoreApi) =>
         feedLine(next.engine, line.raw);
         next = {
           ...next,
-          battle: { ...projectEngineBattle(next.engine, {
-            roomId,
-            perspective: next.perspective,
-            result: next.result,
-            lastRequest: next.lastRequest,
-            waiting: next.choicePending || !!next.lastRequest?.wait,
-            format: next.battle.format,
-          }), timerOn: next.timer.on, logTruncated: next.battle.logTruncated },
+          battle: {
+            ...projectEngineBattle(next.engine, {
+              roomId,
+              perspective: next.perspective,
+              result: next.result,
+              lastRequest: next.lastRequest,
+              waiting: next.choicePending || !!next.lastRequest?.wait,
+              format: next.battle.format,
+            }),
+            timerOn: next.timer.on,
+            logTruncated: next.battle.logTruncated,
+          },
         };
       }
 
-      next.battle = { ...next.battle, waiting: next.choicePending || !!next.lastRequest?.wait, noCancel: next.choiceSession?.noCancel ?? next.battle.noCancel };
-      if (chat) next = appendChat(next, chat, state.activeRoomId === roomId && !document.hidden) as typeof next;
+      next.battle = {
+        ...next.battle,
+        waiting: next.choicePending || !!next.lastRequest?.wait,
+        noCancel: next.choiceSession?.noCancel ?? next.battle.noCancel,
+      };
+      if (chat)
+        next = appendChat(next, chat, state.activeRoomId === roomId && !document.hidden) as typeof next;
       if (pretty) next = appendLog(next, pretty) as typeof next;
       return next;
     });
@@ -768,7 +1000,7 @@ export function battleEventFromLine(
   command: string,
   args: string[],
   perspective: BattleSideID | null | undefined,
-  previous?: FieldEvent
+  previous?: FieldEvent,
 ): FieldEvent | undefined {
   if (NOTE_LINES[command] && previous) {
     return { ...previous, kind: 'note', at: Date.now(), label: NOTE_LINES[command] };
@@ -783,8 +1015,12 @@ export function battleEventFromLine(
   const kind = command === 'move' ? 'attack' : command === 'faint' ? 'faint' : 'hit';
   // A hit is part of the action already announced — it must not clear the
   // banner mid-sequence, only move the shake to the target.
-  const label = command === 'move' ? `${ident[3]} used ${args[1]}!` :
-    command === 'faint' ? `${ident[3]} fainted!` : previous?.label;
+  const label =
+    command === 'move'
+      ? `${ident[3]} used ${args[1]}!`
+      : command === 'faint'
+        ? `${ident[3]} fainted!`
+        : previous?.label;
   return { kind, side, sideId, slot, at: Date.now(), label };
 }
 
@@ -809,7 +1045,10 @@ export function routeFrame(frame: PsFrame, store: ArenaStoreApi) {
       store.setState(state => {
         const target = state.rooms[roomId] || newChatRoom(roomId, roomId === 'lobby' ? 'Lobby' : roomId);
         return {
-          rooms: upsert(state.rooms, appendChat(target, chat, state.activeRoomId === roomId && !document.hidden) as Room),
+          rooms: upsert(
+            state.rooms,
+            appendChat(target, chat, state.activeRoomId === roomId && !document.hidden) as Room,
+          ),
           lastError: chat.kind === 'error' ? chat.message : state.lastError,
         };
       });

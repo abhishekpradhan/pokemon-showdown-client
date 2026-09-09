@@ -64,7 +64,9 @@ describe('battle log fixtures (engine projection)', () => {
     invariants(battle);
     // A finished log ends 'ended'; mid-log it must read as a spectator.
     expect(battle.mode).toBe('ended');
-    expect(projectEngineLog(lines(singlesLog), { roomId: 'fixture-singles', upTo: 60 })!.mode).toBe('spectator');
+    expect(projectEngineLog(lines(singlesLog), { roomId: 'fixture-singles', upTo: 60 })!.mode).toBe(
+      'spectator',
+    );
     // Replays are a spectator's view: no exact HP may exist on either side.
     for (const pokemon of [battle.active, battle.opponentActive, ...battle.team, ...battle.opponentTeam]) {
       expect(pokemon.currentHp).toBeUndefined();
@@ -75,7 +77,9 @@ describe('battle log fixtures (engine projection)', () => {
   it('projects a real gen9 random doubles replay', () => {
     const battle = projectEngineLog(lines(doublesLog), { roomId: 'fixture-doubles' })!;
     invariants(battle);
-    expect(projectEngineLog(lines(doublesLog), { roomId: 'fixture-doubles', upTo: 80 })!.mode).toBe('spectator');
+    expect(projectEngineLog(lines(doublesLog), { roomId: 'fixture-doubles', upTo: 80 })!.mode).toBe(
+      'spectator',
+    );
     expect(digest(battle)).toMatchSnapshot();
   });
 
@@ -99,8 +103,17 @@ describe('battle log fixtures (engine projection)', () => {
     expect(battle.winner).toBe('ArenaTester');
     // The final request is a force-switch, so the deck is rightly empty at
     // the end; mid-battle it carries the four moves with real dex data.
-    const midBattle = projectEngineLog(lines(playerLog), { roomId: 'fixture-player', username: 'ArenaTester', upTo: 25 })!;
-    expect(midBattle.moves.map(move => move.name)).toEqual(['Swords Dance', 'Earthquake', 'Dragon Claw', 'Fire Fang']);
+    const midBattle = projectEngineLog(lines(playerLog), {
+      roomId: 'fixture-player',
+      username: 'ArenaTester',
+      upTo: 25,
+    })!;
+    expect(midBattle.moves.map(move => move.name)).toEqual([
+      'Swords Dance',
+      'Earthquake',
+      'Dragon Claw',
+      'Fire Fang',
+    ]);
     expect(midBattle.moves[1]).toMatchObject({ type: 'Ground', category: 'Physical' });
     expect(digest(battle)).toMatchSnapshot();
   });

@@ -90,7 +90,17 @@ export function parseQueryResponse(line: PsLine): { id: string; data: unknown } 
 export function parseRoomList(data: unknown): RoomList | null {
   if (!data || typeof data !== 'object') return null;
   const record = data as {
-    rooms?: Record<string, { title?: string; userCount?: number; users?: number; p1?: string; p2?: string; minElo?: number | string }>;
+    rooms?: Record<
+      string,
+      {
+        title?: string;
+        userCount?: number;
+        users?: number;
+        p1?: string;
+        p2?: string;
+        minElo?: number | string;
+      }
+    >;
     userCount?: number;
     battleCount?: number;
   };
@@ -132,7 +142,13 @@ export type ChatRoomList = {
   battleCount?: number;
 };
 
-type RawChatRoom = { title?: string; desc?: string; userCount?: number; section?: string; subRooms?: string[] };
+type RawChatRoom = {
+  title?: string;
+  desc?: string;
+  userCount?: number;
+  section?: string;
+  subRooms?: string[];
+};
 
 /**
  * Response to `/cmd rooms` — the chat-room directory.

@@ -35,11 +35,26 @@ export const TYPE_COLORS: Record<TypeName, string> = {
 
 /** Text colour that meets contrast on the matching background above. */
 export const TYPE_INK: Record<TypeName, string> = {
-  Normal: '#12161a', Fire: '#2b1405', Water: '#06131f', Electric: '#2e2503',
-  Grass: '#08240a', Ice: '#062521', Fighting: '#fff2f6', Poison: '#1d0429',
-  Ground: '#2a1004', Flying: '#0d1830', Psychic: '#320c0e', Bug: '#132000',
-  Rock: '#241d0c', Ghost: '#eef1ff', Dragon: '#e9f3ff', Dark: '#f2f0f6',
-  Steel: '#04191d', Fairy: '#3a0a35', Stellar: '#04211f', '???': '#04211f',
+  Normal: '#12161a',
+  Fire: '#2b1405',
+  Water: '#06131f',
+  Electric: '#2e2503',
+  Grass: '#08240a',
+  Ice: '#062521',
+  Fighting: '#fff2f6',
+  Poison: '#1d0429',
+  Ground: '#2a1004',
+  Flying: '#0d1830',
+  Psychic: '#320c0e',
+  Bug: '#132000',
+  Rock: '#241d0c',
+  Ghost: '#eef1ff',
+  Dragon: '#e9f3ff',
+  Dark: '#f2f0f6',
+  Steel: '#04191d',
+  Fairy: '#3a0a35',
+  Stellar: '#04211f',
+  '???': '#04211f',
 };
 
 export const ALL_TYPES = Object.keys(TYPE_COLORS) as TypeName[];

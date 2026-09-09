@@ -8,13 +8,27 @@ describe('battle music lifecycle', () => {
   const removeAttribute = vi.fn();
   const instances: Array<{ volume: number; currentTime: number; listener?: () => void }> = [];
   beforeEach(() => {
-    vi.clearAllMocks(); instances.length = 0;
-    vi.stubGlobal('Audio', vi.fn(function () {
-      const instance = { play, pause, load, removeAttribute, volume: 0, currentTime: 0, listener: undefined as (() => void) | undefined,
-        addEventListener: (_event: string, callback: () => void) => { instance.listener = callback; } };
-      instances.push(instance);
-      return instance;
-    }));
+    vi.clearAllMocks();
+    instances.length = 0;
+    vi.stubGlobal(
+      'Audio',
+      vi.fn(function () {
+        const instance = {
+          play,
+          pause,
+          load,
+          removeAttribute,
+          volume: 0,
+          currentTime: 0,
+          listener: undefined as (() => void) | undefined,
+          addEventListener: (_event: string, callback: () => void) => {
+            instance.listener = callback;
+          },
+        };
+        instances.push(instance);
+        return instance;
+      }),
+    );
   });
   afterEach(() => vi.unstubAllGlobals());
   it('keeps one stream, applies independent volume, loops and releases tracks', () => {
@@ -25,7 +39,8 @@ describe('battle music lifecycle', () => {
     music.sync(true, 'bw-trainer', 80);
     expect(play).toHaveBeenCalledTimes(1);
     expect(instances[0].volume).toBe(0.8);
-    instances[0].currentTime = 111; instances[0].listener?.();
+    instances[0].currentTime = 111;
+    instances[0].listener?.();
     expect(instances[0].currentTime).toBe(14.629);
     music.sync(false, 'bw-trainer', 80);
     expect(pause).toHaveBeenCalledTimes(1);

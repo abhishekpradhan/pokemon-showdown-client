@@ -9,11 +9,26 @@ const frame = (raw: string) => useArenaStore.getState().handleFrame(parsePsFrame
 const send = vi.fn(() => true);
 beforeEach(() => {
   sessionStorage.clear();
-  useArenaStore.setState({ ...initial, username: 'Alice', named: true, connection: 'connected', rooms: {}, roomErrors: {}, replayStatuses: {}, replayStatus: undefined, lastError: undefined, protocol: { send } as unknown as typeof initial.protocol });
+  useArenaStore.setState({
+    ...initial,
+    username: 'Alice',
+    named: true,
+    connection: 'connected',
+    rooms: {},
+    roomErrors: {},
+    replayStatuses: {},
+    replayStatus: undefined,
+    lastError: undefined,
+    protocol: { send } as unknown as typeof initial.protocol,
+  });
   useWorkspaceStore.setState({ ignoredUsers: [], blockPms: false, blockChallenges: false });
   send.mockClear();
 });
-afterEach(() => { useArenaStore.getState().cancelLogin(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
+afterEach(() => {
+  useArenaStore.getState().cancelLogin();
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
 
 describe('session and social regressions', () => {
   it('reconciles PM echoes once and reopens a locally closed PM without joining it', () => {
@@ -23,7 +38,8 @@ describe('session and social regressions', () => {
     expect(useArenaStore.getState().rooms['pm-bob'].chat).toHaveLength(0);
     frame('|pm| Alice| Bob|hello');
     expect(useArenaStore.getState().rooms['pm-bob'].chat).toHaveLength(1);
-    state.leaveRoom('pm-bob'); state.openPmWith('Bob');
+    state.leaveRoom('pm-bob');
+    state.openPmWith('Bob');
     expect(useArenaStore.getState().rooms['pm-bob'].connected).toBe(true);
     expect(send).not.toHaveBeenCalledWith('/join pm-bob');
     expect(send).not.toHaveBeenCalledWith('/leave', 'pm-bob');
@@ -44,9 +60,11 @@ describe('session and social regressions', () => {
     expect(useArenaStore.getState().rooms['pm-bob'].unread).toBe(1);
   });
   it('applies local ignores and private-message controls', () => {
-    useWorkspaceStore.setState({ ignoredUsers: ['bob'] }); frame('|pm| Bob| Alice|hidden');
+    useWorkspaceStore.setState({ ignoredUsers: ['bob'] });
+    frame('|pm| Bob| Alice|hidden');
     expect(useArenaStore.getState().rooms['pm-bob']).toBeUndefined();
-    useWorkspaceStore.setState({ ignoredUsers: [], blockPms: true }); frame('|pm| Bob| Alice|hidden');
+    useWorkspaceStore.setState({ ignoredUsers: [], blockPms: true });
+    frame('|pm| Bob| Alice|hidden');
     expect(useArenaStore.getState().rooms['pm-bob']).toBeUndefined();
   });
   it('handles PM challenge directives and cancellation', () => {
@@ -78,7 +96,15 @@ describe('session and social regressions', () => {
   });
   it('stale guest assertions cannot rename after logout', async () => {
     let resolve!: (value: Response) => void;
-    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>(done => { resolve = done; })));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        () =>
+          new Promise<Response>(done => {
+            resolve = done;
+          }),
+      ),
+    );
     useArenaStore.setState({ challstr: '1|abc', named: false });
     const pending = useArenaStore.getState().chooseName('Bob');
     await useArenaStore.getState().logout();
@@ -89,8 +115,10 @@ describe('session and social regressions', () => {
   });
   it('retains bounded chat history beyond 200 messages and replaces named HTML in place', () => {
     let room = newChatRoom('lobby');
-    for (let i = 0; i < 2050; i++) room = appendChat(room, { user: 'Bob', message: String(i) }, true) as typeof room;
-    expect(room.chat).toHaveLength(2000); expect(room.chat[0].message).toBe('50');
+    for (let i = 0; i < 2050; i++)
+      room = appendChat(room, { user: 'Bob', message: String(i) }, true) as typeof room;
+    expect(room.chat).toHaveLength(2000);
+    expect(room.chat[0].message).toBe('50');
     room = appendChat(room, { user: '', message: 'first', uhtmlName: 'poll' }, true) as typeof room;
     room = appendChat(room, { user: '', message: 'updated', uhtmlName: 'poll' }, false) as typeof room;
     expect(room.chat.filter(entry => entry.uhtmlName === 'poll')).toHaveLength(1);
@@ -104,7 +132,9 @@ describe('session and social regressions', () => {
   });
   it('models actual tournament challenges, errors and results', () => {
     frame('>lobby\n|init|chat\n|tournament|create|gen9ou|Round Robin|4\n|tournament|join|Alice');
-    frame('>lobby\n|tournament|update|{"isStarted":true,"challengeBys":["Bob"],"challenged":"Bob","challenging":null,"teambuilderFormat":"gen9ou"}');
+    frame(
+      '>lobby\n|tournament|update|{"isStarted":true,"challengeBys":["Bob"],"challenged":"Bob","challenging":null,"teambuilderFormat":"gen9ou"}',
+    );
     let room = useArenaStore.getState().rooms.lobby;
     if (room.type !== 'chat') throw new Error('expected chat');
     expect(room.tournament).toMatchObject({ isJoined: true, challenged: 'Bob', challenging: null });
@@ -118,10 +148,17 @@ describe('session and social regressions', () => {
     expect(room.tournament).toMatchObject({ ended: true, results: [['Alice'], ['Bob']] });
   });
   it('associates concurrent authoritative private replay URLs with their battles', () => {
-    for (const id of ['battle-gen9ou-10', 'battle-gen9ou-20']) { frame(`>${id}\n|init|battle`); useArenaStore.getState().saveReplay(id); }
+    for (const id of ['battle-gen9ou-10', 'battle-gen9ou-20']) {
+      frame(`>${id}\n|init|battle`);
+      useArenaStore.getState().saveReplay(id);
+    }
     frame('|popup|Your replay is available: https://replay.pokemonshowdown.com/gen9ou-20-secretpw');
     frame('|popup|Your replay is available: https://replay.pokemonshowdown.com/gen9ou-10');
-    expect(useArenaStore.getState().replayStatuses['battle-gen9ou-20'].url).toBe('https://replay.pokemonshowdown.com/gen9ou-20-secretpw');
-    expect(useArenaStore.getState().replayStatuses['battle-gen9ou-10'].url).toBe('https://replay.pokemonshowdown.com/gen9ou-10');
+    expect(useArenaStore.getState().replayStatuses['battle-gen9ou-20'].url).toBe(
+      'https://replay.pokemonshowdown.com/gen9ou-20-secretpw',
+    );
+    expect(useArenaStore.getState().replayStatuses['battle-gen9ou-10'].url).toBe(
+      'https://replay.pokemonshowdown.com/gen9ou-10',
+    );
   });
 });

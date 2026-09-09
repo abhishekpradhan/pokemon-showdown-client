@@ -18,7 +18,17 @@ import {
   X,
 } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
-import { availableSwitches, battleTargetAt, buildMoveDeck, canPassBattleChoice, canShiftBattleChoice, defensiveTypes, isBattleChoiceComplete, isFourPlayerBattle, isReviving } from '../compat/battle-adapter';
+import {
+  availableSwitches,
+  battleTargetAt,
+  buildMoveDeck,
+  canPassBattleChoice,
+  canShiftBattleChoice,
+  defensiveTypes,
+  isBattleChoiceComplete,
+  isFourPlayerBattle,
+  isReviving,
+} from '../compat/battle-adapter';
 import { BattleField } from '../components/battle-field';
 import { BattleInvitations } from '../components/battle-invitations';
 import { JoiningState } from '../components/joining-state';
@@ -35,7 +45,12 @@ import { useWorkspaceStore } from '../stores/workspace-store';
 
 type InspectorTab = 'log' | 'chat' | 'info';
 
-function BattleInspector({ open, onOpenChange, triggerRef, children }: {
+function BattleInspector({
+  open,
+  onOpenChange,
+  triggerRef,
+  children,
+}: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   triggerRef: RefObject<HTMLElement | null>;
@@ -48,26 +63,74 @@ function BattleInspector({ open, onOpenChange, triggerRef, children }: {
     media.addEventListener('change', sync);
     return () => media.removeEventListener('change', sync);
   }, []);
-  if (!compact) return <aside className="battle-side" aria-label="Battle inspector">{children}</aside>;
-  return <Dialog.Root open={open} onOpenChange={onOpenChange}>
-    <Dialog.Portal>
-      <Dialog.Overlay className="battle-inspector-overlay" />
-      <Dialog.Content className="battle-side is-open battle-inspector-sheet" onCloseAutoFocus={event => {
-        event.preventDefault();
-        triggerRef.current?.focus();
-      }}>
-        <Dialog.Title className="visually-hidden">Battle inspector</Dialog.Title>
-        <Dialog.Description className="visually-hidden">Battle activity, chat, information and session controls.</Dialog.Description>
+  if (!compact)
+    return (
+      <aside className="battle-side" aria-label="Battle inspector">
         {children}
-      </Dialog.Content>
-    </Dialog.Portal>
-  </Dialog.Root>;
+      </aside>
+    );
+  return (
+    <Dialog.Root open={open} onOpenChange={onOpenChange}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="battle-inspector-overlay" />
+        <Dialog.Content
+          className="battle-side is-open battle-inspector-sheet"
+          onCloseAutoFocus={event => {
+            event.preventDefault();
+            triggerRef.current?.focus();
+          }}
+        >
+          <Dialog.Title className="visually-hidden">Battle inspector</Dialog.Title>
+          <Dialog.Description className="visually-hidden">
+            Battle activity, chat, information and session controls.
+          </Dialog.Description>
+          {children}
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
 }
 
 export function BattleScreen() {
   const params = useParams({ from: '/battle/$battleId' });
-  const { replayStatus, rooms, saveReplay, username, connection, focusRoom, forfeitBattle, getBattleDecision, hardcoreMode, joinRoom, resetBattleChoiceSession, sendBattleChat, submitBattleChoice, submitBattleTarget, toggleBattleTimer, toggleHardcore, undoBattleChoice } = useArenaStore(
-    useShallow(state => ({ replayStatus: state.replayStatuses[params.battleId], rooms: state.rooms, saveReplay: state.saveReplay, username: state.username, connection: state.connection, focusRoom: state.focusRoom, forfeitBattle: state.forfeitBattle, getBattleDecision: state.getBattleDecision, hardcoreMode: state.hardcoreMode, joinRoom: state.joinRoom, resetBattleChoiceSession: state.resetBattleChoiceSession, sendBattleChat: state.sendBattleChat, submitBattleChoice: state.submitBattleChoice, submitBattleTarget: state.submitBattleTarget, toggleBattleTimer: state.toggleBattleTimer, toggleHardcore: state.toggleHardcore, undoBattleChoice: state.undoBattleChoice }))
+  const {
+    replayStatus,
+    rooms,
+    saveReplay,
+    username,
+    connection,
+    focusRoom,
+    forfeitBattle,
+    getBattleDecision,
+    hardcoreMode,
+    joinRoom,
+    resetBattleChoiceSession,
+    sendBattleChat,
+    submitBattleChoice,
+    submitBattleTarget,
+    toggleBattleTimer,
+    toggleHardcore,
+    undoBattleChoice,
+  } = useArenaStore(
+    useShallow(state => ({
+      replayStatus: state.replayStatuses[params.battleId],
+      rooms: state.rooms,
+      saveReplay: state.saveReplay,
+      username: state.username,
+      connection: state.connection,
+      focusRoom: state.focusRoom,
+      forfeitBattle: state.forfeitBattle,
+      getBattleDecision: state.getBattleDecision,
+      hardcoreMode: state.hardcoreMode,
+      joinRoom: state.joinRoom,
+      resetBattleChoiceSession: state.resetBattleChoiceSession,
+      sendBattleChat: state.sendBattleChat,
+      submitBattleChoice: state.submitBattleChoice,
+      submitBattleTarget: state.submitBattleTarget,
+      toggleBattleTimer: state.toggleBattleTimer,
+      toggleHardcore: state.toggleHardcore,
+      undoBattleChoice: state.undoBattleChoice,
+    })),
   );
   const [forfeitOpen, setForfeitOpen] = useState(false);
   const [inspectorTab, setInspectorTab] = useState<InspectorTab>('log');
@@ -78,9 +141,14 @@ export function BattleScreen() {
   const lastMoveSlot = useRef<number | undefined>(undefined);
   const [userCard, setUserCard] = useState<UserCardAnchor | null>(null);
   const { soundEnabled, reducedMotion, setSoundEnabled } = useWorkspaceStore(
-    useShallow(state => ({ soundEnabled: state.soundEnabled, reducedMotion: state.reducedMotion, setSoundEnabled: state.setSoundEnabled }))
+    useShallow(state => ({
+      soundEnabled: state.soundEnabled,
+      reducedMotion: state.reducedMotion,
+      setSoundEnabled: state.setSoundEnabled,
+    })),
   );
-  const demoFixturesEnabled = import.meta.env.MODE === 'test' || import.meta.env.VITE_ENABLE_DEMO_FIXTURES === 'true';
+  const demoFixturesEnabled =
+    import.meta.env.MODE === 'test' || import.meta.env.VITE_ENABLE_DEMO_FIXTURES === 'true';
   const room = rooms[params.battleId];
   const battleRoom = room?.type === 'battle' ? room : null;
   const battle = battleRoom?.battle ?? null;
@@ -99,8 +167,11 @@ export function BattleScreen() {
     const frame = requestAnimationFrame(() => {
       const region = decisionRef.current;
       if (!region) return;
-      const target = region.querySelector<HTMLElement>('.target-button:not(:disabled)') ||
-        region.querySelector<HTMLElement>(`.move-choice[data-move-slot="${lastMoveSlot.current}"]:not(:disabled)`) ||
+      const target =
+        region.querySelector<HTMLElement>('.target-button:not(:disabled)') ||
+        region.querySelector<HTMLElement>(
+          `.move-choice[data-move-slot="${lastMoveSlot.current}"]:not(:disabled)`,
+        ) ||
         region.querySelector<HTMLElement>('.move-choice:not(:disabled)') ||
         region.querySelector<HTMLElement>('h2');
       target?.focus({ preventScroll: true });
@@ -131,14 +202,20 @@ export function BattleScreen() {
   }, [rawLog, engine, params.battleId, username, reducedMotion]);
   useEffect(() => {
     if (narration.length < 2) return;
-    const timer = window.setTimeout(() => setNarration(current => current.slice(1)), reducedMotion ? 0 : 1200 / speed);
+    const timer = window.setTimeout(
+      () => setNarration(current => current.slice(1)),
+      reducedMotion ? 0 : 1200 / speed,
+    );
     return () => window.clearTimeout(timer);
   }, [narration, speed, reducedMotion]);
   useEffect(() => {
     if (!playing) return;
     const timer = window.setTimeout(() => {
       const next = (historyCursor ?? -1) + 1;
-      if (next >= history.length) { setPlaying(false); return null; }
+      if (next >= history.length) {
+        setPlaying(false);
+        return null;
+      }
       setHistoryCursor(next);
     }, 900 / speed);
     return () => window.clearTimeout(timer);
@@ -148,7 +225,9 @@ export function BattleScreen() {
   useEffect(() => {
     if (battleRoomId) {
       focusRoom(battleRoomId);
-      return () => { if (useArenaStore.getState().activeRoomId === battleRoomId) focusRoom(undefined); };
+      return () => {
+        if (useArenaStore.getState().activeRoomId === battleRoomId) focusRoom(undefined);
+      };
     }
     if (params.battleId.startsWith('battle-') && connection === 'connected') joinRoom(params.battleId);
   }, [battleRoomId, connection, focusRoom, joinRoom, params.battleId]);
@@ -181,7 +260,8 @@ export function BattleScreen() {
   }
 
   const decision = getBattleDecision(battle.id);
-  const historyPoint = historyCursor !== null ? history[Math.min(historyCursor, history.length - 1)] : undefined;
+  const historyPoint =
+    historyCursor !== null ? history[Math.min(historyCursor, history.length - 1)] : undefined;
   const fieldBattle = historyPoint?.battle || battle;
   let viewBattle = fieldBattle;
   for (let step = 0; step < viewpointSteps; step++) viewBattle = flipBattleView(viewBattle);
@@ -192,60 +272,115 @@ export function BattleScreen() {
   // the title track the slot currently being decided. (While a move waits on
   // its target the cursor still points at the mover.)
   const session = battleRoom?.choiceSession;
-  const activeCount = battleRoom?.lastRequest?.active?.length || (Array.isArray(battleRoom?.lastRequest?.forceSwitch) ? battleRoom.lastRequest.forceSwitch.length : 1);
+  const activeCount =
+    battleRoom?.lastRequest?.active?.length ||
+    (Array.isArray(battleRoom?.lastRequest?.forceSwitch) ? battleRoom.lastRequest.forceSwitch.length : 1);
   const choiceCursor = Math.min(decision.draft.choices.length, Math.max(0, activeCount - 1));
-  const deck = battleRoom?.lastRequest ?
-    buildMoveDeck(
-      battleRoom.lastRequest,
-      defensiveTypes(battle.opponentActive),
-      `gen${battle.generation || 9}`,
-      choiceCursor,
-      battle.opponentActive,
-      battle.actives?.find(pokemon => pokemon.slot === choiceCursor + 1) || battle.active,
-      battle.weather,
-    ) :
-    battle.moves;
-  const activeDeck = deck.map(move => ({ ...move, canMegaEvo: move.canMegaEvo && !session?.alreadyMega,
-    canDynamax: move.canDynamax && !session?.alreadyMax, canZMove: move.canZMove && !session?.alreadyZ,
-    canTerastallize: move.canTerastallize && !session?.alreadyTera }));
-  const cursorName = battle.actives?.find(pokemon => pokemon.slot === choiceCursor + 1)?.name ?? battle.active.name;
+  const deck = battleRoom?.lastRequest
+    ? buildMoveDeck(
+        battleRoom.lastRequest,
+        defensiveTypes(battle.opponentActive),
+        `gen${battle.generation || 9}`,
+        choiceCursor,
+        battle.opponentActive,
+        battle.actives?.find(pokemon => pokemon.slot === choiceCursor + 1) || battle.active,
+        battle.weather,
+      )
+    : battle.moves;
+  const activeDeck = deck.map(move => ({
+    ...move,
+    canMegaEvo: move.canMegaEvo && !session?.alreadyMega,
+    canDynamax: move.canDynamax && !session?.alreadyMax,
+    canZMove: move.canZMove && !session?.alreadyZ,
+    canTerastallize: move.canTerastallize && !session?.alreadyTera,
+  }));
+  const cursorName =
+    battle.actives?.find(pokemon => pokemon.slot === choiceCursor + 1)?.name ?? battle.active.name;
 
   const pendingBase = pendingTarget ? activeDeck.find(move => move.slot === pendingTarget.slot) : undefined;
-  const pendingMoveCard = pendingTarget?.z ? pendingBase?.zMove : pendingTarget?.max ? pendingBase?.maxMove : pendingBase;
+  const pendingMoveCard = pendingTarget?.z
+    ? pendingBase?.zMove
+    : pendingTarget?.max
+      ? pendingBase?.maxMove
+      : pendingBase;
   const targetOptions = pendingTarget ? pendingMoveCard?.targetOptions || [] : [];
   /** Resolve protocol locations; FFA opponents can occupy negative locations. */
   const describeTarget = (target: number) => {
     const position = battleTargetAt(battle, target);
     const foe = position?.relation === 'opponent';
     const pokemon = position?.pokemon;
-    const self = position?.sideId === battle.playerSide && pokemon?.slot === (pendingTarget?.activeIndex ?? choiceCursor) + 1;
-    const targetBase = pokemon && battleRoom?.lastRequest ? buildMoveDeck(battleRoom.lastRequest, defensiveTypes(pokemon),
-      `gen${battle.generation || 9}`, choiceCursor, pokemon, battle.actives?.find(entry => entry.slot === choiceCursor + 1) || battle.active, battle.weather)
-      .find(move => move.slot === pendingTarget?.slot) : undefined;
-    const targetMove = pendingTarget?.z ? targetBase?.zMove : pendingTarget?.max ? targetBase?.maxMove : targetBase;
+    const self =
+      position?.sideId === battle.playerSide &&
+      pokemon?.slot === (pendingTarget?.activeIndex ?? choiceCursor) + 1;
+    const targetBase =
+      pokemon && battleRoom?.lastRequest
+        ? buildMoveDeck(
+            battleRoom.lastRequest,
+            defensiveTypes(pokemon),
+            `gen${battle.generation || 9}`,
+            choiceCursor,
+            pokemon,
+            battle.actives?.find(entry => entry.slot === choiceCursor + 1) || battle.active,
+            battle.weather,
+          ).find(move => move.slot === pendingTarget?.slot)
+        : undefined;
+    const targetMove = pendingTarget?.z
+      ? targetBase?.zMove
+      : pendingTarget?.max
+        ? targetBase?.maxMove
+        : targetBase;
     // The server accepts legal locations even when empty, then resolves
     // retargeting or failure. Disabling them can strand a triples edge.
     return {
       foe,
       name: pokemon?.fainted ? `Empty position ${Math.abs(target)}` : pokemon?.name,
       owner: position?.owner,
-      relation: self ? 'Your Pokémon' : position?.relation === 'ally' ? 'Partner' : foe ? 'Opponent' : 'Your side',
+      relation: self
+        ? 'Your Pokémon'
+        : position?.relation === 'ally'
+          ? 'Partner'
+          : foe
+            ? 'Opponent'
+            : 'Your side',
       effectiveness: targetMove?.effectiveness,
     };
   };
-  const playerControls = !!session && decision.mode === 'player' && decision.requestType !== 'wait' && !battle.waiting && !battle.ended &&
-    !battle.supportReason && !battle.engineWarning && connection === 'connected' && !!battleRoom?.connected && session?.status !== 'submitted' && session?.status !== 'cancelling';
-  const previewSelection = decision.draft.choices.map(choice => /^team (\d+)$/.exec(choice)?.[1]).filter(Boolean).map(Number);
+  const playerControls =
+    !!session &&
+    decision.mode === 'player' &&
+    decision.requestType !== 'wait' &&
+    !battle.waiting &&
+    !battle.ended &&
+    !battle.supportReason &&
+    !battle.engineWarning &&
+    connection === 'connected' &&
+    !!battleRoom?.connected &&
+    session?.status !== 'submitted' &&
+    session?.status !== 'cancelling';
+  const previewSelection = decision.draft.choices
+    .map(choice => /^team (\d+)$/.exec(choice)?.[1])
+    .filter(Boolean)
+    .map(Number);
   const revival = session ? isReviving(session) : false;
-  const decisionTitle = battle.ended ?
-    battle.winner ? `${battle.winner} won the battle` : 'Battle ended in a tie' :
-    session?.status === 'cancelling' ? 'Waiting for cancellation' :
-    battleRoom?.invitations?.length ? 'Waiting for players' :
-    battle.waiting ? 'Waiting for opponent' :
-    revival ? 'Choose a Pokémon to revive' :
-    battle.requestType === 'team' ? `Choose your team · ${previewSelection.length}/${decision.requestLength}` :
-    pendingTarget ? `Choose ${pendingMoveCard?.name ?? 'a move'}’s target` :
-    playerControls ? `Choose ${cursorName}’s action` : 'Spectating battle';
+  const decisionTitle = battle.ended
+    ? battle.winner
+      ? `${battle.winner} won the battle`
+      : 'Battle ended in a tie'
+    : session?.status === 'cancelling'
+      ? 'Waiting for cancellation'
+      : battleRoom?.invitations?.length
+        ? 'Waiting for players'
+        : battle.waiting
+          ? 'Waiting for opponent'
+          : revival
+            ? 'Choose a Pokémon to revive'
+            : battle.requestType === 'team'
+              ? `Choose your team · ${previewSelection.length}/${decision.requestLength}`
+              : pendingTarget
+                ? `Choose ${pendingMoveCard?.name ?? 'a move'}’s target`
+                : playerControls
+                  ? `Choose ${cursorName}’s action`
+                  : 'Spectating battle';
 
   const downloadLog = () => {
     if (!battleRoom) return;
@@ -271,144 +406,442 @@ export function BattleScreen() {
     <section className="battle-layout battle-console" aria-label={`Battle ${params.battleId}`}>
       <div className="battle-stage">
         <div className="battle-stage-header">
-        <header className="battle-toolbar">
-          <div className="battle-room-title">
-            <span className="battle-state-dot" data-state={battle.ended ? 'ended' : battle.waiting ? 'waiting' : 'live'} />
-            <span>
-              <strong>{isFourPlayerBattle(battle.gameType) ? battle.gameType === 'freeforall' ? 'Free-for-all · 4 players' : `${battle.p1.name} + ${battle.p3?.name || 'Partner'} vs ${battle.p2.name} + ${battle.p4?.name || 'Partner'}` : <>{battle.p1.name} <i>vs</i> {battle.p2.name}</>}</strong>
-              <small>{battle.format} · Turn {battle.turn || '—'}</small>
-            </span>
-          </div>
-          <div className="battle-toolbar-state">
-            {decision.mode === 'spectator' && (
-              <span className="spectate-chip"><Eye size={12} aria-hidden /> Spectating</span>
-            )}
-            {battleRoom && <BattleTimerChip timer={battleRoom.timer} running={!battle.waiting && decision.mode === 'player'} ended={battle.ended} />}
-          </div>
-          <div className="toolbar-actions">
-            <button
-              type="button"
-              className="icon-button"
-              aria-label={soundEnabled ? 'Mute battle sounds' : 'Unmute battle sounds'}
-              aria-pressed={soundEnabled}
-              title={soundEnabled ? 'Battle sounds on — cries and turn pings' : 'Battle sounds muted'}
-              onClick={() => setSoundEnabled(!soundEnabled)}
-            >
-              {soundEnabled ? <Volume2 size={17} /> : <VolumeX size={17} />}
-            </button>
-            <button type="button" className="icon-button mobile-inspector-button" aria-label="Open battle log" aria-haspopup="dialog" onClick={event => openInspector('log', event.currentTarget)}>
-              <ListTree size={17} />
-            </button>
-            <button type="button" className="icon-button mobile-inspector-button" aria-label="Open battle chat" aria-haspopup="dialog" onClick={event => openInspector('chat', event.currentTarget)}>
-              <MessageSquare size={17} />
-            </button>
-          </div>
-        </header>
+          <header className="battle-toolbar">
+            <div className="battle-room-title">
+              <span
+                className="battle-state-dot"
+                data-state={battle.ended ? 'ended' : battle.waiting ? 'waiting' : 'live'}
+              />
+              <span>
+                <strong>
+                  {isFourPlayerBattle(battle.gameType) ? (
+                    battle.gameType === 'freeforall' ? (
+                      'Free-for-all · 4 players'
+                    ) : (
+                      `${battle.p1.name} + ${battle.p3?.name || 'Partner'} vs ${battle.p2.name} + ${battle.p4?.name || 'Partner'}`
+                    )
+                  ) : (
+                    <>
+                      {battle.p1.name} <i>vs</i> {battle.p2.name}
+                    </>
+                  )}
+                </strong>
+                <small>
+                  {battle.format} · Turn {battle.turn || '—'}
+                </small>
+              </span>
+            </div>
+            <div className="battle-toolbar-state">
+              {decision.mode === 'spectator' && (
+                <span className="spectate-chip">
+                  <Eye size={12} aria-hidden /> Spectating
+                </span>
+              )}
+              {battleRoom && (
+                <BattleTimerChip
+                  timer={battleRoom.timer}
+                  running={!battle.waiting && decision.mode === 'player'}
+                  ended={battle.ended}
+                />
+              )}
+            </div>
+            <div className="toolbar-actions">
+              <button
+                type="button"
+                className="icon-button"
+                aria-label={soundEnabled ? 'Mute battle sounds' : 'Unmute battle sounds'}
+                aria-pressed={soundEnabled}
+                title={soundEnabled ? 'Battle sounds on — cries and turn pings' : 'Battle sounds muted'}
+                onClick={() => setSoundEnabled(!soundEnabled)}
+              >
+                {soundEnabled ? <Volume2 size={17} /> : <VolumeX size={17} />}
+              </button>
+              <button
+                type="button"
+                className="icon-button mobile-inspector-button"
+                aria-label="Open battle log"
+                aria-haspopup="dialog"
+                onClick={event => openInspector('log', event.currentTarget)}
+              >
+                <ListTree size={17} />
+              </button>
+              <button
+                type="button"
+                className="icon-button mobile-inspector-button"
+                aria-label="Open battle chat"
+                aria-haspopup="dialog"
+                onClick={event => openInspector('chat', event.currentTarget)}
+              >
+                <MessageSquare size={17} />
+              </button>
+            </div>
+          </header>
 
-        {battleRoom && <BattleInvitations key={battleRoom.id} room={battleRoom} />}
-        {(decision.mode === 'spectator' || battle.ended) && history.length > 0 && !battle.logTruncated && <div className="battle-playback" aria-label="Battle playback">
-          <button type="button" onClick={() => { if (historyCursor === null) setHistoryCursor(0); setPlaying(!playing); }}>{playing ? 'Pause' : 'Play history'}</button>
-          <button type="button" aria-label="Previous turn" onClick={() => {
-            const current = historyPoint?.turn ?? battle.turn;
-            const index = history.map(point => point.turn < current).lastIndexOf(true);
-            setPlaying(false); setHistoryCursor(Math.max(0, index));
-          }}>Previous turn</button>
-          <button type="button" aria-label="Next turn" onClick={() => {
-            const current = historyPoint?.turn ?? battle.turn;
-            const index = history.findIndex(point => point.turn > current);
-            setPlaying(false); setHistoryCursor(index < 0 ? null : index);
-          }}>Next turn</button>
-          <input type="range" aria-label="Battle history position" min={0} max={Math.max(0, history.length - 1)} value={historyCursor ?? history.length - 1} onChange={event => { setPlaying(false); setHistoryCursor(Number(event.currentTarget.value)); }} />
-          <label>Speed <select aria-label="Playback speed" value={speed} onChange={event => setSpeed(Number(event.currentTarget.value))}><option value={0.5}>0.5×</option><option value={1}>1×</option><option value={2}>2×</option><option value={4}>4×</option></select></label>
-          <button type="button" onClick={() => { setPlaying(false); setHistoryCursor(null); }}>{battle.ended ? 'Latest' : 'Live'}</button>
-          <button type="button" aria-pressed={viewpointSteps !== 0} onClick={() => setViewpointSteps((viewpointSteps + 1) % (isFourPlayerBattle(battle.gameType) ? 4 : 2))}>Switch viewpoint</button>
-          <span role="status">{historyPoint ? `Turn ${historyPoint.turn}` : battle.ended ? 'Final position' : 'Live position'}</span>
-        </div>}
-        {!historyPoint && narration.length > 1 && <div className="battle-playback" aria-label="Battle narration">
-          <span>{narration.length - 1} actions queued</span>
-          <select aria-label="Narration speed" value={speed} onChange={event => setSpeed(Number(event.target.value))}>
-            <option value={0.5}>0.5×</option><option value={1}>1×</option><option value={2}>2×</option><option value={4}>4×</option>
-          </select>
-          <button type="button" onClick={() => setNarration(current => current.slice(-1))}>Skip to latest action</button>
-        </div>}
+          {battleRoom && <BattleInvitations key={battleRoom.id} room={battleRoom} />}
+          {(decision.mode === 'spectator' || battle.ended) && history.length > 0 && !battle.logTruncated && (
+            <div className="battle-playback" aria-label="Battle playback">
+              <button
+                type="button"
+                onClick={() => {
+                  if (historyCursor === null) setHistoryCursor(0);
+                  setPlaying(!playing);
+                }}
+              >
+                {playing ? 'Pause' : 'Play history'}
+              </button>
+              <button
+                type="button"
+                aria-label="Previous turn"
+                onClick={() => {
+                  const current = historyPoint?.turn ?? battle.turn;
+                  const index = history.map(point => point.turn < current).lastIndexOf(true);
+                  setPlaying(false);
+                  setHistoryCursor(Math.max(0, index));
+                }}
+              >
+                Previous turn
+              </button>
+              <button
+                type="button"
+                aria-label="Next turn"
+                onClick={() => {
+                  const current = historyPoint?.turn ?? battle.turn;
+                  const index = history.findIndex(point => point.turn > current);
+                  setPlaying(false);
+                  setHistoryCursor(index < 0 ? null : index);
+                }}
+              >
+                Next turn
+              </button>
+              <input
+                type="range"
+                aria-label="Battle history position"
+                min={0}
+                max={Math.max(0, history.length - 1)}
+                value={historyCursor ?? history.length - 1}
+                onChange={event => {
+                  setPlaying(false);
+                  setHistoryCursor(Number(event.currentTarget.value));
+                }}
+              />
+              <label>
+                Speed{' '}
+                <select
+                  aria-label="Playback speed"
+                  value={speed}
+                  onChange={event => setSpeed(Number(event.currentTarget.value))}
+                >
+                  <option value={0.5}>0.5×</option>
+                  <option value={1}>1×</option>
+                  <option value={2}>2×</option>
+                  <option value={4}>4×</option>
+                </select>
+              </label>
+              <button
+                type="button"
+                onClick={() => {
+                  setPlaying(false);
+                  setHistoryCursor(null);
+                }}
+              >
+                {battle.ended ? 'Latest' : 'Live'}
+              </button>
+              <button
+                type="button"
+                aria-pressed={viewpointSteps !== 0}
+                onClick={() =>
+                  setViewpointSteps((viewpointSteps + 1) % (isFourPlayerBattle(battle.gameType) ? 4 : 2))
+                }
+              >
+                Switch viewpoint
+              </button>
+              <span role="status">
+                {historyPoint
+                  ? `Turn ${historyPoint.turn}`
+                  : battle.ended
+                    ? 'Final position'
+                    : 'Live position'}
+              </span>
+            </div>
+          )}
+          {!historyPoint && narration.length > 1 && (
+            <div className="battle-playback" aria-label="Battle narration">
+              <span>{narration.length - 1} actions queued</span>
+              <select
+                aria-label="Narration speed"
+                value={speed}
+                onChange={event => setSpeed(Number(event.target.value))}
+              >
+                <option value={0.5}>0.5×</option>
+                <option value={1}>1×</option>
+                <option value={2}>2×</option>
+                <option value={4}>4×</option>
+              </select>
+              <button type="button" onClick={() => setNarration(current => current.slice(-1))}>
+                Skip to latest action
+              </button>
+            </div>
+          )}
         </div>
-        <BattleField battle={viewBattle} hardcore={hardcoreMode} lastEvent={historyPoint ? { kind: 'note', side: 'near', at: historyPoint.line, label: historyPoint.label } : narration.length ? { ...(battleRoom?.lastEvent || { kind: 'note', side: 'near' }), at: narration[0].line, label: narration[0].label, side: flipped ? battleRoom?.lastEvent?.side === 'near' ? 'far' : 'near' : battleRoom?.lastEvent?.side || 'near' } : battleRoom?.lastEvent} />
+        <BattleField
+          battle={viewBattle}
+          hardcore={hardcoreMode}
+          lastEvent={
+            historyPoint
+              ? { kind: 'note', side: 'near', at: historyPoint.line, label: historyPoint.label }
+              : narration.length
+                ? {
+                    ...(battleRoom?.lastEvent || { kind: 'note', side: 'near' }),
+                    at: narration[0].line,
+                    label: narration[0].label,
+                    side: flipped
+                      ? battleRoom?.lastEvent?.side === 'near'
+                        ? 'far'
+                        : 'near'
+                      : battleRoom?.lastEvent?.side || 'near',
+                  }
+                : battleRoom?.lastEvent
+          }
+        />
 
         <div ref={decisionRef} className="decision-dock" aria-label="Battle action deck">
           <div className="decision-heading">
             <div>
-              <span className="eyebrow">Turn {battle.turn}{activeCount > 1 && playerControls ? ` · Pokémon ${choiceCursor + 1} of ${activeCount}` : ''}</span>
+              <span className="eyebrow">
+                Turn {battle.turn}
+                {activeCount > 1 && playerControls ? ` · Pokémon ${choiceCursor + 1} of ${activeCount}` : ''}
+              </span>
               <h2 tabIndex={-1}>{decisionTitle}</h2>
-              {battle.requestType === 'team' && <p className="decision-note">Select Pokémon in order, then confirm. Select again to remove one.</p>}
+              {battle.requestType === 'team' && (
+                <p className="decision-note">
+                  Select Pokémon in order, then confirm. Select again to remove one.
+                </p>
+              )}
               {battle.requestType === 'switch' && <p className="decision-note">A replacement is required.</p>}
               {battle.trapped && <p className="decision-note">Your active Pokémon is trapped.</p>}
-              {decision.error && <p className="decision-error" role="alert">{decision.error}</p>}
-              {battle.supportReason && <p className="decision-error" role="alert">{battle.supportReason} <a href={`https://play.pokemonshowdown.com/${battle.id}`} target="_blank" rel="noopener noreferrer">Open original client</a></p>}
-              {battle.engineWarning && <p className="decision-error" role="alert">{battle.engineWarning} <button type="button" onClick={() => joinRoom(battle.id)}>Synchronize battle</button></p>}
-              {battle.logTruncated && <p className="decision-note">This very long session retains the latest 50,000 events. The server replay remains the complete record.</p>}
-              {connection !== 'connected' && <p className="decision-note" role="status">Disconnected. Your draft is preserved; reconnect before submitting.</p>}
+              {decision.error && (
+                <p className="decision-error" role="alert">
+                  {decision.error}
+                </p>
+              )}
+              {battle.supportReason && (
+                <p className="decision-error" role="alert">
+                  {battle.supportReason}{' '}
+                  <a
+                    href={`https://play.pokemonshowdown.com/${battle.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Open original client
+                  </a>
+                </p>
+              )}
+              {battle.engineWarning && (
+                <p className="decision-error" role="alert">
+                  {battle.engineWarning}{' '}
+                  <button type="button" onClick={() => joinRoom(battle.id)}>
+                    Synchronize battle
+                  </button>
+                </p>
+              )}
+              {battle.logTruncated && (
+                <p className="decision-note">
+                  This very long session retains the latest 50,000 events. The server replay remains the
+                  complete record.
+                </p>
+              )}
+              {connection !== 'connected' && (
+                <p className="decision-note" role="status">
+                  Disconnected. Your draft is preserved; reconnect before submitting.
+                </p>
+              )}
             </div>
-            {decision.mode === 'player' && !battle.ended && battle.waiting && <button type="button" className="decision-change" aria-label="Undo choice" disabled={decision.noCancel || session?.status === 'cancelling'} onClick={() => { focusNextDecision.current = true; undoBattleChoice(battle.id); }}>
-              <RotateCcw size={14} aria-hidden /> Change choice
-            </button>}
-            {playerControls && !pendingTarget && decision.draft.choices.length > 0 && battle.requestType !== 'team' && <button type="button" className="decision-change" aria-label="Reset choice draft" onClick={() => { focusNextDecision.current = true; resetBattleChoiceSession(battle.id); }}>
-              <RotateCcw size={14} aria-hidden /> Start over
-            </button>}
+            {decision.mode === 'player' && !battle.ended && battle.waiting && (
+              <button
+                type="button"
+                className="decision-change"
+                aria-label="Undo choice"
+                disabled={decision.noCancel || session?.status === 'cancelling'}
+                onClick={() => {
+                  focusNextDecision.current = true;
+                  undoBattleChoice(battle.id);
+                }}
+              >
+                <RotateCcw size={14} aria-hidden /> Change choice
+              </button>
+            )}
+            {playerControls &&
+              !pendingTarget &&
+              decision.draft.choices.length > 0 &&
+              battle.requestType !== 'team' && (
+                <button
+                  type="button"
+                  className="decision-change"
+                  aria-label="Reset choice draft"
+                  onClick={() => {
+                    focusNextDecision.current = true;
+                    resetBattleChoiceSession(battle.id);
+                  }}
+                >
+                  <RotateCcw size={14} aria-hidden /> Start over
+                </button>
+              )}
           </div>
 
           {pendingTarget && playerControls && (
             <div className="target-selection">
-              <button type="button" className="decision-change" onClick={() => { focusNextDecision.current = true; resetBattleChoiceSession(battle.id); }}>
+              <button
+                type="button"
+                className="decision-change"
+                onClick={() => {
+                  focusNextDecision.current = true;
+                  resetBattleChoiceSession(battle.id);
+                }}
+              >
                 <ArrowLeft size={14} aria-hidden /> {activeCount > 1 ? 'Restart turn' : 'Back to moves'}
               </button>
               <div className="target-grid" aria-label="Move targets">
-              {targetOptions.map(target => {
-                const described = describeTarget(target);
-                return (
-                  <button
-                    type="button"
-                    className="target-button"
-                    key={target}
-                    data-side={described.foe ? 'foe' : 'ally'}
-                    onClick={() => { focusNextDecision.current = true; submitBattleTarget(target, battle.id); }}
-                  >
-                    <Crosshair size={15} aria-hidden />
-                    <span>
-                      <strong>{described.name ?? `Empty position ${Math.abs(target)}`}</strong>
-                      <small>{described.relation}{isFourPlayerBattle(battle.gameType) && described.owner ? ` · ${described.owner}` : ''}{described.effectiveness ? ` · ${described.effectiveness}` : ''}</small>
-                    </span>
-                  </button>
-                );
-              })}
+                {targetOptions.map(target => {
+                  const described = describeTarget(target);
+                  return (
+                    <button
+                      type="button"
+                      className="target-button"
+                      key={target}
+                      data-side={described.foe ? 'foe' : 'ally'}
+                      onClick={() => {
+                        focusNextDecision.current = true;
+                        submitBattleTarget(target, battle.id);
+                      }}
+                    >
+                      <Crosshair size={15} aria-hidden />
+                      <span>
+                        <strong>{described.name ?? `Empty position ${Math.abs(target)}`}</strong>
+                        <small>
+                          {described.relation}
+                          {isFourPlayerBattle(battle.gameType) && described.owner
+                            ? ` · ${described.owner}`
+                            : ''}
+                          {described.effectiveness ? ` · ${described.effectiveness}` : ''}
+                        </small>
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
 
           <div className="decision-controls" data-readonly={decision.mode !== 'player'}>
-            {decision.mode === 'player' && <div className="move-deck">
-              {playerControls && battle.requestType !== 'switch' && battle.requestType !== 'team' && !pendingTarget ? (
-                <>
-                  <MoveControls key={`${battle.id}-${battle.rqid}-${choiceCursor}`} moves={activeDeck} format={`gen${battle.generation || 9}`} onChoose={choice => { lastMoveSlot.current = choice.slot; focusNextDecision.current = true; submitBattleChoice(choice, battle.id); }} />
-                  {session && canShiftBattleChoice(session) && <button type="button" className="secondary-action shift-action" onClick={() => { focusNextDecision.current = true; submitBattleChoice({ kind: 'shift' }, battle.id); }}>Shift to center</button>}
-                </>
-              ) : !pendingTarget && (
-                <div className="waiting-state" role="status" aria-live="polite">
-                  <span className="waiting-pulse" />
-                  <span>{battle.ended ? 'This session is complete.' : battleRoom?.invitations?.length ? 'Complete the roster above to start the battle.' : battle.waiting ? 'Your choice has been submitted.' : battle.requestType === 'team' ? 'Choose and review your team below.' : revival ? 'Select a fainted teammate below.' : battle.requestType === 'switch' ? `Choose a replacement for position ${choiceCursor + 1}.` : 'Battle controls are read-only.'}</span>
-                </div>
-              )}
-            </div>}
+            {decision.mode === 'player' && (
+              <div className="move-deck">
+                {playerControls &&
+                battle.requestType !== 'switch' &&
+                battle.requestType !== 'team' &&
+                !pendingTarget ? (
+                  <>
+                    <MoveControls
+                      key={`${battle.id}-${battle.rqid}-${choiceCursor}`}
+                      moves={activeDeck}
+                      format={`gen${battle.generation || 9}`}
+                      onChoose={choice => {
+                        lastMoveSlot.current = choice.slot;
+                        focusNextDecision.current = true;
+                        submitBattleChoice(choice, battle.id);
+                      }}
+                    />
+                    {session && canShiftBattleChoice(session) && (
+                      <button
+                        type="button"
+                        className="secondary-action shift-action"
+                        onClick={() => {
+                          focusNextDecision.current = true;
+                          submitBattleChoice({ kind: 'shift' }, battle.id);
+                        }}
+                      >
+                        Shift to center
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  !pendingTarget && (
+                    <div className="waiting-state" role="status" aria-live="polite">
+                      <span className="waiting-pulse" />
+                      <span>
+                        {battle.ended
+                          ? 'This session is complete.'
+                          : battleRoom?.invitations?.length
+                            ? 'Complete the roster above to start the battle.'
+                            : battle.waiting
+                              ? 'Your choice has been submitted.'
+                              : battle.requestType === 'team'
+                                ? 'Choose and review your team below.'
+                                : revival
+                                  ? 'Select a fainted teammate below.'
+                                  : battle.requestType === 'switch'
+                                    ? `Choose a replacement for position ${choiceCursor + 1}.`
+                                    : 'Battle controls are read-only.'}
+                      </span>
+                    </div>
+                  )
+                )}
+              </div>
+            )}
             {battle.team.length > 0 && (
               <div className="bench-deck">
                 <span className="deck-label">
-                  {decision.mode === 'player' ? battle.requestType === 'team' ? 'Team order' : playerControls && !pendingTarget ? 'Switch Pokémon' : 'Your team' : `${battle[battle.playerSide || 'p1']?.name || 'Player'}’s team`}
+                  {decision.mode === 'player'
+                    ? battle.requestType === 'team'
+                      ? 'Team order'
+                      : playerControls && !pendingTarget
+                        ? 'Switch Pokémon'
+                        : 'Your team'
+                    : `${battle[battle.playerSide || 'p1']?.name || 'Player'}’s team`}
                 </span>
-                <TeamBench team={battle.team} format={`gen${battle.generation || 9}`} preview={battle.requestType === 'team'} selection={previewSelection}
-                  allowedSlots={battle.requestType === 'team' ? undefined : session ? session.request.active?.[choiceCursor]?.trapped ? [] : availableSwitches(session) : []}
-                  onOrderChange={playerControls ? order => submitBattleChoice({ kind: 'team', order }, battle.id) : undefined}
-                  onSwitch={playerControls && !pendingTarget ? choice => submitBattleChoice(choice, battle.id) : undefined} />
-                {battle.requestType === 'team' && <button type="button" className="primary-action" disabled={!playerControls || !session || !isBattleChoiceComplete(session)} onClick={() => submitBattleChoice({ kind: 'confirm' }, battle.id)}>Confirm team order</button>}
-                {playerControls && session && canPassBattleChoice(session) && <button type="button" className="secondary-action" onClick={() => submitBattleChoice({ kind: 'pass' }, battle.id)}>Keep position {choiceCursor + 1} empty</button>}
+                <TeamBench
+                  team={battle.team}
+                  format={`gen${battle.generation || 9}`}
+                  preview={battle.requestType === 'team'}
+                  selection={previewSelection}
+                  allowedSlots={
+                    battle.requestType === 'team'
+                      ? undefined
+                      : session
+                        ? session.request.active?.[choiceCursor]?.trapped
+                          ? []
+                          : availableSwitches(session)
+                        : []
+                  }
+                  onOrderChange={
+                    playerControls
+                      ? order => submitBattleChoice({ kind: 'team', order }, battle.id)
+                      : undefined
+                  }
+                  onSwitch={
+                    playerControls && !pendingTarget
+                      ? choice => submitBattleChoice(choice, battle.id)
+                      : undefined
+                  }
+                />
+                {battle.requestType === 'team' && (
+                  <button
+                    type="button"
+                    className="primary-action"
+                    disabled={!playerControls || !session || !isBattleChoiceComplete(session)}
+                    onClick={() => submitBattleChoice({ kind: 'confirm' }, battle.id)}
+                  >
+                    Confirm team order
+                  </button>
+                )}
+                {playerControls && session && canPassBattleChoice(session) && (
+                  <button
+                    type="button"
+                    className="secondary-action"
+                    onClick={() => submitBattleChoice({ kind: 'pass' }, battle.id)}
+                  >
+                    Keep position {choiceCursor + 1} empty
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -417,25 +850,67 @@ export function BattleScreen() {
 
       <BattleInspector open={inspectorOpen} onOpenChange={setInspectorOpen} triggerRef={inspectorTriggerRef}>
         <header className="inspector-tabs">
-          <div role="tablist" aria-label="Battle panels" onKeyDown={event => {
-            const tabs = ['log', 'chat', 'info'] as const;
-            const current = tabs.indexOf(inspectorTab);
-            const next = event.key === 'ArrowRight' ? (current + 1) % tabs.length : event.key === 'ArrowLeft' ? (current + tabs.length - 1) % tabs.length : event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : null;
-            if (next === null) return;
-            event.preventDefault();
-            setInspectorTab(tabs[next]);
-            event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]')[next]?.focus();
-          }}>
-            {([{ id: 'log', label: 'Log', icon: ListTree }, { id: 'chat', label: 'Chat', icon: MessageSquare }, { id: 'info', label: 'Info', icon: Info }] as const).map(tab => <button key={tab.id} type="button" role="tab" id={`battle-tab-${tab.id}`} aria-controls="battle-inspector-panel" aria-selected={inspectorTab === tab.id} tabIndex={inspectorTab === tab.id ? 0 : -1} className={inspectorTab === tab.id ? 'is-active' : ''} onClick={() => setInspectorTab(tab.id)}>
-              <tab.icon size={14} aria-hidden /> {tab.label}
-            </button>)}
+          <div
+            role="tablist"
+            aria-label="Battle panels"
+            onKeyDown={event => {
+              const tabs = ['log', 'chat', 'info'] as const;
+              const current = tabs.indexOf(inspectorTab);
+              const next =
+                event.key === 'ArrowRight'
+                  ? (current + 1) % tabs.length
+                  : event.key === 'ArrowLeft'
+                    ? (current + tabs.length - 1) % tabs.length
+                    : event.key === 'Home'
+                      ? 0
+                      : event.key === 'End'
+                        ? tabs.length - 1
+                        : null;
+              if (next === null) return;
+              event.preventDefault();
+              setInspectorTab(tabs[next]);
+              event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]')[next]?.focus();
+            }}
+          >
+            {(
+              [
+                { id: 'log', label: 'Log', icon: ListTree },
+                { id: 'chat', label: 'Chat', icon: MessageSquare },
+                { id: 'info', label: 'Info', icon: Info },
+              ] as const
+            ).map(tab => (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                id={`battle-tab-${tab.id}`}
+                aria-controls="battle-inspector-panel"
+                aria-selected={inspectorTab === tab.id}
+                tabIndex={inspectorTab === tab.id ? 0 : -1}
+                className={inspectorTab === tab.id ? 'is-active' : ''}
+                onClick={() => setInspectorTab(tab.id)}
+              >
+                <tab.icon size={14} aria-hidden /> {tab.label}
+              </button>
+            ))}
           </div>
-          <button type="button" className="inspector-close" aria-label="Close battle inspector" onClick={() => setInspectorOpen(false)}>
+          <button
+            type="button"
+            className="inspector-close"
+            aria-label="Close battle inspector"
+            onClick={() => setInspectorOpen(false)}
+          >
             <X size={18} />
           </button>
         </header>
 
-        <div className="battle-inspector-content" id="battle-inspector-panel" role="tabpanel" aria-labelledby={`battle-tab-${inspectorTab}`} tabIndex={0}>
+        <div
+          className="battle-inspector-content"
+          id="battle-inspector-panel"
+          role="tabpanel"
+          aria-labelledby={`battle-tab-${inspectorTab}`}
+          tabIndex={0}
+        >
           {inspectorTab === 'log' && (
             <section className="battle-log-panel" aria-label="Battle log">
               <div className="panel-heading">
@@ -443,7 +918,9 @@ export function BattleScreen() {
                 <strong>Live</strong>
               </div>
               <ol className="battle-log-list" aria-live="polite">
-                {(battleRoom?.log ?? []).map((line, index) => <li key={`${line}-${index}`}>{line}</li>)}
+                {(battleRoom?.log ?? []).map((line, index) => (
+                  <li key={`${line}-${index}`}>{line}</li>
+                ))}
               </ol>
             </section>
           )}
@@ -461,19 +938,44 @@ export function BattleScreen() {
                   onUserClick={(name, at) => setUserCard({ name, ...at })}
                 />
               </div>
-              <ChatComposer key={battle.id} roomId={battle.id} title="battle" users={battleRoom?.users} send={message => sendBattleChat(message, battle.id)} disabled={connection !== 'connected'} />
+              <ChatComposer
+                key={battle.id}
+                roomId={battle.id}
+                title="battle"
+                users={battleRoom?.users}
+                send={message => sendBattleChat(message, battle.id)}
+                disabled={connection !== 'connected'}
+              />
             </section>
           )}
 
           {inspectorTab === 'info' && (
             <section className="battle-info-panel" aria-label="Battle information">
               <dl className="battle-facts">
-                <div><dt>Format</dt><dd>{battle.format}</dd></div>
-                <div><dt>Room</dt><dd>{battle.id}</dd></div>
-                <div><dt>Mode</dt><dd>{decision.mode}</dd></div>
-                <div><dt>Timer</dt><dd>{battle.timerOn ? 'Enabled' : 'Disabled'}</dd></div>
-                <div><dt>Weather</dt><dd>{battle.weather || 'Clear'}</dd></div>
-                <div><dt>Field</dt><dd>{battle.fieldConditions?.join(', ') || 'No effects'}</dd></div>
+                <div>
+                  <dt>Format</dt>
+                  <dd>{battle.format}</dd>
+                </div>
+                <div>
+                  <dt>Room</dt>
+                  <dd>{battle.id}</dd>
+                </div>
+                <div>
+                  <dt>Mode</dt>
+                  <dd>{decision.mode}</dd>
+                </div>
+                <div>
+                  <dt>Timer</dt>
+                  <dd>{battle.timerOn ? 'Enabled' : 'Disabled'}</dd>
+                </div>
+                <div>
+                  <dt>Weather</dt>
+                  <dd>{battle.weather || 'Clear'}</dd>
+                </div>
+                <div>
+                  <dt>Field</dt>
+                  <dd>{battle.fieldConditions?.join(', ') || 'No effects'}</dd>
+                </div>
               </dl>
               <label className="switch-row">
                 <span>
@@ -496,7 +998,12 @@ export function BattleScreen() {
         <footer className="battle-inspector-actions">
           {battle.ended ? (
             replayStatus?.state === 'uploaded' && replayStatus.url ? (
-              <a className="battle-command is-link" href={replayStatus.url} target="_blank" rel="noopener noreferrer">
+              <a
+                className="battle-command is-link"
+                href={replayStatus.url}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
                 <Film size={15} aria-hidden /> View replay
               </a>
             ) : (
@@ -507,8 +1014,11 @@ export function BattleScreen() {
                 onClick={() => saveReplay(battle.id)}
               >
                 <Film size={15} aria-hidden />
-                {replayStatus?.state === 'saving' ? 'Saving…' :
-                  replayStatus?.state === 'failed' ? 'Retry save' : 'Save replay'}
+                {replayStatus?.state === 'saving'
+                  ? 'Saving…'
+                  : replayStatus?.state === 'failed'
+                    ? 'Retry save'
+                    : 'Save replay'}
               </button>
             )
           ) : decision.mode === 'player' ? (
@@ -516,33 +1026,48 @@ export function BattleScreen() {
               <TimerReset size={15} aria-hidden /> {battle.timerOn ? 'Disable timer' : 'Enable timer'}
             </button>
           ) : null}
-          <button className="battle-command" type="button" aria-label="Download battle log" onClick={downloadLog}>
+          <button
+            className="battle-command"
+            type="button"
+            aria-label="Download battle log"
+            onClick={downloadLog}
+          >
             <Download size={15} aria-hidden /> Download
           </button>
-          {decision.mode === 'player' && !battle.ended && <Dialog.Root open={forfeitOpen} onOpenChange={setForfeitOpen}>
-            <Dialog.Trigger className="forfeit-button">
-              <Flag size={15} aria-hidden /> Forfeit
-            </Dialog.Trigger>
-            <Dialog.Portal>
-              <Dialog.Overlay className="dialog-overlay" />
-              <Dialog.Content className="account-dialog">
-                <div className="dialog-heading">
-                  <div>
-                    <Dialog.Title>Forfeit battle?</Dialog.Title>
-                    <Dialog.Description>Your opponent will win this battle.</Dialog.Description>
+          {decision.mode === 'player' && !battle.ended && (
+            <Dialog.Root open={forfeitOpen} onOpenChange={setForfeitOpen}>
+              <Dialog.Trigger className="forfeit-button">
+                <Flag size={15} aria-hidden /> Forfeit
+              </Dialog.Trigger>
+              <Dialog.Portal>
+                <Dialog.Overlay className="dialog-overlay" />
+                <Dialog.Content className="account-dialog">
+                  <div className="dialog-heading">
+                    <div>
+                      <Dialog.Title>Forfeit battle?</Dialog.Title>
+                      <Dialog.Description>Your opponent will win this battle.</Dialog.Description>
+                    </div>
+                    <Dialog.Close className="icon-button" aria-label="Close forfeit dialog">
+                      <X size={17} />
+                    </Dialog.Close>
                   </div>
-                  <Dialog.Close className="icon-button" aria-label="Close forfeit dialog"><X size={17} /></Dialog.Close>
-                </div>
-                <div className="button-row">
-                  <button className="forfeit-button" type="button" onClick={() => {
-                    forfeitBattle(battle.id);
-                    setForfeitOpen(false);
-                  }}>Forfeit battle</button>
-                  <Dialog.Close className="secondary-action">Cancel</Dialog.Close>
-                </div>
-              </Dialog.Content>
-            </Dialog.Portal>
-          </Dialog.Root>}
+                  <div className="button-row">
+                    <button
+                      className="forfeit-button"
+                      type="button"
+                      onClick={() => {
+                        forfeitBattle(battle.id);
+                        setForfeitOpen(false);
+                      }}
+                    >
+                      Forfeit battle
+                    </button>
+                    <Dialog.Close className="secondary-action">Cancel</Dialog.Close>
+                  </div>
+                </Dialog.Content>
+              </Dialog.Portal>
+            </Dialog.Root>
+          )}
         </footer>
       </BattleInspector>
       {userCard && <UserCard anchor={userCard} onClose={() => setUserCard(null)} />}

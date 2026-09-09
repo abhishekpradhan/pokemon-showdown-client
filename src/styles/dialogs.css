@@ -35,11 +35,16 @@
 }
 
 @keyframes dialog-overlay-in {
-  from { opacity: 0; }
+  from {
+    opacity: 0;
+  }
 }
 
 @keyframes dialog-in {
-  from { opacity: 0; scale: 0.97; }
+  from {
+    opacity: 0;
+    scale: 0.97;
+  }
 }
 
 .dialog-heading {
@@ -126,7 +131,9 @@
   border-radius: var(--arena-radius-sm);
 }
 
-.account-form input::placeholder { color: var(--arena-faint); }
+.account-form input::placeholder {
+  color: var(--arena-faint);
+}
 
 .account-form input:focus-visible {
   border-color: var(--arena-accent);
@@ -148,5 +155,14 @@
   line-height: 1.5;
 }
 
-.account-form + .account-oauth { margin: 18px 0 0; padding: 16px 0 0; border-block-end: 0; border-block-start: 1px solid var(--arena-line); }
-.account-oauth .secondary-action { width: 100%; font-size: 13px; min-height: 42px; }
+.account-form + .account-oauth {
+  margin: 18px 0 0;
+  padding: 16px 0 0;
+  border-block-end: 0;
+  border-block-start: 1px solid var(--arena-line);
+}
+.account-oauth .secondary-action {
+  width: 100%;
+  font-size: 13px;
+  min-height: 42px;
+}

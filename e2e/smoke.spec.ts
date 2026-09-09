@@ -26,7 +26,9 @@ test('format combobox filters and selects live formats', async ({ page }) => {
   await page.getByRole('button', { name: 'Select battle format' }).click();
   await page.getByRole('combobox', { name: 'Select battle format filter' }).fill('random');
   await page.getByRole('option', { name: /\[Gen 9\] Random Battle/ }).click();
-  await expect(page.getByRole('button', { name: 'Select battle format' })).toContainText('[Gen 9] Random Battle');
+  await expect(page.getByRole('button', { name: 'Select battle format' })).toContainText(
+    '[Gen 9] Random Battle',
+  );
 
   await page.getByRole('button', { name: 'Select battle format' }).click();
   await page.getByRole('combobox', { name: 'Select battle format filter' }).fill('ou');
@@ -87,9 +89,21 @@ test('search creates a mock battle room and sends exact battle choices', async (
   await mute.click();
   await expect(mute).toHaveAttribute('aria-pressed', 'false');
 
-  await expect.poll(async () => page.evaluate(() => (window as unknown as { __mockPsSent: string[] }).__mockPsSent.join('\n'))).toContain('battle-gen9ou-1|/choose move 1 +1|7');
-  await expect.poll(async () => page.evaluate(() => (window as unknown as { __mockPsSent: string[] }).__mockPsSent.join('\n'))).toContain('|/utm ');
-  await expect.poll(async () => page.evaluate(() => (window as unknown as { __mockPsSent: string[] }).__mockPsSent.join('\n'))).toContain('|/search gen9ou');
+  await expect
+    .poll(async () =>
+      page.evaluate(() => (window as unknown as { __mockPsSent: string[] }).__mockPsSent.join('\n')),
+    )
+    .toContain('battle-gen9ou-1|/choose move 1 +1|7');
+  await expect
+    .poll(async () =>
+      page.evaluate(() => (window as unknown as { __mockPsSent: string[] }).__mockPsSent.join('\n')),
+    )
+    .toContain('|/utm ');
+  await expect
+    .poll(async () =>
+      page.evaluate(() => (window as unknown as { __mockPsSent: string[] }).__mockPsSent.join('\n')),
+    )
+    .toContain('|/search gen9ou');
 });
 
 test('leaving a room leaves for real and lands on the directory', async ({ page }) => {
@@ -99,7 +113,9 @@ test('leaving a room leaves for real and lands on the directory', async ({ page 
 
   await expect(page).toHaveURL(/\/rooms/);
   await expect(page.locator('.session-tab')).toHaveCount(0);
-  const sent = await page.evaluate(() => (window as unknown as { __mockPsSent: string[] }).__mockPsSent.join('\n'));
+  const sent = await page.evaluate(() =>
+    (window as unknown as { __mockPsSent: string[] }).__mockPsSent.join('\n'),
+  );
   expect(sent).toContain('lobby|/leave');
   // The old bug: the room surface auto-rejoined the moment you left.
   expect(sent).not.toContain('|/join lobby');
@@ -135,7 +151,9 @@ test('teambuilder imports selects duplicates and deletes teams', async ({ page }
 
   // Import lives in a dialog; the canvas itself is the six-slot editor.
   await page.getByRole('button', { name: /Import \/ Export/ }).click();
-  await page.getByRole('textbox', { name: 'Team import text' }).fill('Raichu @ Light Ball\nAbility: Static\nTera Type: Electric\n- Thunderbolt');
+  await page
+    .getByRole('textbox', { name: 'Team import text' })
+    .fill('Raichu @ Light Ball\nAbility: Static\nTera Type: Electric\n- Thunderbolt');
   await page.getByRole('button', { name: 'Import team' }).click();
 
   // The import populated slot one; saving files it in the library.
@@ -192,10 +210,16 @@ test('keeps mobile battle controls usable without horizontal overflow', async ({
   const logButtonBounds = await logButton.boundingBox();
   expect(toolbarBounds).not.toBeNull();
   expect(logButtonBounds).not.toBeNull();
-  expect((logButtonBounds?.x || 0) + (logButtonBounds?.width || 0)).toBeLessThanOrEqual((toolbarBounds?.x || 0) + (toolbarBounds?.width || 0));
-  expect((logButtonBounds?.y || 0) + (logButtonBounds?.height || 0)).toBeLessThanOrEqual((toolbarBounds?.y || 0) + (toolbarBounds?.height || 0));
+  expect((logButtonBounds?.x || 0) + (logButtonBounds?.width || 0)).toBeLessThanOrEqual(
+    (toolbarBounds?.x || 0) + (toolbarBounds?.width || 0),
+  );
+  expect((logButtonBounds?.y || 0) + (logButtonBounds?.height || 0)).toBeLessThanOrEqual(
+    (toolbarBounds?.y || 0) + (toolbarBounds?.height || 0),
+  );
 
-  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  );
   expect(overflow).toBeLessThanOrEqual(1);
   const decisionDeck = await page.locator('.decision-dock').boundingBox();
   expect(decisionDeck).not.toBeNull();
@@ -243,16 +267,20 @@ test('supports keyboard selection and command focus', async ({ page }) => {
 
 test('replay lab projects protocol events onto the shared battle field', async ({ page }) => {
   await page.goto('/replays');
-  await page.getByRole('textbox', { name: 'Replay log input' }).fill([
-    '|player|p1|Alice|',
-    '|player|p2|Bob|',
-    '|tier|Gen 9 OU',
-    '|poke|p1|Pikachu, L80',
-    '|poke|p2|Charizard, L80',
-    '|switch|p1a: Pikachu|Pikachu, L80|100/100',
-    '|switch|p2a: Charizard|Charizard, L80|75/100',
-    '|turn|1',
-  ].join('\n'));
+  await page
+    .getByRole('textbox', { name: 'Replay log input' })
+    .fill(
+      [
+        '|player|p1|Alice|',
+        '|player|p2|Bob|',
+        '|tier|Gen 9 OU',
+        '|poke|p1|Pikachu, L80',
+        '|poke|p2|Charizard, L80',
+        '|switch|p1a: Pikachu|Pikachu, L80|100/100',
+        '|switch|p2a: Charizard|Charizard, L80|75/100',
+        '|turn|1',
+      ].join('\n'),
+    );
   await page.getByRole('button', { name: 'Load replay' }).click();
   await page.getByRole('button', { name: 'Play replay' }).click();
   await expect(page.getByLabel('Battle field')).toContainText('Pikachu');
@@ -263,7 +291,7 @@ test('keeps source availability in settings', async ({ page }) => {
   await page.goto('/settings');
   await expect(page.getByRole('link', { name: /source code/i })).toHaveAttribute(
     'href',
-    'https://github.com/abhishekpradhan/pokemon-showdown-client'
+    'https://github.com/abhishekpradhan/pokemon-showdown-client',
   );
 });
 
@@ -276,7 +304,9 @@ test('chat names open a user card with challenge and message actions', async ({ 
   await expect(card.getByText('happy to help')).toBeVisible();
   await expect(card.getByRole('button', { name: /Challenge/ })).toBeVisible();
 
-  const sent = await page.evaluate(() => (window as unknown as { __mockPsSent: string[] }).__mockPsSent.join('\n'));
+  const sent = await page.evaluate(() =>
+    (window as unknown as { __mockPsSent: string[] }).__mockPsSent.join('\n'),
+  );
   expect(sent).toContain('/cmd userdetails driver');
 
   // Message opens (creating) the PM room and lands in it.
@@ -296,7 +326,9 @@ test('room tournaments show a banner with join and a bracket dialog', async ({ p
   // Joining goes through /tour join; the server's update flips the action.
   await banner.getByRole('button', { name: 'Join' }).click();
   await expect(banner.getByRole('button', { name: 'Leave' })).toBeVisible();
-  const sent = await page.evaluate(() => (window as unknown as { __mockPsSent: string[] }).__mockPsSent.join('\n'));
+  const sent = await page.evaluate(() =>
+    (window as unknown as { __mockPsSent: string[] }).__mockPsSent.join('\n'),
+  );
   expect(sent).toContain('lobby|/tour join');
 
   // The bracket dialog renders rounds from the server tree.

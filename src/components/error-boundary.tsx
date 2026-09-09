@@ -28,8 +28,8 @@ export class ErrorBoundary extends Component<Props, State> {
           <span className="eyebrow">Something broke</span>
           <h1>The interface hit an unexpected error</h1>
           <p>
-            Your connection to the battle server is separate from this screen, so reloading
-            usually recovers the session.
+            Your connection to the battle server is separate from this screen, so reloading usually recovers
+            the session.
           </p>
           <pre className="crash-detail">{error.message}</pre>
           <div className="button-row">

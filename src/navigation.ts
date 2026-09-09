@@ -1,12 +1,4 @@
-import {
-  BookOpen,
-  Gamepad2,
-  Settings,
-  Shield,
-  Trophy,
-  Users,
-  type LucideIcon,
-} from 'lucide-react';
+import { BookOpen, Gamepad2, Settings, Shield, Trophy, Users, type LucideIcon } from 'lucide-react';
 
 export type NavItem = {
   to: '/' | '/teambuilder' | '/rooms' | '/ladder' | '/replays' | '/settings';

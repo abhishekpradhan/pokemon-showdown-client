@@ -31,7 +31,9 @@ test('signs a guest name with an assertion from the login server', async ({ page
   await expect(page.getByRole('button', { name: 'CodexTester', exact: true })).toBeVisible();
 
   const calls = await actionCalls(page);
-  expect(calls.some(call => call.includes('act=getassertion') && call.includes('userid=codextester'))).toBe(true);
+  expect(calls.some(call => call.includes('act=getassertion') && call.includes('userid=codextester'))).toBe(
+    true,
+  );
   expect(calls.some(call => call.includes('challstr='))).toBe(true);
 
   // The whole point: `/trn` must carry the assertion.
@@ -130,7 +132,9 @@ test('spectating renders a true spectator view', async ({ page }) => {
   await expect(page.locator('.field-turn')).toContainText('2');
   await page.getByRole('button', { name: 'Play history', exact: true }).click();
   await page.getByRole('combobox', { name: 'Playback speed' }).selectOption('0.5');
-  await expect(page.locator('.field-announce')).toHaveText("It's super effective on Reuniclus.", { timeout: 15_000 });
+  await expect(page.locator('.field-announce')).toHaveText("It's super effective on Reuniclus.", {
+    timeout: 15_000,
+  });
   await page.getByRole('button', { name: 'Live', exact: true }).click();
   await expect(page.locator('.field-turn')).toContainText('2');
 

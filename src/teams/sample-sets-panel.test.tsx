@@ -3,10 +3,36 @@ import { SampleSetsPanel } from './sample-sets-panel';
 import { fetchSampleSets, type SampleSet } from './sample-sets';
 import type { TeamSet } from '../compat/team-store';
 
-vi.mock('./sample-sets', async importOriginal => ({ ...await importOriginal<typeof import('./sample-sets')>(), fetchSampleSets: vi.fn() }));
-const original: TeamSet = { species: 'Clefable', name: 'Moon friend', moves: ['Tackle'], happiness: 0, gender: 'F', shiny: true, ivs: { atk: 0 } };
-const samples: SampleSet[] = [{ id: 'dex:Utility', name: 'Utility', source: 'analysis', set: { species: 'Clefable', moves: ['Moonblast', 'Moonlight'], item: 'Leftovers', evs: { hp: 252, def: 252, spd: 4 }, nature: 'Bold' } }];
-beforeEach(() => { vi.mocked(fetchSampleSets).mockReset(); });
+vi.mock('./sample-sets', async importOriginal => ({
+  ...(await importOriginal<typeof import('./sample-sets')>()),
+  fetchSampleSets: vi.fn(),
+}));
+const original: TeamSet = {
+  species: 'Clefable',
+  name: 'Moon friend',
+  moves: ['Tackle'],
+  happiness: 0,
+  gender: 'F',
+  shiny: true,
+  ivs: { atk: 0 },
+};
+const samples: SampleSet[] = [
+  {
+    id: 'dex:Utility',
+    name: 'Utility',
+    source: 'analysis',
+    set: {
+      species: 'Clefable',
+      moves: ['Moonblast', 'Moonlight'],
+      item: 'Leftovers',
+      evs: { hp: 252, def: 252, spd: 4 },
+      nature: 'Bold',
+    },
+  },
+];
+beforeEach(() => {
+  vi.mocked(fetchSampleSets).mockReset();
+});
 
 it('previews before explicit apply, preserves personal details, and prevents Undo from overwriting later edits', async () => {
   vi.mocked(fetchSampleSets).mockResolvedValue(samples);
@@ -32,15 +58,31 @@ it('previews before explicit apply, preserves personal details, and prevents Und
 
 it('aborts closed and switched-set requests so late results cannot reach another Pokémon', async () => {
   let resolve = (_value: SampleSet[]) => {};
-  vi.mocked(fetchSampleSets).mockImplementationOnce(() => new Promise(done => { resolve = done; })).mockResolvedValue([]);
+  vi.mocked(fetchSampleSets)
+    .mockImplementationOnce(
+      () =>
+        new Promise(done => {
+          resolve = done;
+        }),
+    )
+    .mockResolvedValue([]);
   const view = render(<SampleSetsPanel key="clefable" set={original} format="gen9ou" onChange={vi.fn()} />);
   fireEvent.click(screen.getByRole('button', { name: 'Browse sample sets' }));
   const signal = vi.mocked(fetchSampleSets).mock.calls[0][2];
-  view.rerender(<SampleSetsPanel key="pikachu" set={{ species: 'Pikachu', moves: [] }} format="gen9ou" onChange={vi.fn()} />);
+  view.rerender(
+    <SampleSetsPanel
+      key="pikachu"
+      set={{ species: 'Pikachu', moves: [] }}
+      format="gen9ou"
+      onChange={vi.fn()}
+    />,
+  );
   expect(signal.aborted).toBe(true);
   resolve(samples);
   fireEvent.click(screen.getByRole('button', { name: 'Browse sample sets' }));
-  await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('No published sample sets for Pikachu'));
+  await waitFor(() =>
+    expect(screen.getByRole('status')).toHaveTextContent('No published sample sets for Pikachu'),
+  );
   expect(screen.queryByRole('button', { name: 'Apply sample set' })).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Close sample sets' }));
   expect(vi.mocked(fetchSampleSets).mock.calls[1][2].aborted).toBe(true);

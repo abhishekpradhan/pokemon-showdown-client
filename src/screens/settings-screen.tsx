@@ -22,7 +22,13 @@ import { useArenaStore } from '../stores/arena-store';
 import { useWorkspaceStore } from '../stores/workspace-store';
 import { normalizePreferenceList } from '../compat/preference-input';
 import { diagnosticReport } from '../compat/diagnostics';
-import { getClientUpdateState, onClientUpdate, checkClientUpdate, applyClientUpdate, repairClientCache } from '../pwa';
+import {
+  getClientUpdateState,
+  onClientUpdate,
+  checkClientUpdate,
+  applyClientUpdate,
+  repairClientCache,
+} from '../pwa';
 
 /**
  * Settings: one narrow column, one section per intent, one row anatomy.
@@ -31,49 +37,91 @@ import { getClientUpdateState, onClientUpdate, checkClientUpdate, applyClientUpd
  */
 export function SettingsScreen() {
   const {
-    connect, connection, disconnect, lastError, protocolLogEnabled, rawProtocolLog,
-    reconnect, resetServer, server, setServer, toggleProtocolLog,
+    connect,
+    connection,
+    disconnect,
+    lastError,
+    protocolLogEnabled,
+    rawProtocolLog,
+    reconnect,
+    resetServer,
+    server,
+    setServer,
+    toggleProtocolLog,
   } = useArenaStore(
     useShallow(state => ({
-      connect: state.connect, connection: state.connection, disconnect: state.disconnect,
-      lastError: state.lastError, protocolLogEnabled: state.protocolLogEnabled,
-      rawProtocolLog: state.rawProtocolLog, reconnect: state.reconnect,
-      resetServer: state.resetServer, server: state.server, setServer: state.setServer,
+      connect: state.connect,
+      connection: state.connection,
+      disconnect: state.disconnect,
+      lastError: state.lastError,
+      protocolLogEnabled: state.protocolLogEnabled,
+      rawProtocolLog: state.rawProtocolLog,
+      reconnect: state.reconnect,
+      resetServer: state.resetServer,
+      server: state.server,
+      setServer: state.setServer,
       toggleProtocolLog: state.toggleProtocolLog,
-    }))
+    })),
   );
   const [serverInput, setServerInput] = useState('');
   const [logCopied, setLogCopied] = useState(false);
   const [actionNotice, setActionNotice] = useState('');
   const updateState = useSyncExternalStore(onClientUpdate, getClientUpdateState);
-  const report = useMemo(() => diagnosticReport(rawProtocolLog, { connection, server: `${server.host}:${server.port}` }), [rawProtocolLog, connection, server]);
+  const report = useMemo(
+    () => diagnosticReport(rawProtocolLog, { connection, server: `${server.host}:${server.port}` }),
+    [rawProtocolLog, connection, server],
+  );
   const isDefaultServer = server.host === getDefaultServerConfig().host;
   const preferences = useWorkspaceStore();
   const { notificationsEnabled, setNotificationsEnabled, setPreference } = preferences;
   const confirmReload = () => {
-    const live = Object.values(useArenaStore.getState().rooms).some(room => room.connected && room.type === 'battle' && room.battle.mode === 'player' && !room.battle.ended);
-    return !live || window.confirm('A battle is still in progress. Reloading disconnects you temporarily. Continue now?');
+    const live = Object.values(useArenaStore.getState().rooms).some(
+      room => room.connected && room.type === 'battle' && room.battle.mode === 'player' && !room.battle.ended,
+    );
+    return (
+      !live ||
+      window.confirm('A battle is still in progress. Reloading disconnects you temporarily. Continue now?')
+    );
   };
 
   return (
     <section className="settings-page" aria-label="Settings">
       <header className="settings-heading">
         <h1>Settings</h1>
-        <p>Teams and preferences are stored in this browser. Sign-in, battles, replays, rankings and sprites contact their respective services. <a href="https://github.com/abhishekpradhan/pokemon-showdown-client/blob/main/docs/privacy.md">Storage and network details</a></p>
+        <p>
+          Teams and preferences are stored in this browser. Sign-in, battles, replays, rankings and sprites
+          contact their respective services.{' '}
+          <a href="https://github.com/abhishekpradhan/pokemon-showdown-client/blob/main/docs/privacy.md">
+            Storage and network details
+          </a>
+        </p>
       </header>
 
       <nav className="settings-jump" aria-label="Settings sections">
         {[
-          ['appearance-settings', 'Appearance'], ['profile-settings', 'Profile & language'], ['audio-settings', 'Audio'], ['chat-preferences', 'Chat & privacy'],
-          ['notification-settings', 'Notifications'], ['offline-settings', 'Offline & updates'],
-          ['connection-settings', 'Connection'], ['diagnostics-settings', 'Diagnostics'],
-        ].map(([id, label]) => <a key={id} href={`#${id}`} onClick={event => {
-          event.preventDefault();
-          const heading = document.getElementById(id);
-          heading?.scrollIntoView({ block: 'start' });
-          heading?.setAttribute('tabindex', '-1');
-          heading?.focus({ preventScroll: true });
-        }}>{label}</a>)}
+          ['appearance-settings', 'Appearance'],
+          ['profile-settings', 'Profile & language'],
+          ['audio-settings', 'Audio'],
+          ['chat-preferences', 'Chat & privacy'],
+          ['notification-settings', 'Notifications'],
+          ['offline-settings', 'Offline & updates'],
+          ['connection-settings', 'Connection'],
+          ['diagnostics-settings', 'Diagnostics'],
+        ].map(([id, label]) => (
+          <a
+            key={id}
+            href={`#${id}`}
+            onClick={event => {
+              event.preventDefault();
+              const heading = document.getElementById(id);
+              heading?.scrollIntoView({ block: 'start' });
+              heading?.setAttribute('tabindex', '-1');
+              heading?.focus({ preventScroll: true });
+            }}
+          >
+            {label}
+          </a>
+        ))}
       </nav>
 
       <AppearanceSettings />
@@ -82,34 +130,114 @@ export function SettingsScreen() {
 
       <section className="settings-section" aria-labelledby="chat-preferences">
         <h2 id="chat-preferences">Chat, privacy and motion</h2>
-        {([
-          ['timestamps', 'Show chat timestamps'], ['reducedMotion', 'Reduce motion'],
-          ['blockPms', 'Block incoming private messages'], ['blockChallenges', 'Block incoming challenges'],
-          ['privateBattles', 'Make new battles private'],
-        ] as const).map(([key, label]) => <div className="setting-row" key={key}><strong>{label}</strong>
-          <Switch.Root className="switch-root" aria-label={label} checked={preferences[key]} onCheckedChange={value => setPreference(key, value)}><Switch.Thumb className="switch-thumb" /></Switch.Root></div>)}
+        {(
+          [
+            ['timestamps', 'Show chat timestamps'],
+            ['reducedMotion', 'Reduce motion'],
+            ['blockPms', 'Block incoming private messages'],
+            ['blockChallenges', 'Block incoming challenges'],
+            ['privateBattles', 'Make new battles private'],
+          ] as const
+        ).map(([key, label]) => (
+          <div className="setting-row" key={key}>
+            <strong>{label}</strong>
+            <Switch.Root
+              className="switch-root"
+              aria-label={label}
+              checked={preferences[key]}
+              onCheckedChange={value => setPreference(key, value)}
+            >
+              <Switch.Thumb className="switch-thumb" />
+            </Switch.Root>
+          </div>
+        ))}
 
-        {([
-          ['highlights', 'Highlight words'], ['ignoredUsers', 'Ignored users'], ['mutedRooms', 'Muted rooms'], ['autojoinRooms', 'Rooms to join on sign-in'],
-        ] as const).map(([key, label]) => <label className="setting-field" key={key}><span><strong>{label}</strong><small>Separate entries with commas.</small></span><input aria-label={label} defaultValue={preferences[key].join(', ')} onBlur={event => setPreference(key, normalizePreferenceList(key, event.currentTarget.value))} /></label>)}
-        <p>Desktop permission: {typeof Notification === 'undefined' ? 'unavailable in this browser' : Notification.permission}. Browser and device notification settings also apply.</p>
+        {(
+          [
+            ['highlights', 'Highlight words'],
+            ['ignoredUsers', 'Ignored users'],
+            ['mutedRooms', 'Muted rooms'],
+            ['autojoinRooms', 'Rooms to join on sign-in'],
+          ] as const
+        ).map(([key, label]) => (
+          <label className="setting-field" key={key}>
+            <span>
+              <strong>{label}</strong>
+              <small>Separate entries with commas.</small>
+            </span>
+            <input
+              aria-label={label}
+              defaultValue={preferences[key].join(', ')}
+              onBlur={event => setPreference(key, normalizePreferenceList(key, event.currentTarget.value))}
+            />
+          </label>
+        ))}
+        <p>
+          Desktop permission:{' '}
+          {typeof Notification === 'undefined' ? 'unavailable in this browser' : Notification.permission}.
+          Browser and device notification settings also apply.
+        </p>
       </section>
 
       <section className="settings-section" aria-labelledby="offline-settings">
         <h2 id="offline-settings">Offline tools and updates</h2>
-        <p>{updateState.offlineReady ? 'The application is cached for offline use. Saved teams and local replay logs work offline; live play needs a connection.' : 'Offline files are not ready yet. Keep this page online until installation finishes.'}</p>
+        <p>
+          {updateState.offlineReady
+            ? 'The application is cached for offline use. Saved teams and local replay logs work offline; live play needs a connection.'
+            : 'Offline files are not ready yet. Keep this page online until installation finishes.'}
+        </p>
         {(updateState.error || actionNotice) && <p role="status">{updateState.error || actionNotice}</p>}
         <div className="button-row">
-          <button type="button" className="secondary-action" onClick={() => { void checkClientUpdate().then(() => setActionNotice(getClientUpdateState().available ? 'An update is ready.' : 'Update check finished.')); }}>Check for updates</button>
-          {updateState.available && <button type="button" className="primary-action" onClick={() => { if (confirmReload()) applyClientUpdate(); }}>Apply update and reload</button>}
-          <button type="button" className="secondary-action" onClick={() => { if (confirmReload()) void repairClientCache().catch(() => setActionNotice('Cache repair failed. Try reloading with a network connection.')); }}>Repair cached files</button>
+          <button
+            type="button"
+            className="secondary-action"
+            onClick={() => {
+              void checkClientUpdate().then(() =>
+                setActionNotice(
+                  getClientUpdateState().available ? 'An update is ready.' : 'Update check finished.',
+                ),
+              );
+            }}
+          >
+            Check for updates
+          </button>
+          {updateState.available && (
+            <button
+              type="button"
+              className="primary-action"
+              onClick={() => {
+                if (confirmReload()) applyClientUpdate();
+              }}
+            >
+              Apply update and reload
+            </button>
+          )}
+          <button
+            type="button"
+            className="secondary-action"
+            onClick={() => {
+              if (confirmReload())
+                void repairClientCache().catch(() =>
+                  setActionNotice('Cache repair failed. Try reloading with a network connection.'),
+                );
+            }}
+          >
+            Repair cached files
+          </button>
         </div>
       </section>
 
       <section className="settings-section" aria-labelledby="notification-settings">
-        <h2 id="notification-settings"><Bell size={15} aria-hidden /> Notifications</h2>
+        <h2 id="notification-settings">
+          <Bell size={15} aria-hidden /> Notifications
+        </h2>
         <div className="setting-row">
-          <span><strong>Activity notifications</strong><small>Challenges and server alerts — also on your desktop while the tab is in the background.</small></span>
+          <span>
+            <strong>Activity notifications</strong>
+            <small>
+              Challenges and server alerts — also on your desktop while the tab is in the background.
+            </small>
+          </span>
           <Switch.Root
             className="switch-root"
             checked={notificationsEnabled}
@@ -122,24 +250,32 @@ export function SettingsScreen() {
             <Switch.Thumb className="switch-thumb" />
           </Switch.Root>
         </div>
-
       </section>
 
       <section className="settings-section" aria-labelledby="connection-settings">
-        <h2 id="connection-settings"><RadioTower size={15} aria-hidden /> Connection</h2>
+        <h2 id="connection-settings">
+          <RadioTower size={15} aria-hidden /> Connection
+        </h2>
         <div className="setting-row">
           <span>
             <strong className="server-name">
               <i className={`server-state is-${connection}`} aria-hidden />
               {server.id}
             </strong>
-            <small>{server.host}:{server.port}{server.prefix} · {connection}</small>
+            <small>
+              {server.host}:{server.port}
+              {server.prefix} · {connection}
+            </small>
           </span>
           <div className="setting-actions">
             <button type="button" className="secondary-action" onClick={reconnect}>
               <RefreshCw size={13} aria-hidden /> Reconnect
             </button>
-            <button type="button" className="secondary-action" onClick={() => connection === 'connected' ? disconnect() : connect()}>
+            <button
+              type="button"
+              className="secondary-action"
+              onClick={() => (connection === 'connected' ? disconnect() : connect())}
+            >
               {connection === 'connected' ? 'Disconnect' : 'Connect'}
             </button>
           </div>
@@ -151,33 +287,55 @@ export function SettingsScreen() {
             if (setServer(serverInput)) setServerInput('');
           }}
         >
-          <span><strong>Custom server</strong><small>Connect to any PS-compatible server, e.g. <code>localhost:8000</code>.</small></span>
+          <span>
+            <strong>Custom server</strong>
+            <small>
+              Connect to any PS-compatible server, e.g. <code>localhost:8000</code>.
+            </small>
+          </span>
           <div className="setting-field-controls">
-            <span className="setting-field-icon" aria-hidden><Server size={14} /></span>
+            <span className="setting-field-icon" aria-hidden>
+              <Server size={14} />
+            </span>
             <input
               aria-label="Server address"
               placeholder={`${server.host}:${server.port}${server.prefix}`}
               value={serverInput}
               onChange={event => setServerInput(event.currentTarget.value)}
             />
-            <button type="submit" className="secondary-action" disabled={!serverInput.trim()}>Use server</button>
+            <button type="submit" className="secondary-action" disabled={!serverInput.trim()}>
+              Use server
+            </button>
             {!isDefaultServer && (
-              <button type="button" className="secondary-action" onClick={resetServer}>Reset</button>
+              <button type="button" className="secondary-action" onClick={resetServer}>
+                Reset
+              </button>
             )}
           </div>
         </form>
-        {lastError && <p className="settings-error" role="alert">{lastError}</p>}
+        {lastError && (
+          <p className="settings-error" role="alert">
+            {lastError}
+          </p>
+        )}
       </section>
 
       <section className="settings-section" aria-labelledby="diagnostics-settings">
-        <h2 id="diagnostics-settings"><FileCode2 size={15} aria-hidden /> Diagnostics</h2>
+        <h2 id="diagnostics-settings">
+          <FileCode2 size={15} aria-hidden /> Diagnostics
+        </h2>
         <div className="setting-row">
-          <span><strong>Protocol log</strong><small>Keep a redacted local log of server traffic for troubleshooting.</small></span>
+          <span>
+            <strong>Protocol log</strong>
+            <small>Keep a redacted local log of server traffic for troubleshooting.</small>
+          </span>
           <div className="setting-actions">
             {protocolLogEnabled && (
               <Dialog.Root onOpenChange={() => setLogCopied(false)}>
                 <Dialog.Trigger asChild>
-                  <button type="button" className="secondary-action">View log</button>
+                  <button type="button" className="secondary-action">
+                    View log
+                  </button>
                 </Dialog.Trigger>
                 <Dialog.Portal>
                   <Dialog.Overlay className="dialog-overlay" />
@@ -186,10 +344,13 @@ export function SettingsScreen() {
                       <div>
                         <Dialog.Title>Protocol log</Dialog.Title>
                         <Dialog.Description>
-                          Review before sharing. Message bodies, identities, teams, room IDs and tokens are omitted. Includes browser and server information.
+                          Review before sharing. Message bodies, identities, teams, room IDs and tokens are
+                          omitted. Includes browser and server information.
                         </Dialog.Description>
                       </div>
-                      <Dialog.Close className="icon-button" aria-label="Close protocol log"><X size={17} /></Dialog.Close>
+                      <Dialog.Close className="icon-button" aria-label="Close protocol log">
+                        <X size={17} />
+                      </Dialog.Close>
                     </div>
                     <pre className="protocol-log" aria-label="Protocol log" role="region" tabIndex={0}>
                       {report}
@@ -199,7 +360,12 @@ export function SettingsScreen() {
                         type="button"
                         className="secondary-action"
                         onClick={() => {
-                          void navigator.clipboard.writeText(report).then(() => setLogCopied(true)).catch(() => setActionNotice('Clipboard access failed. Select and copy the report text.'));
+                          void navigator.clipboard
+                            .writeText(report)
+                            .then(() => setLogCopied(true))
+                            .catch(() =>
+                              setActionNotice('Clipboard access failed. Select and copy the report text.'),
+                            );
                         }}
                       >
                         <ClipboardCopy size={13} aria-hidden /> {logCopied ? 'Copied' : 'Copy log'}
@@ -222,19 +388,28 @@ export function SettingsScreen() {
       </section>
 
       <section className="settings-section" aria-labelledby="about-settings">
-        <h2 id="about-settings"><ExternalLink size={15} aria-hidden /> About</h2>
+        <h2 id="about-settings">
+          <ExternalLink size={15} aria-hidden /> About
+        </h2>
         <div className="setting-row">
           <span>
             <strong>Showdown Arena</strong>
             <small>An independent, open-source client for Pokémon Showdown.</small>
           </span>
           <div className="setting-actions">
-            <a className="secondary-action" href="/build-info.json">Deployed version</a>
-            <a className="secondary-action" href="/third-party-licenses.json">Third-party licenses</a>
+            <a className="secondary-action" href="/build-info.json">
+              Deployed version
+            </a>
+            <a className="secondary-action" href="/third-party-licenses.json">
+              Third-party licenses
+            </a>
             <a className="secondary-action" href="https://github.com/abhishekpradhan/pokemon-showdown-client">
               Source code <ExternalLink size={13} aria-hidden />
             </a>
-            <a className="secondary-action" href="https://github.com/abhishekpradhan/pokemon-showdown-client/blob/main/LICENSE">
+            <a
+              className="secondary-action"
+              href="https://github.com/abhishekpradhan/pokemon-showdown-client/blob/main/LICENSE"
+            >
               License <ExternalLink size={13} aria-hidden />
             </a>
           </div>
@@ -242,26 +417,24 @@ export function SettingsScreen() {
       </section>
 
       <section className="settings-section" aria-labelledby="legal-settings">
-        <h2 id="legal-settings"><Scale size={15} aria-hidden /> Legal</h2>
+        <h2 id="legal-settings">
+          <Scale size={15} aria-hidden /> Legal
+        </h2>
         <div className="setting-legal">
           <p>
-            Showdown Arena is not affiliated with or endorsed by Smogon, Nintendo,
-            Creatures, or GAME FREAK. Pokémon and Pokémon character names are
-            trademarks of Nintendo.
+            Showdown Arena is not affiliated with or endorsed by Smogon, Nintendo, Creatures, or GAME FREAK.
+            Pokémon and Pokémon character names are trademarks of Nintendo.
           </p>
           <p>
-            This site runs no game servers. It bundles Pokémon reference data and loads sprites and audio from Pokémon Showdown. Battles, chat,
-            accounts, and ladder standings live on the Pokémon Showdown server you
-            connect to, under that server&apos;s{' '}
-            <a href="https://pokemonshowdown.com/rules">rules</a> and moderation —
-            room content comes from its community, not from this site. Your
-            settings and teams exist only in this browser.
+            This site runs no game servers. It bundles Pokémon reference data and loads sprites and audio from
+            Pokémon Showdown. Battles, chat, accounts, and ladder standings live on the Pokémon Showdown
+            server you connect to, under that server&apos;s{' '}
+            <a href="https://pokemonshowdown.com/rules">rules</a> and moderation — room content comes from its
+            community, not from this site. Your settings and teams exist only in this browser.
           </p>
           <p>
-            The software is provided as-is, without warranty of any kind, under
-            the{' '}
-            <a href="https://www.gnu.org/licenses/agpl-3.0.html">AGPL-3.0-or-later</a>{' '}
-            license.
+            The software is provided as-is, without warranty of any kind, under the{' '}
+            <a href="https://www.gnu.org/licenses/agpl-3.0.html">AGPL-3.0-or-later</a> license.
           </p>
         </div>
       </section>

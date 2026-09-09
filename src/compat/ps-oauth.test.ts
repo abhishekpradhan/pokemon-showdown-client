@@ -1,8 +1,14 @@
 import { vi } from 'vitest';
 import {
-  __testables, assertionFromToken, authorizeUrl, clearOAuthToken,
-  refreshOAuthToken, saveOAuthToken, storedOAuthToken,
-  requestOAuthGrant, currentOAuthToken,
+  __testables,
+  assertionFromToken,
+  authorizeUrl,
+  clearOAuthToken,
+  refreshOAuthToken,
+  saveOAuthToken,
+  storedOAuthToken,
+  requestOAuthGrant,
+  currentOAuthToken,
 } from './ps-oauth';
 
 const { parseAssertionResponse } = __testables;
@@ -17,7 +23,12 @@ describe('ps-oauth', () => {
 
   it('binds grants to the exact popup and nonce and cleans up on cancellation', async () => {
     vi.useFakeTimers();
-    const popup = { closed: false, close: vi.fn(), name: '', location: { origin: location.origin, pathname: '/oauth.html', search: '' } };
+    const popup = {
+      closed: false,
+      close: vi.fn(),
+      name: '',
+      location: { origin: location.origin, pathname: '/oauth.html', search: '' },
+    };
     const open = vi.spyOn(window, 'open').mockReturnValue(popup as unknown as Window);
     const controller = new AbortController();
     const grant = requestOAuthGrant('challenge', controller.signal);
@@ -25,11 +36,13 @@ describe('ps-oauth', () => {
     const authorize = new URL(String(open.mock.calls[0][0]));
     const state = new URL(authorize.searchParams.get('redirect_uri')!).searchParams.get('state');
     expect(state).toBeTruthy();
-    window.dispatchEvent(new MessageEvent('message', {
-      origin: location.origin,
-      source: window,
-      data: { type: 'ps-oauth', search: `?state=${state}&assertion=sig&token=token&user=Alice` },
-    }));
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        origin: location.origin,
+        source: window,
+        data: { type: 'ps-oauth', search: `?state=${state}&assertion=sig&token=token&user=Alice` },
+      }),
+    );
     controller.abort();
     await rejected;
     expect(popup.close).toHaveBeenCalledOnce();
@@ -41,7 +54,15 @@ describe('ps-oauth', () => {
   it('does not persist a token rotation after its operation is cancelled', async () => {
     saveOAuthToken('old', 'Alice', Date.now() - 8 * 86_400_000);
     let resolve!: (response: Response) => void;
-    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>(done => { resolve = done; })));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        () =>
+          new Promise<Response>(done => {
+            resolve = done;
+          }),
+      ),
+    );
     const locks = { request: (_name: string, _options: unknown, callback: () => unknown) => callback() };
     Object.defineProperty(navigator, 'locks', { configurable: true, value: locks });
     const controller = new AbortController();
@@ -56,7 +77,12 @@ describe('ps-oauth', () => {
 
   it('accepts the provider callback that preserves redirect_uri state while adding the grant', async () => {
     vi.useFakeTimers();
-    const popup = { closed: false, close: vi.fn(), name: '', location: { origin: location.origin, pathname: '/oauth.html', search: '' } };
+    const popup = {
+      closed: false,
+      close: vi.fn(),
+      name: '',
+      location: { origin: location.origin, pathname: '/oauth.html', search: '' },
+    };
     const open = vi.spyOn(window, 'open').mockReturnValue(popup as unknown as Window);
     try {
       const pending = requestOAuthGrant('4|server-challenge');
@@ -72,25 +98,47 @@ describe('ps-oauth', () => {
       callback.searchParams.set('token', 'provider-token');
       callback.searchParams.set('user', 'Alice');
       popup.location.search = callback.search;
-      window.dispatchEvent(new MessageEvent('message', { origin: location.origin, source: popup as unknown as Window,
-        data: { type: 'ps-oauth', search: callback.search } }));
-      await expect(pending).resolves.toEqual({ assertion: '4,alice,1,123,challenge;signature', token: 'provider-token', user: 'Alice' });
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          origin: location.origin,
+          source: popup as unknown as Window,
+          data: { type: 'ps-oauth', search: callback.search },
+        }),
+      );
+      await expect(pending).resolves.toEqual({
+        assertion: '4,alice,1,123,challenge;signature',
+        token: 'provider-token',
+        user: 'Alice',
+      });
       expect(popup.close).toHaveBeenCalledOnce();
       expect(vi.getTimerCount()).toBe(0);
-    } finally { open.mockRestore(); vi.useRealTimers(); }
+    } finally {
+      open.mockRestore();
+      vi.useRealTimers();
+    }
   });
 
   it('ignores wrong nonces and paths, then accepts the same-origin polling fallback', async () => {
     vi.useFakeTimers();
-    const popup = { closed: false, close: vi.fn(), name: '', location: { origin: location.origin, pathname: '/oauth.html', search: '' } };
+    const popup = {
+      closed: false,
+      close: vi.fn(),
+      name: '',
+      location: { origin: location.origin, pathname: '/oauth.html', search: '' },
+    };
     const open = vi.spyOn(window, 'open').mockReturnValue(popup as unknown as Window);
     try {
       const pending = requestOAuthGrant('challenge');
       const authorize = new URL(String(open.mock.calls[0][0]));
       const state = new URL(authorize.searchParams.get('redirect_uri')!).searchParams.get('state');
-      const dispatch = (search: string) => window.dispatchEvent(new MessageEvent('message', {
-        origin: location.origin, source: popup as unknown as Window, data: { type: 'ps-oauth', search },
-      }));
+      const dispatch = (search: string) =>
+        window.dispatchEvent(
+          new MessageEvent('message', {
+            origin: location.origin,
+            source: popup as unknown as Window,
+            data: { type: 'ps-oauth', search },
+          }),
+        );
       dispatch('?state=wrong-attempt&assertion=sig&token=token');
       expect(popup.close).not.toHaveBeenCalled();
       popup.location.pathname = '/unrelated';
@@ -102,12 +150,17 @@ describe('ps-oauth', () => {
       await expect(pending).resolves.toEqual({ assertion: 'sig', token: 'token', user: 'Alice' });
       expect(popup.name).toBe('');
       expect(vi.getTimerCount()).toBe(0);
-    } finally { open.mockRestore(); vi.useRealTimers(); }
+    } finally {
+      open.mockRestore();
+      vi.useRealTimers();
+    }
   });
 
   it('parses the login server assertion shapes', () => {
-    expect(parseAssertionResponse(']{"success":true,"data":"abc.def","user":"zarel"}'))
-      .toEqual({ assertion: 'abc.def', user: 'zarel' });
+    expect(parseAssertionResponse(']{"success":true,"data":"abc.def","user":"zarel"}')).toEqual({
+      assertion: 'abc.def',
+      user: 'zarel',
+    });
     expect(parseAssertionResponse('abc.def')).toEqual({ assertion: 'abc.def' });
     // `;` prefixes are refusals, not assertions.
     expect(parseAssertionResponse(';;registered account')).toEqual({ failed: true });
@@ -124,7 +177,9 @@ describe('ps-oauth', () => {
   });
 
   it('mints an assertion from a stored token and reports revocation', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(new Response(']{"success":true,"data":"sig","user":"zarel"}'));
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(']{"success":true,"data":"sig","user":"zarel"}'));
     vi.stubGlobal('fetch', fetchMock);
 
     await expect(assertionFromToken('chall', 'tok')).resolves.toEqual({ assertion: 'sig', user: 'zarel' });

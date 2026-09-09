@@ -24,7 +24,15 @@ export default defineConfig({
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
     { name: 'mobile', use: { ...devices['Pixel 7'] } },
-    { name: 'firefox', testIgnore: ['**/visual.spec.ts', '**/production/**'], use: { ...devices['Desktop Firefox'] } },
-    { name: 'webkit', testIgnore: ['**/visual.spec.ts', '**/production/**'], use: { ...devices['Desktop Safari'] } },
+    {
+      name: 'firefox',
+      testIgnore: ['**/visual.spec.ts', '**/production/**'],
+      use: { ...devices['Desktop Firefox'] },
+    },
+    {
+      name: 'webkit',
+      testIgnore: ['**/visual.spec.ts', '**/production/**'],
+      use: { ...devices['Desktop Safari'] },
+    },
   ],
 });

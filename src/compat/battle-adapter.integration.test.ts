@@ -5,20 +5,58 @@ import { useArenaStore } from '../stores/arena-store';
 import type { BattleRequest } from './battle-adapter';
 
 const roomId = 'battle-gen9ou-request-regression';
-const request = (): BattleRequest => ({ rqid: 21, side: { id: 'p1', name: 'Alice', pokemon: [
-  { ident: 'p1: Pikachu', details: 'Pikachu', condition: '211/211', active: true, moves: ['tackle'], stats: { atk: 146, def: 116, spa: 136, spd: 136, spe: 216 }, ability: 'static', item: 'lightball' },
-  { ident: 'p1: Bulbasaur', details: 'Bulbasaur', condition: '231/231', moves: ['tackle'], ability: 'overgrow', item: '' },
-] }, active: [{ moves: [{ move: 'Tackle', id: 'tackle', pp: 56, maxpp: 56, target: 'normal' }] }] });
+const request = (): BattleRequest => ({
+  rqid: 21,
+  side: {
+    id: 'p1',
+    name: 'Alice',
+    pokemon: [
+      {
+        ident: 'p1: Pikachu',
+        details: 'Pikachu',
+        condition: '211/211',
+        active: true,
+        moves: ['tackle'],
+        stats: { atk: 146, def: 116, spa: 136, spd: 136, spe: 216 },
+        ability: 'static',
+        item: 'lightball',
+      },
+      {
+        ident: 'p1: Bulbasaur',
+        details: 'Bulbasaur',
+        condition: '231/231',
+        moves: ['tackle'],
+        ability: 'overgrow',
+        item: '',
+      },
+    ],
+  },
+  active: [{ moves: [{ move: 'Tackle', id: 'tackle', pp: 56, maxpp: 56, target: 'normal' }] }],
+});
 const frame = (text: string) => useArenaStore.getState().handleFrame(parsePsFrame(`>${roomId}\n${text}`));
-const room = () => { const value = useArenaStore.getState().rooms[roomId]; if (value?.type !== 'battle') throw new Error('Missing battle'); return value; };
+const room = () => {
+  const value = useArenaStore.getState().rooms[roomId];
+  if (value?.type !== 'battle') throw new Error('Missing battle');
+  return value;
+};
 
 describe('authoritative battle request lifecycle', () => {
   const send = vi.fn((_command: string, _roomId?: string) => true);
-  beforeAll(async () => { await loadEngine(); });
+  beforeAll(async () => {
+    await loadEngine();
+  });
   beforeEach(() => {
     send.mockClear();
-    useArenaStore.setState({ rooms: {}, username: 'Alice', named: true, connection: 'connected', protocol: { send } as unknown as ReturnType<typeof useArenaStore.getState>['protocol'] });
-    frame('|init|battle\n|gametype|singles\n|gen|9\n|player|p1|Alice\n|player|p2|Bob\n|start\n|switch|p1a: Pikachu|Pikachu|211/211\n|switch|p2a: Bulbasaur|Bulbasaur|100/100');
+    useArenaStore.setState({
+      rooms: {},
+      username: 'Alice',
+      named: true,
+      connection: 'connected',
+      protocol: { send } as unknown as ReturnType<typeof useArenaStore.getState>['protocol'],
+    });
+    frame(
+      '|init|battle\n|gametype|singles\n|gen|9\n|player|p1|Alice\n|player|p2|Bob\n|start\n|switch|p1a: Pikachu|Pikachu|211/211\n|switch|p2a: Bulbasaur|Bulbasaur|100/100',
+    );
     frame(`|request|${JSON.stringify(request())}`);
   });
 
@@ -83,7 +121,9 @@ describe('authoritative battle request lifecycle', () => {
   it('ignores older requests, rejects malformed nested moves and withdraws null requests', () => {
     frame(`|request|${JSON.stringify({ ...request(), rqid: 20 })}`);
     expect(room().lastRequest?.rqid).toBe(21);
-    frame(`|request|${JSON.stringify({ ...request(), active: [{ moves: [{ move: 'Tackle' }], canZMove: { invalid: true } }] })}`);
+    frame(
+      `|request|${JSON.stringify({ ...request(), active: [{ moves: [{ move: 'Tackle' }], canZMove: { invalid: true } }] })}`,
+    );
     expect(room().choiceSession).toBeUndefined();
     expect(room().choiceError).toContain('invalid battle request');
     expect(room().battle.moves).toEqual([]);

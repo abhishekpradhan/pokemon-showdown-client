@@ -8,12 +8,35 @@ export function exerciseLongSession(measureHeap?: () => number) {
   const initial = useArenaStore.getState();
   const previousPreferences = useWorkspaceStore.getState();
   let sent = 0;
-  const protocol = { send: () => { sent++; return true; } } as unknown as typeof initial.protocol;
-  useArenaStore.setState({ rooms: {}, roomErrors: {}, userCards: {}, rawProtocolLog: [], protocolLogEnabled: true,
-    username: 'ArenaStress', named: true, connection: 'connected', activeRoomId: 'lobby', protocol });
-  useWorkspaceStore.setState({ ignoredUsers: [], blockPms: false, blockChallenges: false, autojoinRooms: [] });
+  const protocol = {
+    send: () => {
+      sent++;
+      return true;
+    },
+  } as unknown as typeof initial.protocol;
+  useArenaStore.setState({
+    rooms: {},
+    roomErrors: {},
+    userCards: {},
+    rawProtocolLog: [],
+    protocolLogEnabled: true,
+    username: 'ArenaStress',
+    named: true,
+    connection: 'connected',
+    activeRoomId: 'lobby',
+    protocol,
+  });
+  useWorkspaceStore.setState({
+    ignoredUsers: [],
+    blockPms: false,
+    blockChallenges: false,
+    autojoinRooms: [],
+  });
   let frames = 0;
-  const apply = (raw: string) => { frames++; useArenaStore.getState().handleFrame(parsePsFrame(raw)); };
+  const apply = (raw: string) => {
+    frames++;
+    useArenaStore.getState().handleFrame(parsePsFrame(raw));
+  };
   const batches: number[] = [];
   try {
     for (const id of ['lobby', 'staff']) apply(`>${id}\n|init|chat\n|title|${id}`);
@@ -34,13 +57,16 @@ export function exerciseLongSession(measureHeap?: () => number) {
       useArenaStore.getState().openPmWith(`Temporary${index}`);
       apply(`|pm| Temporary${index}| ArenaStress|One private synthetic message`);
       useArenaStore.getState().leaveRoom(`pm-temporary${index}`);
-      apply(`|queryresponse|userdetails|${JSON.stringify({ userid: `reader${index}`, name: `Reader ${index}`, avatar: '1', rooms: {} })}`);
+      apply(
+        `|queryresponse|userdetails|${JSON.stringify({ userid: `reader${index}`, name: `Reader ${index}`, avatar: '1', rooms: {} })}`,
+      );
     }
     for (let index = 0; index < 200; index++) {
       apply('>snapshot\n|init|chat\n|c|ArenaReader|Reconnect snapshot');
     }
     const successfulRoomErrorEntries = Object.keys(useArenaStore.getState().roomErrors).length;
-    for (let index = 0; index < 320; index++) apply(`>unavailable-${index}\n|noinit|nonexistent|Synthetic unavailable room`);
+    for (let index = 0; index < 320; index++)
+      apply(`>unavailable-${index}\n|noinit|nonexistent|Synthetic unavailable room`);
     const failures = useArenaStore.getState().roomErrors;
     const retainedFailureEntries = Object.keys(failures).length;
     const oldestFailureDiscarded = !failures['unavailable-0'] && !failures['unavailable-287'];
@@ -53,8 +79,10 @@ export function exerciseLongSession(measureHeap?: () => number) {
     const rooms = Object.values(state.rooms);
     const sorted = batches.slice().sort((a, b) => a - b);
     return {
-      frames, sent, batches: batches.length,
-      batchP95Ms: Number(sorted[Math.ceil(sorted.length * .95) - 1].toFixed(2)),
+      frames,
+      sent,
+      batches: batches.length,
+      batchP95Ms: Number(sorted[Math.ceil(sorted.length * 0.95) - 1].toFixed(2)),
       closedRooms: rooms.filter(room => !room.connected).length,
       openRooms: rooms.filter(room => room.connected).length,
       maxChatEntries: Math.max(...rooms.map(room => room.chat.length)),
@@ -63,7 +91,10 @@ export function exerciseLongSession(measureHeap?: () => number) {
       rawProtocolEntries: state.rawProtocolLog.length,
       userCards: Object.keys(state.userCards).length,
       roomErrorEntries: Object.keys(state.roomErrors).length,
-      successfulRoomErrorEntries, retainedFailureEntries, oldestFailureDiscarded, latestFailureRetained,
+      successfulRoomErrorEntries,
+      retainedFailureEntries,
+      oldestFailureDiscarded,
+      latestFailureRetained,
       recoveredFailureCleared: !Object.hasOwn(state.roomErrors, 'unavailable-319'),
       emptyRoomErrorEntries: Object.values(state.roomErrors).filter(error => !error).length,
       snapshotEntries: state.rooms.snapshot.chat.length,

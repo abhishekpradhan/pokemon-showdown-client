@@ -9,7 +9,10 @@ import { build } from 'esbuild';
 export async function runSessionStress() {
   const directory = mkdtempSync(join(tmpdir(), 'arena-session-stress-'));
   const file = join(directory, 'stress.mjs');
-  await build({ stdin: { resolveDir: resolve('.'), contents: `
+  await build({
+    stdin: {
+      resolveDir: resolve('.'),
+      contents: `
     import assert from 'node:assert/strict';
     const events = new EventTarget();
     globalThis.window = globalThis;
@@ -38,12 +41,24 @@ export async function runSessionStress() {
     const growth = samples.at(-1).heapUsedBytes - samples[0].heapUsedBytes;
     assert(growth < 16 * 1024 * 1024, 'Repeated sessions show unbounded retained heap growth.');
     console.log(JSON.stringify({node: process.version, methodology: 'One warmup, three identical 13k-frame sessions; forced GC while retained application state is alive; isolated 256MiB V8 heap', baselineHeapBytes: baseline, repeatGrowthBytes: growth, budgets: {retainedHeapBytes: 48*1024*1024, repeatGrowthBytes: 16*1024*1024, p95BatchMs: 2500}, samples}));
-  ` }, bundle: true, platform: 'node', format: 'esm', outfile: file, define: { 'import.meta.env': JSON.stringify({ MODE: 'integration', DEV: false }) } });
-  const output = execFileSync(process.execPath, ['--expose-gc', '--max-old-space-size=256', file], { encoding: 'utf8', timeout: 30_000, maxBuffer: 1024 * 1024 });
+  `,
+    },
+    bundle: true,
+    platform: 'node',
+    format: 'esm',
+    outfile: file,
+    define: { 'import.meta.env': JSON.stringify({ MODE: 'integration', DEV: false }) },
+  });
+  const output = execFileSync(process.execPath, ['--expose-gc', '--max-old-space-size=256', file], {
+    encoding: 'utf8',
+    timeout: 30_000,
+    maxBuffer: 1024 * 1024,
+  });
   const report = JSON.parse(output.trim().split('\n').at(-1));
   assert.equal(report.samples.length, 3);
   writeFileSync(resolve('test-results-session-stress.json'), JSON.stringify(report, null, 2));
   return report;
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) console.log(JSON.stringify(await runSessionStress(), null, 2));
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url))
+  console.log(JSON.stringify(await runSessionStress(), null, 2));

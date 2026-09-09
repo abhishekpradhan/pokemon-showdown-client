@@ -3,7 +3,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) 292px;
   grid-template-rows: auto auto;
-  grid-template-areas: "setup readiness" "live readiness";
+  grid-template-areas: 'setup readiness' 'live readiness';
   gap: 10px;
   height: auto;
   align-content: start;
@@ -27,7 +27,7 @@
 
 /* A faint arena grid gives the stage depth without imagery. */
 .match-stage::after {
-  content: "";
+  content: '';
   position: absolute;
   inset: 0;
   z-index: -1;
@@ -148,7 +148,9 @@
   font-weight: 700;
   border-radius: 8px;
   cursor: pointer;
-  transition: background var(--arena-fast) ease, transform var(--arena-fast) ease;
+  transition:
+    background var(--arena-fast) ease,
+    transform var(--arena-fast) ease;
 }
 
 .queue-action {
@@ -222,9 +224,15 @@
   border-radius: 50%;
 }
 
-.searching-radar i:nth-child(1) { transform: translate(-8px, 4px); }
-.searching-radar i:nth-child(2) { transform: translate(6px, -7px); }
-.searching-radar i:nth-child(3) { transform: translate(9px, 8px); }
+.searching-radar i:nth-child(1) {
+  transform: translate(-8px, 4px);
+}
+.searching-radar i:nth-child(2) {
+  transform: translate(6px, -7px);
+}
+.searching-radar i:nth-child(3) {
+  transform: translate(9px, 8px);
+}
 
 .queue-cancel {
   min-height: 36px;
@@ -452,7 +460,9 @@ a.inspector-section-link {
   text-decoration: none;
 }
 
-a.inspector-section-link:hover { text-decoration: underline; }
+a.inspector-section-link:hover {
+  text-decoration: underline;
+}
 
 .live-battle-list {
   display: grid;
@@ -473,7 +483,9 @@ a.inspector-section-link:hover { text-decoration: underline; }
   border: 1px solid transparent;
   border-radius: 7px;
   cursor: pointer;
-  transition: background var(--arena-fast) ease, border-color var(--arena-fast) ease;
+  transition:
+    background var(--arena-fast) ease,
+    border-color var(--arena-fast) ease;
 }
 
 .live-battle-row:hover {
@@ -481,7 +493,9 @@ a.inspector-section-link:hover { text-decoration: underline; }
   border-color: var(--arena-line);
 }
 
-.live-battle-row svg { color: var(--arena-faint); }
+.live-battle-row svg {
+  color: var(--arena-faint);
+}
 
 .live-battle-row strong {
   display: block;
@@ -506,7 +520,6 @@ a.inspector-section-link:hover { text-decoration: underline; }
   font-style: normal;
   font-weight: 650;
 }
-
 
 /* ── Live now (main content) ─────────────────────────────────────────────── */
 
@@ -564,7 +577,9 @@ a.inspector-section-link:hover { text-decoration: underline; }
   border: 1px solid var(--arena-line);
   border-radius: 9px;
   cursor: pointer;
-  transition: border-color var(--arena-fast) ease, transform var(--arena-fast) ease;
+  transition:
+    border-color var(--arena-fast) ease,
+    transform var(--arena-fast) ease;
 }
 
 .live-card:hover {
@@ -600,14 +615,16 @@ a.inspector-section-link:hover { text-decoration: underline; }
   font-weight: 650;
 }
 
-
 .queue-cancel {
   color: var(--arena-soft);
   background: var(--arena-panel);
   border: 1px solid var(--arena-line-strong);
 }
 
-.queue-cancel:hover { border-color: var(--arena-red); color: var(--arena-red-text); }
+.queue-cancel:hover {
+  border-color: var(--arena-red);
+  color: var(--arena-red-text);
+}
 
 /* Home owns its responsive layout. Scope these above the older battle.css
    cockpit selectors so the mobile form never inherits a fixed-height stage. */
@@ -616,13 +633,15 @@ a.inspector-section-link:hover { text-decoration: underline; }
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .match-workspace .queue-action { grid-column: 1 / -1; }
+  .match-workspace .queue-action {
+    grid-column: 1 / -1;
+  }
 }
 
 @media (max-width: 820px) {
   .match-workspace {
     grid-template-rows: auto auto auto;
-    grid-template-areas: "setup" "readiness" "live";
+    grid-template-areas: 'setup' 'readiness' 'live';
     align-content: start;
   }
 
@@ -631,7 +650,9 @@ a.inspector-section-link:hover { text-decoration: underline; }
     min-height: 0;
   }
 
-  .match-workspace .match-stage-copy { padding-block: 0; }
+  .match-workspace .match-stage-copy {
+    padding-block: 0;
+  }
 
   .match-workspace .match-stage-copy h1 {
     font-size: clamp(24px, 5.6vw, 32px);
@@ -652,21 +673,48 @@ a.inspector-section-link:hover { text-decoration: underline; }
     border: 0;
   }
 
-  .match-workspace .readiness-row > span:first-child { display: none; }
-  .match-workspace .readiness-row strong { white-space: normal; overflow-wrap: anywhere; }
-  .match-workspace .readiness-state { margin-top: 2px; }
-  .match-workspace .match-inspector > .primary-action + .secondary-action { margin-top: 6px; }
-  .match-workspace .match-inspector-footer { margin-top: 16px; }
-  .match-workspace .live-grid { grid-template-columns: repeat(auto-fill, minmax(min(230px, 100%), 1fr)); }
+  .match-workspace .readiness-row > span:first-child {
+    display: none;
+  }
+  .match-workspace .readiness-row strong {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .match-workspace .readiness-state {
+    margin-top: 2px;
+  }
+  .match-workspace .match-inspector > .primary-action + .secondary-action {
+    margin-top: 6px;
+  }
+  .match-workspace .match-inspector-footer {
+    margin-top: 16px;
+  }
+  .match-workspace .live-grid {
+    grid-template-columns: repeat(auto-fill, minmax(min(230px, 100%), 1fr));
+  }
 }
 
 @media (max-width: 560px) {
-  .match-workspace .match-stage { gap: 10px; padding: 14px; }
-  .match-workspace .queue-controls { grid-template-columns: minmax(0, 1fr); gap: 10px; }
-  .match-workspace .queue-action { min-height: 44px; }
-  .match-workspace .queue-controls .format-trigger { min-height: 48px; }
-  .match-workspace .live-now-heading { gap: 12px; }
-  .match-workspace .stage-link { max-width: none; }
+  .match-workspace .match-stage {
+    gap: 10px;
+    padding: 14px;
+  }
+  .match-workspace .queue-controls {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+  .match-workspace .queue-action {
+    min-height: 44px;
+  }
+  .match-workspace .queue-controls .format-trigger {
+    min-height: 48px;
+  }
+  .match-workspace .live-now-heading {
+    gap: 12px;
+  }
+  .match-workspace .stage-link {
+    max-width: none;
+  }
 }
 
 .provided-team {
@@ -680,15 +728,44 @@ a.inspector-section-link:hover { text-decoration: underline; }
   border: 1px solid var(--arena-line);
   border-radius: var(--arena-radius);
 }
-.provided-team > span { display: grid; gap: 2px; }
-.provided-team strong { color: var(--arena-text); font-size: 13px; }
-.provided-team small { color: var(--arena-faint); font-size: 11px; }
-.match-workspace .random-battle-shortcut { display: grid; gap: 3px; width: 100%; padding-block: 9px; font-size: 13px; }
-.random-battle-shortcut small { color: var(--arena-muted); font-size: 11px; font-weight: 400; }
-.match-workspace .match-inspector { align-self: start; }
-.match-workspace .live-now { align-content: start; }
-@media (max-width: 820px) {
-  .match-workspace .match-inspector { width: 100%; }
-  .match-workspace .provided-team { min-height: 48px; }
+.provided-team > span {
+  display: grid;
+  gap: 2px;
 }
-.match-stage .eyebrow { color: var(--arena-accent-text); }
+.provided-team strong {
+  color: var(--arena-text);
+  font-size: 13px;
+}
+.provided-team small {
+  color: var(--arena-faint);
+  font-size: 11px;
+}
+.match-workspace .random-battle-shortcut {
+  display: grid;
+  gap: 3px;
+  width: 100%;
+  padding-block: 9px;
+  font-size: 13px;
+}
+.random-battle-shortcut small {
+  color: var(--arena-muted);
+  font-size: 11px;
+  font-weight: 400;
+}
+.match-workspace .match-inspector {
+  align-self: start;
+}
+.match-workspace .live-now {
+  align-content: start;
+}
+@media (max-width: 820px) {
+  .match-workspace .match-inspector {
+    width: 100%;
+  }
+  .match-workspace .provided-team {
+    min-height: 48px;
+  }
+}
+.match-stage .eyebrow {
+  color: var(--arena-accent-text);
+}

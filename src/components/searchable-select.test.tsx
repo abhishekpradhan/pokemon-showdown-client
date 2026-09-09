@@ -5,12 +5,19 @@ import { SearchableSelect } from './searchable-select';
 describe('SearchableSelect keyboard navigation', () => {
   it('traverses the visible grouped order once and selects exactly once through a portal', () => {
     const onValueChange = vi.fn();
-    render(<SearchableSelect ariaLabel="Species" value="a" onValueChange={onValueChange} options={[
-      { value: 'a', label: 'A', group: 'First' },
-      { value: 'b', label: 'B', group: 'Second' },
-      { value: 'disabled', label: 'Unavailable', group: 'First', disabled: true },
-      { value: 'c', label: 'C', group: 'First' },
-    ]} />);
+    render(
+      <SearchableSelect
+        ariaLabel="Species"
+        value="a"
+        onValueChange={onValueChange}
+        options={[
+          { value: 'a', label: 'A', group: 'First' },
+          { value: 'b', label: 'B', group: 'Second' },
+          { value: 'disabled', label: 'Unavailable', group: 'First', disabled: true },
+          { value: 'c', label: 'C', group: 'First' },
+        ]}
+      />,
+    );
     const trigger = screen.getByRole('button', { name: 'Species' });
     fireEvent.click(trigger);
     const input = screen.getByRole('combobox');
@@ -35,7 +42,19 @@ describe('SearchableSelect keyboard navigation', () => {
 
   it('clears a dismissed search and exits the popup on Tab without selecting', () => {
     const onValueChange = vi.fn();
-    render(<><SearchableSelect ariaLabel="Format" options={[{ value: 'ou', label: 'OU' }, { value: 'uu', label: 'UU' }]} onValueChange={onValueChange} /><button>Outside</button></>);
+    render(
+      <>
+        <SearchableSelect
+          ariaLabel="Format"
+          options={[
+            { value: 'ou', label: 'OU' },
+            { value: 'uu', label: 'UU' },
+          ]}
+          onValueChange={onValueChange}
+        />
+        <button>Outside</button>
+      </>,
+    );
     const trigger = screen.getByRole('button', { name: 'Format' });
     fireEvent.click(trigger);
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'missing' } });
@@ -49,7 +68,21 @@ describe('SearchableSelect keyboard navigation', () => {
   });
 
   it('keeps a modal popup inside its focus scope and consumes only the first Escape', async () => {
-    render(<Dialog.Root defaultOpen><Dialog.Portal><Dialog.Content><Dialog.Title>Challenge</Dialog.Title><Dialog.Description>Select a format</Dialog.Description><SearchableSelect ariaLabel="Format" options={[{ value: 'ou', label: 'OU' }]} onValueChange={vi.fn()} /></Dialog.Content></Dialog.Portal></Dialog.Root>);
+    render(
+      <Dialog.Root defaultOpen>
+        <Dialog.Portal>
+          <Dialog.Content>
+            <Dialog.Title>Challenge</Dialog.Title>
+            <Dialog.Description>Select a format</Dialog.Description>
+            <SearchableSelect
+              ariaLabel="Format"
+              options={[{ value: 'ou', label: 'OU' }]}
+              onValueChange={vi.fn()}
+            />
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>,
+    );
     const trigger = screen.getByRole('button', { name: 'Format' });
     fireEvent.click(trigger);
     const input = screen.getByRole('combobox');

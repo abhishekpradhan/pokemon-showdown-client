@@ -3,21 +3,33 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from './fixtures';
 import { installMockPs } from './mock-ps';
 
-const sent = (page: Page) => page.evaluate(() => JSON.parse(localStorage.getItem('__mockPsSent') || '[]') as string[]);
-const updateUser = (page: Page, avatar = '1', language = 'english') => page.evaluate(({ avatar, language }) => {
-  (window as unknown as { __mockPsSockets: Array<{ emit: (line: string) => void }> }).__mockPsSockets[0].emit(`|updateuser| PreferenceTester|1|${avatar}|${JSON.stringify({ language })}`);
-}, { avatar, language });
+const sent = (page: Page) =>
+  page.evaluate(() => JSON.parse(localStorage.getItem('__mockPsSent') || '[]') as string[]);
+const updateUser = (page: Page, avatar = '1', language = 'english') =>
+  page.evaluate(
+    ({ avatar, language }) => {
+      (
+        window as unknown as { __mockPsSockets: Array<{ emit: (line: string) => void }> }
+      ).__mockPsSockets[0].emit(`|updateuser| PreferenceTester|1|${avatar}|${JSON.stringify({ language })}`);
+    },
+    { avatar, language },
+  );
 
 async function namedSettings(page: Page) {
   await page.goto('/settings');
   await expect(page.getByRole('button', { name: 'Disconnect', exact: true })).toBeVisible();
   await page.evaluate(() => {
-    const socket = (window as unknown as { __mockPsSockets: Array<{ emit: (line: string) => void }> }).__mockPsSockets[0];
+    const socket = (window as unknown as { __mockPsSockets: Array<{ emit: (line: string) => void }> })
+      .__mockPsSockets[0];
     const emit = socket.emit.bind(socket);
     // The generic mock returns an unrelated default avatar for user cards.
     // Control our own structured response so delayed/missing ACKs stay testable.
     socket.emit = line => {
-      if (line.startsWith('|queryresponse|userdetails|') && JSON.parse(line.slice('|queryresponse|userdetails|'.length)).userid === 'preferencetester') return;
+      if (
+        line.startsWith('|queryresponse|userdetails|') &&
+        JSON.parse(line.slice('|queryresponse|userdetails|'.length)).userid === 'preferencetester'
+      )
+        return;
       emit(line);
     };
     (window as unknown as { __emitProfileFixture: (line: string) => void }).__emitProfileFixture = emit;
@@ -26,20 +38,31 @@ async function namedSettings(page: Page) {
   await expect(page.getByText('Profile preferences are in sync.', { exact: true })).toBeVisible();
 }
 
-const confirmAvatarDetails = (page: Page, avatar: string, userid = 'preferencetester') => page.evaluate(({ avatar, userid }) => {
-  (window as unknown as { __emitProfileFixture: (line: string) => void }).__emitProfileFixture(`|queryresponse|userdetails|${JSON.stringify({ userid, avatar, rooms: {} })}`);
-}, { avatar, userid });
+const confirmAvatarDetails = (page: Page, avatar: string, userid = 'preferencetester') =>
+  page.evaluate(
+    ({ avatar, userid }) => {
+      (window as unknown as { __emitProfileFixture: (line: string) => void }).__emitProfileFixture(
+        `|queryresponse|userdetails|${JSON.stringify({ userid, avatar, rooms: {} })}`,
+      );
+    },
+    { avatar, userid },
+  );
 
 async function backgroundFile(page: Page) {
   const data = await page.evaluate(() => {
-    const canvas = document.createElement('canvas'); canvas.width = canvas.height = 4;
-    const context = canvas.getContext('2d')!; context.fillStyle = '#3060a0'; context.fillRect(0, 0, 4, 4);
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = 4;
+    const context = canvas.getContext('2d')!;
+    context.fillStyle = '#3060a0';
+    context.fillRect(0, 0, 4, 4);
     return canvas.toDataURL('image/png').split(',')[1];
   });
   return { name: 'test-background.png', mimeType: 'image/png', buffer: Buffer.from(data, 'base64') };
 }
 
-test.beforeEach(async ({ page }) => { await installMockPs(page); });
+test.beforeEach(async ({ page }) => {
+  await installMockPs(page);
+});
 
 test('avatar preview applies only on confirmation and waits for server acknowledgement', async ({ page }) => {
   await namedSettings(page);
@@ -50,7 +73,10 @@ test('avatar preview applies only on confirmation and waits for server acknowled
   const dialog = page.getByRole('dialog', { name: 'Choose an avatar' });
   await dialog.getByRole('textbox', { name: 'Search avatars' }).fill('dawn');
   await dialog.getByRole('button', { name: 'dawn', exact: true }).click();
-  await expect(dialog.getByRole('button', { name: 'dawn', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(dialog.getByRole('button', { name: 'dawn', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
   expect((await sent(page)).some(line => line.includes('/avatar'))).toBe(false);
   const bounds = await dialog.boundingBox();
   expect(bounds).not.toBeNull();
@@ -71,9 +97,14 @@ test('avatar preview applies only on confirmation and waits for server acknowled
   // The queued alias must follow /avatar; /cmd userdetails can overtake it on
   // real servers because that spelling is exempt from command throttling.
   expect((await sent(page)).filter(line => /\/(?:avatar|query|cmd userdetails) /.test(line))).toEqual([
-    '|/avatar dawn', '|/query userdetails preferencetester',
+    '|/avatar dawn',
+    '|/query userdetails preferencetester',
   ]);
-  await page.evaluate(() => (window as unknown as { __emitProfileFixture: (line: string) => void }).__emitProfileFixture('|pm|~|PreferenceTester|/raw <img src="https://play.pokemonshowdown.com/sprites/trainers/dawn.png" />'));
+  await page.evaluate(() =>
+    (window as unknown as { __emitProfileFixture: (line: string) => void }).__emitProfileFixture(
+      '|pm|~|PreferenceTester|/raw <img src="https://play.pokemonshowdown.com/sprites/trainers/dawn.png" />',
+    ),
+  );
   await confirmAvatarDetails(page, '2', 'someoneelse');
   await expect(currentAvatar).toHaveAttribute('src', /\/lucas\.png$/);
   await expect(page.getByText('Applying preferences…', { exact: true })).toBeVisible();
@@ -104,10 +135,18 @@ test('unacknowledged avatar preferences offer a retry without claiming success',
   await dialog.getByRole('button', { name: 'Apply avatar', exact: true }).click();
   await expect.poll(async () => (await sent(page)).filter(line => line === '|/avatar dawn').length).toBe(2);
   await page.clock.fastForward(10_001);
-  await expect(page.getByText('The server has not confirmed these preferences. Try again, or check your connection.', { exact: true })).toBeVisible();
+  await expect(
+    page.getByText('The server has not confirmed these preferences. Try again, or check your connection.', {
+      exact: true,
+    }),
+  ).toBeVisible();
   await page.getByRole('button', { name: 'Retry profile preferences', exact: true }).click();
   await expect.poll(async () => (await sent(page)).filter(line => line === '|/avatar dawn').length).toBe(3);
-  await expect.poll(async () => (await sent(page)).filter(line => line === '|/query userdetails preferencetester').length).toBe(3);
+  await expect
+    .poll(
+      async () => (await sent(page)).filter(line => line === '|/query userdetails preferencetester').length,
+    )
+    .toBe(3);
   await confirmAvatarDetails(page, '2');
   await expect(page.getByText('Profile preferences are in sync.', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Retry profile preferences', exact: true })).toHaveCount(0);
@@ -123,32 +162,56 @@ test('background choices and a locally stored image survive reload and can be re
   await page.getByLabel('Background image', { exact: true }).setInputFiles(await backgroundFile(page));
   await expect(page.getByText('Background saved in this browser.', { exact: true })).toBeVisible();
   await expect(background).toHaveValue('custom');
-  await expect.poll(() => page.locator('html').evaluate(element => (element as HTMLElement).style.getPropertyValue('--arena-background-image'))).toMatch(/blob:/);
+  await expect
+    .poll(() =>
+      page
+        .locator('html')
+        .evaluate(element => (element as HTMLElement).style.getPropertyValue('--arena-background-image')),
+    )
+    .toMatch(/blob:/);
   await page.reload();
   await expect(background).toHaveValue('custom');
-  await expect.poll(() => page.locator('html').evaluate(element => (element as HTMLElement).style.getPropertyValue('--arena-background-image'))).toMatch(/blob:/);
+  await expect
+    .poll(() =>
+      page
+        .locator('html')
+        .evaluate(element => (element as HTMLElement).style.getPropertyValue('--arena-background-image')),
+    )
+    .toMatch(/blob:/);
   await page.getByRole('button', { name: 'Remove stored image', exact: true }).click();
   await expect(page.getByText('Your stored image was removed.', { exact: true })).toBeVisible();
   await expect(background).toHaveValue('none');
   await page.reload();
   await expect(page.getByRole('button', { name: 'Remove stored image', exact: true })).toHaveCount(0);
   await background.selectOption('forest');
-  await page.getByLabel('Background image', { exact: true }).setInputFiles({ name: 'not-an-image.svg', mimeType: 'image/svg+xml', buffer: Buffer.from('<svg/>') });
+  await page
+    .getByLabel('Background image', { exact: true })
+    .setInputFiles({ name: 'not-an-image.svg', mimeType: 'image/svg+xml', buffer: Buffer.from('<svg/>') });
   await expect(page.getByText('Choose a PNG, JPEG or WebP image.', { exact: true })).toBeVisible();
   await expect(background).toHaveValue('forest');
-  await page.getByLabel('Background image', { exact: true }).setInputFiles({ name: 'bad.png', mimeType: 'image/png', buffer: Buffer.from('invalid pixels') });
-  await expect(page.getByText('This image could not be opened. Try another PNG, JPEG or WebP.', { exact: true })).toBeVisible();
+  await page
+    .getByLabel('Background image', { exact: true })
+    .setInputFiles({ name: 'bad.png', mimeType: 'image/png', buffer: Buffer.from('invalid pixels') });
+  await expect(
+    page.getByText('This image could not be opened. Try another PNG, JPEG or WebP.', { exact: true }),
+  ).toBeVisible();
   await expect(background).toHaveValue('forest');
 });
 
-test('background storage failures remain recoverable and preserve the chosen background', async ({ page }) => {
+test('background storage failures remain recoverable and preserve the chosen background', async ({
+  page,
+}) => {
   await page.goto('/settings');
   await page.getByLabel('Background', { exact: true }).selectOption('dusk');
   await page.evaluate(() => {
-    IDBObjectStore.prototype.put = function () { throw new DOMException('Test storage quota exceeded', 'QuotaExceededError'); };
+    IDBObjectStore.prototype.put = function () {
+      throw new DOMException('Test storage quota exceeded', 'QuotaExceededError');
+    };
   });
   await page.getByLabel('Background image', { exact: true }).setInputFiles(await backgroundFile(page));
-  await expect(page.getByText(/Test storage quota exceeded|could not be stored|Free some browser storage/)).toBeVisible();
+  await expect(
+    page.getByText(/Test storage quota exceeded|could not be stored|Free some browser storage/),
+  ).toBeVisible();
   await expect(page.getByLabel('Background image', { exact: true })).toBeEnabled();
   await expect(page.getByLabel('Background', { exact: true })).toHaveValue('dusk');
 });
@@ -174,7 +237,9 @@ test('audio levels and master mute persist independently', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Test notification sound', exact: true })).toBeEnabled();
   await page.getByRole('slider', { name: 'Notification volume', exact: true }).fill('0');
   await expect(page.getByRole('button', { name: 'Test notification sound', exact: true })).toBeDisabled();
-  expect(await page.locator('.settings-page').evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+  expect(
+    await page.locator('.settings-page').evaluate(element => element.scrollWidth <= element.clientWidth + 1),
+  ).toBe(true);
   await page.getByRole('link', { name: 'Audio', exact: true }).click();
   await page.screenshot({ path: test.info().outputPath('audio-settings.png'), fullPage: true });
 });

@@ -2,12 +2,23 @@ import { expect, test } from './fixtures';
 import type { Page } from '@playwright/test';
 import { installMockPs } from './mock-ps';
 
-test.beforeEach(async ({ page }) => { await installMockPs(page); });
-const emit = async (page: Page, raw: string) => { await page.waitForFunction(() => (window as unknown as { __mockPsSockets?: unknown[] }).__mockPsSockets?.length); return page.evaluate(line => {
-  (window as unknown as { __mockPsSockets: Array<{ emit: (text: string) => void }> }).__mockPsSockets[0].emit(line);
-}, raw); };
+test.beforeEach(async ({ page }) => {
+  await installMockPs(page);
+});
+const emit = async (page: Page, raw: string) => {
+  await page.waitForFunction(
+    () => (window as unknown as { __mockPsSockets?: unknown[] }).__mockPsSockets?.length,
+  );
+  return page.evaluate(line => {
+    (
+      window as unknown as { __mockPsSockets: Array<{ emit: (text: string) => void }> }
+    ).__mockPsSockets[0].emit(line);
+  }, raw);
+};
 
-test('private-message links restore drafts and incoming messages reopen closed sessions', async ({ page }) => {
+test('private-message links restore drafts and incoming messages reopen closed sessions', async ({
+  page,
+}) => {
   await page.goto('/room/pm-bob');
   await expect(page.getByRole('heading', { name: 'bob', exact: true })).toBeVisible();
   const message = page.getByRole('textbox', { name: 'Message bob', exact: true });
@@ -22,12 +33,20 @@ test('private-message links restore drafts and incoming messages reopen closed s
   await expect(page.getByRole('button', { name: /bob 1/i })).toBeVisible();
 });
 
-test('chat keeps the reading position while new traffic arrives and opens safe room links', async ({ page }) => {
+test('chat keeps the reading position while new traffic arrives and opens safe room links', async ({
+  page,
+}) => {
   await page.goto('/room/lobby');
   await expect(page.getByRole('heading', { name: 'Lobby' })).toBeVisible();
-  await emit(page, `>lobby\n${Array.from({ length: 220 }, (_, index) => `|c|Reader|History line ${index}`).join('\n')}`);
+  await emit(
+    page,
+    `>lobby\n${Array.from({ length: 220 }, (_, index) => `|c|Reader|History line ${index}`).join('\n')}`,
+  );
   const feed = page.locator('.room-surface-feed');
-  await feed.evaluate(el => { el.scrollTop = 0; el.dispatchEvent(new Event('scroll')); });
+  await feed.evaluate(el => {
+    el.scrollTop = 0;
+    el.dispatchEvent(new Event('scroll'));
+  });
   await emit(page, '>lobby\n|c|Reader|The new message');
   await expect(page.getByRole('button', { name: 'New messages · Jump to latest' })).toBeVisible();
   expect(await feed.evaluate(el => el.scrollTop)).toBeLessThan(50);
@@ -49,7 +68,10 @@ test('failed room joins offer a terminal explanation and retry', async ({ page }
 
 test('tournament waiting lists cannot be accepted as incoming challenges', async ({ page }) => {
   await page.goto('/room/lobby');
-  await emit(page, '>lobby\n|tournament|update|{"isStarted":true,"isJoined":true,"challengeBys":["Bob"],"challenges":[]}');
+  await emit(
+    page,
+    '>lobby\n|tournament|update|{"isStarted":true,"isJoined":true,"challengeBys":["Bob"],"challenges":[]}',
+  );
   await expect(page.getByText('Waiting for Bob to challenge you.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Accept Bob' })).toHaveCount(0);
   await emit(page, '>lobby\n|tournament|update|{"challenged":"Bob"}');

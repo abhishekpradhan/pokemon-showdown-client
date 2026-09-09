@@ -6,7 +6,12 @@ describe('chat room directory', () => {
   // branches handling them were dead, and "Official" is a section value.
   const live = {
     chat: [
-      { title: 'Lobby', desc: "Still haven't decided on a room for you?", userCount: 790, section: 'Official' },
+      {
+        title: 'Lobby',
+        desc: "Still haven't decided on a room for you?",
+        userCount: 790,
+        section: 'Official',
+      },
       { title: 'Help', desc: 'Have a question about Showdown?', userCount: 288, section: 'Official' },
       { title: 'Français', desc: 'Là où les Dresseurs…', userCount: 84, section: 'Languages' },
     ],
@@ -19,7 +24,12 @@ describe('chat room directory', () => {
     const parsed = parseChatRoomList(live);
     expect(parsed).not.toBeNull();
     expect(parsed!.rooms).toHaveLength(3);
-    expect(parsed!.rooms[0]).toMatchObject({ id: 'lobby', title: 'Lobby', userCount: 790, section: 'Official' });
+    expect(parsed!.rooms[0]).toMatchObject({
+      id: 'lobby',
+      title: 'Lobby',
+      userCount: 790,
+      section: 'Official',
+    });
     expect(parsed!.sectionTitles).toEqual(['Official', 'Battle formats', 'Languages']);
   });
 
@@ -40,7 +50,12 @@ describe('chat room directory', () => {
       rooms: { 'battle-gen9ou-1': { p1: 'Alice', p2: 'Bob', minElo: 1400 } },
       battleCount: 1,
     });
-    expect(parsed!.rooms[0]).toMatchObject({ id: 'battle-gen9ou-1', p1: 'Alice', p2: 'Bob', format: 'gen9ou' });
+    expect(parsed!.rooms[0]).toMatchObject({
+      id: 'battle-gen9ou-1',
+      p1: 'Alice',
+      p2: 'Bob',
+      format: 'gen9ou',
+    });
   });
 });
 

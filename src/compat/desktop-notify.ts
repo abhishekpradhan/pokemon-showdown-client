@@ -31,6 +31,12 @@ export const desktopNotify = (title: string, body: string, tag: string, path?: s
     };
   } catch {
     // Installed mobile browsers require the service worker notification API.
-    if ('serviceWorker' in navigator) void navigator.serviceWorker.getRegistration().then(registration => registration?.showNotification(title, { body, tag, icon: '/icon-512.png', data: { path } })).catch(() => {});
+    if ('serviceWorker' in navigator)
+      void navigator.serviceWorker
+        .getRegistration()
+        .then(registration =>
+          registration?.showNotification(title, { body, tag, icon: '/icon-512.png', data: { path } }),
+        )
+        .catch(() => {});
   }
 };

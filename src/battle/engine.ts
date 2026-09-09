@@ -59,7 +59,10 @@ export function loadEngine(): Promise<EngineModule> {
     };
     listeners.forEach(listener => listener());
     return engineModule;
-  })().catch(error => { loading = null; throw error; });
+  })().catch(error => {
+    loading = null;
+    throw error;
+  });
   return loading;
 }
 
@@ -93,12 +96,20 @@ function repairFourPlayerSides(battle: Battle, clear = false) {
   if (!isFourPlayerBattle(battle.gameType) || !battle.p3 || !battle.p4) return;
   battle.sides.splice(2, battle.sides.length - 2, battle.p3, battle.p4);
   const all = battle.sides.flatMap(side => side.active);
-  const halves: Array<Array<Pokemon | null>> = [[null, null], [null, null]];
+  const halves: Array<Array<Pokemon | null>> = [
+    [null, null],
+    [null, null],
+  ];
   for (const [index, side] of battle.sides.entries()) {
     (side as unknown as { n: number }).n = index;
-    const pokemon = clear ? null : [...side.active, ...all].find(pokemon => pokemon?.side === side && !pokemon.fainted) || null;
+    const pokemon = clear
+      ? null
+      : [...side.active, ...all].find(pokemon => pokemon?.side === side && !pokemon.fainted) || null;
     const slot = Math.floor(index / 2);
-    if (pokemon) { pokemon.slot = slot; halves[index % 2][slot] = pokemon; }
+    if (pokemon) {
+      pokemon.slot = slot;
+      halves[index % 2][slot] = pokemon;
+    }
   }
   for (const [index, side] of battle.sides.entries()) side.active = halves[index % 2];
 }
@@ -108,7 +119,8 @@ export function feedLine(battle: Battle, raw: string): boolean {
     // Upkeep iterates all four sides; the engine's shared half arrays would
     // otherwise increment Toxic counters twice for each active Pokémon.
     if (raw.split('|')[1] === 'upkeep' && isFourPlayerBattle(battle.gameType) && battle.p3 && battle.p4) {
-      battle.p3.active = []; battle.p4.active = [];
+      battle.p3.active = [];
+      battle.p4.active = [];
     }
     battle.add(raw);
     repairFourPlayerSides(battle, raw.split('|')[1] === 'start');
@@ -124,8 +136,14 @@ export function feedLine(battle: Battle, raw: string): boolean {
       const payload = JSON.parse(raw.slice('|request|'.length)) as BattleRequest;
       const ownId = request.side.id;
       const allyId = payload.ally?.id;
-      if (battle.gameType === 'multi' && isBattleSideID(ownId) && isBattleSideID(allyId) &&
-        battleSideIndex(allyId) === (battleSideIndex(ownId) ^ 2) && payload.ally?.pokemon && isBattleRequest({ side: payload.ally })) {
+      if (
+        battle.gameType === 'multi' &&
+        isBattleSideID(ownId) &&
+        isBattleSideID(allyId) &&
+        battleSideIndex(allyId) === (battleSideIndex(ownId) ^ 2) &&
+        payload.ally?.pokemon &&
+        isBattleRequest({ side: payload.ally })
+      ) {
         try {
           battle.add(`|request|${JSON.stringify({ side: payload.ally, forceSwitch: [false] })}`);
           if (battle.request?.side) {
@@ -142,7 +160,10 @@ export function feedLine(battle: Battle, raw: string): boolean {
     return true;
   } catch {
     // Keep credentials/private request details out of diagnostics.
-    engineWarnings.set(battle, `Battle state could not process ${raw.split('|')[1] || 'a protocol event'}. Rejoin to synchronize.`);
+    engineWarnings.set(
+      battle,
+      `Battle state could not process ${raw.split('|')[1] || 'a protocol event'}. Rejoin to synchronize.`,
+    );
     return false;
   }
 }
@@ -150,7 +171,12 @@ export function feedLine(battle: Battle, raw: string): boolean {
 // ── Projection: engine state → view model ───────────────────────────────────
 
 const STATUS_MAP: Record<string, PokemonSet['status']> = {
-  brn: 'BRN', par: 'PAR', psn: 'PSN', tox: 'TOX', slp: 'SLP', frz: 'FRZ',
+  brn: 'BRN',
+  par: 'PAR',
+  psn: 'PSN',
+  tox: 'TOX',
+  slp: 'SLP',
+  frz: 'FRZ',
 };
 
 const titleCase = (id: string) =>
@@ -181,7 +207,7 @@ const projectPokemon = (
 ): PokemonSet => {
   const percent = pokemon.maxhp > 0 ? (pokemon.hp / pokemon.maxhp) * 100 : pokemon.fainted ? 0 : 100;
   const boosts = Object.fromEntries(
-    Object.entries(pokemon.boosts).filter(([, stage]) => stage !== 0)
+    Object.entries(pokemon.boosts).filter(([, stage]) => stage !== 0),
   ) as PokemonSet['boosts'];
   const volatiles = Object.keys(pokemon.volatiles).map(id => conditionName(battle, id));
   let speedRange: [number, number] | undefined;
@@ -192,10 +218,16 @@ const projectPokemon = (
     grounded = pokemon.isGrounded();
     const base = pokemon.species.baseStats.spe;
     const level = pokemon.level;
-    speedRange = battle.gen.num <= 2 ?
-      [Math.floor(2 * base * level / 100) + 5, Math.floor((2 * (base + 15) + 63) * level / 100) + 5] :
-      [Math.floor((Math.floor(2 * base * level / 100) + 5) * 0.9), Math.floor((Math.floor((2 * base + 31 + 63) * level / 100) + 5) * 1.1)];
-  } catch { /* Unknown custom species: no invented range. */ }
+    speedRange =
+      battle.gen.num <= 2
+        ? [Math.floor((2 * base * level) / 100) + 5, Math.floor(((2 * (base + 15) + 63) * level) / 100) + 5]
+        : [
+            Math.floor((Math.floor((2 * base * level) / 100) + 5) * 0.9),
+            Math.floor((Math.floor(((2 * base + 31 + 63) * level) / 100) + 5) * 1.1),
+          ];
+  } catch {
+    /* Unknown custom species: no invented range. */
+  }
 
   return {
     slot,
@@ -218,13 +250,25 @@ const projectPokemon = (
     ability: pokemon.ability ? battle.get('abilities', pokemon.ability).name : undefined,
     effectiveAbility,
     grounded,
-    itemSuppressed: !!(battle.field.hasPseudoWeather('magicroom' as ID) || pokemon.volatiles.embargo || effectiveAbility === 'klutz'),
+    itemSuppressed: !!(
+      battle.field.hasPseudoWeather('magicroom' as ID) ||
+      pokemon.volatiles.embargo ||
+      effectiveAbility === 'klutz'
+    ),
     stats: exactHpKnown ? serverPokemon?.stats : undefined,
     speedRange,
-    knownMoves: pokemon.moveSlots.map(move => ({ name: move.name, used: move.ppUsed, pp: 'pp' in move ? move.pp : undefined, maxpp: 'maxpp' in move ? move.maxpp : undefined })),
-    counters: [pokemon.statusState.toxicTurns ? `Toxic: ${pokemon.statusState.toxicTurns} turns` : '',
+    knownMoves: pokemon.moveSlots.map(move => ({
+      name: move.name,
+      used: move.ppUsed,
+      pp: 'pp' in move ? move.pp : undefined,
+      maxpp: 'maxpp' in move ? move.maxpp : undefined,
+    })),
+    counters: [
+      pokemon.statusState.toxicTurns ? `Toxic: ${pokemon.statusState.toxicTurns} turns` : '',
       pokemon.statusState.sleepTurns ? `Sleep: ${pokemon.statusState.sleepTurns} turns` : '',
-      ...Object.entries(pokemon.volatiles).flatMap(([id, effect]) => typeof effect.duration === 'number' ? [`${conditionName(battle, id)}: ${effect.duration} turns`] : []),
+      ...Object.entries(pokemon.volatiles).flatMap(([id, effect]) =>
+        typeof effect.duration === 'number' ? [`${conditionName(battle, id)}: ${effect.duration} turns`] : [],
+      ),
     ].filter(Boolean),
     active: pokemon.isActive(),
     fainted: pokemon.fainted,
@@ -250,7 +294,11 @@ export type EngineProjectionContext = {
 };
 
 const FALLBACK: PokemonSet = {
-  slot: 1, name: 'Waiting', species: 'substitute', hp: 100, active: true,
+  slot: 1,
+  name: 'Waiting',
+  species: 'substitute',
+  hp: 100,
+  active: true,
 };
 
 export function projectEngineBattle(battle: Battle, context: EngineProjectionContext): ArenaBattle {
@@ -258,32 +306,62 @@ export function projectEngineBattle(battle: Battle, context: EngineProjectionCon
   const ourIndex = battleSideIndex(ourSideId);
   const ours = battle.sides[ourIndex] || battle.p1;
   const theirs = battle.sides[ourIndex ^ 1] || battle.p2;
-  const mode: ArenaBattle['mode'] = context.result?.ended ? 'ended' :
-    context.perspective ? 'player' : 'spectator';
+  const mode: ArenaBattle['mode'] = context.result?.ended
+    ? 'ended'
+    : context.perspective
+      ? 'player'
+      : 'spectator';
   // Exact HP is knowable whenever we held a seat — including after the battle
   // ends. Spectators get percentages throughout.
-  const exactOurs = context.perspective !== null && (exactHealthSides.get(battle)?.has(ourSideId) ||
-    context.lastRequest?.side?.id === ourSideId || battle.request?.side?.id === ourSideId);
+  const exactOurs =
+    context.perspective !== null &&
+    (exactHealthSides.get(battle)?.has(ourSideId) ||
+      context.lastRequest?.side?.id === ourSideId ||
+      battle.request?.side?.id === ourSideId);
 
-  const request = context.lastRequest ? normalizeBattleRequest({ ...context.lastRequest, gameType: battle.gameType, teamPreviewCount: battle.teamPreviewCount }) : undefined;
+  const request = context.lastRequest
+    ? normalizeBattleRequest({
+        ...context.lastRequest,
+        gameType: battle.gameType,
+        teamPreviewCount: battle.teamPreviewCount,
+      })
+    : undefined;
   const four = isFourPlayerBattle(battle.gameType);
   const sides: ArenaBattleSide[] = battle.sides.map((side, index) => {
     const id = `p${index + 1}` as BattleSideID;
-    const roster = id === ourSideId ? request?.side?.pokemon || privateRosters.get(battle)?.get(id) : privateRosters.get(battle)?.get(id);
-    const exact = id === ourSideId ? exactOurs : context.perspective !== null && !!exactHealthSides.get(battle)?.has(id);
-    const privatePokemon = (pokemon: Pokemon) => roster?.find(entry => entry.ident === `${id}: ${pokemon.name}`);
-    const project = (pokemon: Pokemon, slot: number) => ({ ...projectPokemon(battle, pokemon, slot, exact, privatePokemon(pokemon)), sideId: id });
+    const roster =
+      id === ourSideId
+        ? request?.side?.pokemon || privateRosters.get(battle)?.get(id)
+        : privateRosters.get(battle)?.get(id);
+    const exact =
+      id === ourSideId ? exactOurs : context.perspective !== null && !!exactHealthSides.get(battle)?.has(id);
+    const privatePokemon = (pokemon: Pokemon) =>
+      roster?.find(entry => entry.ident === `${id}: ${pokemon.name}`);
+    const project = (pokemon: Pokemon, slot: number) => ({
+      ...projectPokemon(battle, pokemon, slot, exact, privatePokemon(pokemon)),
+      sideId: id,
+    });
     const team = side.team.map((pokemon, slot) => project(pokemon, slot + 1));
-    const actives = side.active.flatMap((pokemon, slot) => pokemon && pokemon.side === side ? [project(pokemon, four ? 1 : slot + 1)] : []);
+    const actives = side.active.flatMap((pokemon, slot) =>
+      pokemon && pokemon.side === side ? [project(pokemon, four ? 1 : slot + 1)] : [],
+    );
     // Multi shares hazards/screens by team; keep one engine owner so timers
     // are not decremented twice by shared mutable condition objects.
     const partner = battle.gameType === 'multi' ? battle.sides[index ^ 2] : undefined;
     const conditions = projectSideConditions(battle, side);
-    if (partner) for (const condition of projectSideConditions(battle, partner)) {
-      if (!conditions.some(entry => entry.name === condition.name)) conditions.push(condition);
-    }
-    return { id, name: side.name || `Player ${index + 1}`, rating: Number(side.rating) || 0,
-      team, actives, teamSize: Math.max(side.totalPokemon, team.length), conditions };
+    if (partner)
+      for (const condition of projectSideConditions(battle, partner)) {
+        if (!conditions.some(entry => entry.name === condition.name)) conditions.push(condition);
+      }
+    return {
+      id,
+      name: side.name || `Player ${index + 1}`,
+      rating: Number(side.rating) || 0,
+      team,
+      actives,
+      teamSize: Math.max(side.totalPokemon, team.length),
+      conditions,
+    };
   });
   const ownView = sides[ourIndex] || sides[0];
   const opponentView = sides[ourIndex ^ 1] || sides[1];
@@ -291,12 +369,22 @@ export function projectEngineBattle(battle: Battle, context: EngineProjectionCon
   const opponentTeam = opponentView.team;
   const opponentActives = opponentView.actives;
   const active = actives[0] || team.find(pokemon => pokemon.active) || team[0] || FALLBACK;
-  const opposing = opponentActives[0] || opponentTeam.find(pokemon => pokemon.active) || opponentTeam[0] || { ...FALLBACK, name: 'Opponent' };
+  const opposing = opponentActives[0] ||
+    opponentTeam.find(pokemon => pokemon.active) ||
+    opponentTeam[0] || { ...FALLBACK, name: 'Opponent' };
 
   const flags = request ? requestFlags(request) : undefined;
-  const moves = request ?
-    buildMoveDeck(request, defensiveTypes(opposing), `gen${battle.gen.num}`, 0, opposing, active, battle.field.weather) :
-    [];
+  const moves = request
+    ? buildMoveDeck(
+        request,
+        defensiveTypes(opposing),
+        `gen${battle.gen.num}`,
+        0,
+        opposing,
+        active,
+        battle.field.weather,
+      )
+    : [];
 
   const fieldConditions = [
     battle.field.terrain ? String(battle.field.terrain) : '',
@@ -355,7 +443,7 @@ export function projectEngineBattle(battle: Battle, context: EngineProjectionCon
  */
 export function projectEngineLog(
   lines: string[],
-  options: { roomId?: string; username?: string; upTo?: number } = {}
+  options: { roomId?: string; username?: string; upTo?: number } = {},
 ): ArenaBattle | null {
   if (!engineModule) return null;
   const end = options.upTo === undefined ? lines.length : Math.min(options.upTo + 1, lines.length);
@@ -389,7 +477,9 @@ export function projectEngineLog(
           if (isBattleSideID(lastRequest.side?.id)) {
             perspective = lastRequest.side.id;
           }
-        } catch { /* not a valid request payload */ }
+        } catch {
+          /* not a valid request payload */
+        }
       }
     }
     feedLine(battle, raw);
@@ -407,7 +497,11 @@ export function projectEngineLog(
 export type BattleHistoryPoint = { line: number; turn: number; label: string; battle: ArenaBattle };
 
 /** Incremental history projection: new frames never replay the existing prefix. */
-export function createBattleHistory(roomId: string, username = '', options: { turnsOnly?: boolean; maxPoints?: number } = {}) {
+export function createBattleHistory(
+  roomId: string,
+  username = '',
+  options: { turnsOnly?: boolean; maxPoints?: number } = {},
+) {
   let battle = createEngineBattle(null);
   if (!battle) return null;
   let consumed = 0;
@@ -417,7 +511,7 @@ export function createBattleHistory(roomId: string, username = '', options: { tu
   const userId = username.toLowerCase().replace(/[^a-z0-9]/g, '');
   return {
     synchronize(lines: string[]): readonly BattleHistoryPoint[] {
-      if (lines.length < consumed || consumed > 0 && lines[consumed - 1] !== lastLine) {
+      if (lines.length < consumed || (consumed > 0 && lines[consumed - 1] !== lastLine)) {
         battle = createEngineBattle(null)!;
         consumed = 0;
         points = [];
@@ -426,21 +520,37 @@ export function createBattleHistory(roomId: string, username = '', options: { tu
       for (let index = consumed; index < lines.length; index++) {
         const raw = lines[index];
         const [, command = '', ...args] = raw.split('|');
-        if (command === 'player' && isBattleSideID(args[0]) && userId && args[1]?.toLowerCase().replace(/[^a-z0-9]/g, '') === userId) context.perspective = args[0];
+        if (
+          command === 'player' &&
+          isBattleSideID(args[0]) &&
+          userId &&
+          args[1]?.toLowerCase().replace(/[^a-z0-9]/g, '') === userId
+        )
+          context.perspective = args[0];
         if (command === 'tier') context.format = args[0];
         if (command === 'win') context.result = { winner: args[0], ended: true };
         if (command === 'tie') context.result = { ended: true };
         if (command === 'request') {
           try {
             context.lastRequest = JSON.parse(args.join('|')) as BattleRequest;
-            if (isBattleSideID(context.lastRequest.side?.id)) context.perspective = context.lastRequest.side.id;
-          } catch { /* The live router surfaces malformed request state. */ }
+            if (isBattleSideID(context.lastRequest.side?.id))
+              context.perspective = context.lastRequest.side.id;
+          } catch {
+            /* The live router surfaces malformed request state. */
+          }
         }
         feedLine(battle!, raw);
-        const capture = options.turnsOnly ? ['start', 'turn', 'win', 'tie'].includes(command) || index === lines.length - 1 :
-          ['turn', 'move', 'switch', 'drag', 'faint', 'win', 'tie', 'cant'].includes(command) || command.startsWith('-');
+        const capture = options.turnsOnly
+          ? ['start', 'turn', 'win', 'tie'].includes(command) || index === lines.length - 1
+          : ['turn', 'move', 'switch', 'drag', 'faint', 'win', 'tie', 'cant'].includes(command) ||
+            command.startsWith('-');
         if (capture) {
-          points.push({ line: index, turn: battle!.turn, label: describeBattleLine({ command, args }), battle: projectEngineBattle(battle!, context) });
+          points.push({
+            line: index,
+            turn: battle!.turn,
+            label: describeBattleLine({ command, args }),
+            battle: projectEngineBattle(battle!, context),
+          });
         }
       }
       consumed = lines.length;
@@ -461,17 +571,35 @@ export function flipBattleView(battle: ArenaBattle): ArenaBattle {
     const index = isFourPlayerBattle(battle.gameType) ? (current + 1) % 4 : current ^ 1;
     const own = battle.sides[index];
     const foe = battle.sides[index ^ 1];
-    if (own && foe) return { ...battle, playerSide: own.id,
-      active: own.actives[0] || own.team[0] || FALLBACK, opponentActive: foe.actives[0] || foe.team[0] || FALLBACK,
-      actives: own.actives, opponentActives: foe.actives, team: own.team, opponentTeam: foe.team,
-      teamSize: own.teamSize, opponentTeamSize: foe.teamSize, sideConditions: own.conditions, opponentSideConditions: foe.conditions };
+    if (own && foe)
+      return {
+        ...battle,
+        playerSide: own.id,
+        active: own.actives[0] || own.team[0] || FALLBACK,
+        opponentActive: foe.actives[0] || foe.team[0] || FALLBACK,
+        actives: own.actives,
+        opponentActives: foe.actives,
+        team: own.team,
+        opponentTeam: foe.team,
+        teamSize: own.teamSize,
+        opponentTeamSize: foe.teamSize,
+        sideConditions: own.conditions,
+        opponentSideConditions: foe.conditions,
+      };
   }
   const nextSide = `p${(battleSideIndex(battle.playerSide || 'p1') ^ 1) + 1}` as BattleSideID;
-  return { ...battle, playerSide: nextSide,
-    active: battle.opponentActive, opponentActive: battle.active,
-    actives: battle.opponentActives, opponentActives: battle.actives,
-    team: battle.opponentTeam, opponentTeam: battle.team,
-    teamSize: battle.opponentTeamSize, opponentTeamSize: battle.teamSize,
-    sideConditions: battle.opponentSideConditions, opponentSideConditions: battle.sideConditions,
+  return {
+    ...battle,
+    playerSide: nextSide,
+    active: battle.opponentActive,
+    opponentActive: battle.active,
+    actives: battle.opponentActives,
+    opponentActives: battle.actives,
+    team: battle.opponentTeam,
+    opponentTeam: battle.team,
+    teamSize: battle.opponentTeamSize,
+    opponentTeamSize: battle.teamSize,
+    sideConditions: battle.opponentSideConditions,
+    opponentSideConditions: battle.sideConditions,
   };
 }

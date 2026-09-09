@@ -3,14 +3,25 @@ import type { Page } from '@playwright/test';
 import { installMockPs } from './mock-ps';
 
 const roomId = 'battle-gen9ou-1';
-const emit = async (page: Page, lines: string, id = roomId) => page.evaluate(({ text, room }) => {
-  const socket = (window as unknown as { __mockPsSockets: Array<{ emit: (data: string) => void }> }).__mockPsSockets[0];
-  socket.emit(`>${room}\n${text}`);
-}, { text: lines, room: id });
-const choices = async (page: Page) => page.evaluate(() =>
-  (window as unknown as { __mockPsSent: string[] }).__mockPsSent.filter(command => command.includes('/choose')));
+const emit = async (page: Page, lines: string, id = roomId) =>
+  page.evaluate(
+    ({ text, room }) => {
+      const socket = (window as unknown as { __mockPsSockets: Array<{ emit: (data: string) => void }> })
+        .__mockPsSockets[0];
+      socket.emit(`>${room}\n${text}`);
+    },
+    { text: lines, room: id },
+  );
+const choices = async (page: Page) =>
+  page.evaluate(() =>
+    (window as unknown as { __mockPsSent: string[] }).__mockPsSent.filter(command =>
+      command.includes('/choose'),
+    ),
+  );
 
-test.beforeEach(async ({ page }) => { await installMockPs(page); });
+test.beforeEach(async ({ page }) => {
+  await installMockPs(page);
+});
 
 async function startBattle(page: Page) {
   await page.goto('/');
@@ -23,7 +34,9 @@ async function startBattle(page: Page) {
   await expect(page.locator('.move-choice', { hasText: 'Moonblast' })).toBeVisible();
 }
 
-test('request submission locks controls, rejection repairs them and undo awaits the server', async ({ page }) => {
+test('request submission locks controls, rejection repairs them and undo awaits the server', async ({
+  page,
+}) => {
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
   await startBattle(page);
@@ -43,11 +56,23 @@ test('request submission locks controls, rejection repairs them and undo awaits 
   expect(errors).toEqual([]);
 });
 
-test('team preview accepts the first slot, toggles and reorders before explicit confirmation', async ({ page }) => {
+test('team preview accepts the first slot, toggles and reorders before explicit confirmation', async ({
+  page,
+}) => {
   await startBattle(page);
-  const side = { id: 'p1', name: 'CodexTester', pokemon: ['Iron Valiant', 'Heatran', 'Dragapult'].map((name, i) => ({
-    ident: `p1: ${name}`, details: `${name}, L80`, condition: '200/200', active: i === 0, moves: ['tackle'], ability: '', item: '',
-  })) };
+  const side = {
+    id: 'p1',
+    name: 'CodexTester',
+    pokemon: ['Iron Valiant', 'Heatran', 'Dragapult'].map((name, i) => ({
+      ident: `p1: ${name}`,
+      details: `${name}, L80`,
+      condition: '200/200',
+      active: i === 0,
+      moves: ['tackle'],
+      ability: '',
+      item: '',
+    })),
+  };
   await emit(page, `|teampreview|2\n|request|${JSON.stringify({ rqid: 8, teamPreview: true, side })}`);
   const preview = page.getByRole('group', { name: 'Team preview selection' });
   await preview.getByRole('button', { name: /^Iron Valiant,/ }).click();
@@ -88,7 +113,14 @@ test('mobile touch inspection is independent of submitting a move', async ({ pag
   const nearHealth = await page.locator('.combatant-near .combatant-nameplate').boundingBox();
   const dock = await page.getByLabel('Battle action deck').boundingBox();
   expect(field && dock && field.y + field.height <= dock.y + 1).toBeTruthy();
-  expect(field && near && nearHealth && Math.max(near.y + near.height, nearHealth.y + nearHealth.height) <= field.y + field.height).toBeTruthy();
-  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(
+    field &&
+      near &&
+      nearHealth &&
+      Math.max(near.y + near.height, nearHealth.y + nearHealth.height) <= field.y + field.height,
+  ).toBeTruthy();
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  );
   expect(overflow).toBeLessThanOrEqual(1);
 });

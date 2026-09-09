@@ -23,17 +23,77 @@ import DOMPurify from 'dompurify';
 
 const PURIFY_OPTIONS = {
   ALLOWED_TAGS: [
-    'a', 'b', 'strong', 'i', 'em', 'u', 's', 'del', 'strike', 'code', 'pre',
-    'br', 'p', 'div', 'span', 'small', 'big', 'sup', 'sub', 'font',
-    'blockquote', 'ul', 'ol', 'li', 'table', 'thead', 'tbody', 'tfoot', 'tr',
-    'td', 'th', 'summary', 'details', 'center', 'hr', 'img', 'button',
-    'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'abbr',
+    'a',
+    'b',
+    'strong',
+    'i',
+    'em',
+    'u',
+    's',
+    'del',
+    'strike',
+    'code',
+    'pre',
+    'br',
+    'p',
+    'div',
+    'span',
+    'small',
+    'big',
+    'sup',
+    'sub',
+    'font',
+    'blockquote',
+    'ul',
+    'ol',
+    'li',
+    'table',
+    'thead',
+    'tbody',
+    'tfoot',
+    'tr',
+    'td',
+    'th',
+    'summary',
+    'details',
+    'center',
+    'hr',
+    'img',
+    'button',
+    'h1',
+    'h2',
+    'h3',
+    'h4',
+    'h5',
+    'h6',
+    'abbr',
   ],
   ALLOWED_ATTR: [
-    'href', 'target', 'rel', 'title', 'src', 'alt', 'width', 'height',
-    'style', 'align', 'valign', 'colspan', 'rowspan', 'border', 'cellpadding',
-    'cellspacing', 'color', 'size', 'face', 'bgcolor', 'name', 'value', 'class',
-    'data-cmd', 'data-href',
+    'href',
+    'target',
+    'rel',
+    'title',
+    'src',
+    'alt',
+    'width',
+    'height',
+    'style',
+    'align',
+    'valign',
+    'colspan',
+    'rowspan',
+    'border',
+    'cellpadding',
+    'cellspacing',
+    'color',
+    'size',
+    'face',
+    'bgcolor',
+    'name',
+    'value',
+    'class',
+    'data-cmd',
+    'data-href',
   ],
   // NOTE: no custom ALLOWED_URI_REGEXP — DOMPurify applies it to EVERY
   // attribute outside its URI-safe set, so a strict one silently strips
@@ -45,10 +105,19 @@ const PURIFY_OPTIONS = {
 /** Showdown internal links belong to this client; other web links open separately. */
 export function normalizeChatHref(value: string): string | null {
   const href = value.trim();
-  if (!href || href.length > 2048 || href.includes('\\') || [...href].some(character => character.charCodeAt(0) <= 32)) return null;
+  if (
+    !href ||
+    href.length > 2048 ||
+    href.includes('\\') ||
+    [...href].some(character => character.charCodeAt(0) <= 32)
+  )
+    return null;
   let url: URL;
-  try { url = new URL(href, 'https://play.pokemonshowdown.com/'); }
-  catch { return null; }
+  try {
+    url = new URL(href, 'https://play.pokemonshowdown.com/');
+  } catch {
+    return null;
+  }
   if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password) return null;
   if (url.hostname !== 'play.pokemonshowdown.com') return url.href;
   const path = (url.hash || url.pathname).replace(/^[/#]/, '').replace(/\/$/, '');
@@ -63,10 +132,14 @@ export function normalizeChatHref(value: string): string | null {
 /** Rich content cannot issue account, battle, moderation or arbitrary chat actions. */
 export function isSafeChatCommand(command: string): boolean {
   if (command.length > 300 || /[\r\n\0|]/.test(command)) return false;
-  return /^\/(?:join|j) [a-z0-9-]{1,200}$/i.test(command) ||
-    /^\/(?:rules|help|faq|roomintro|data|dt|details|learn|dexsearch|movesearch|itemsearch|abilitysearch)(?: [^/]{1,250})?$/i.test(command) ||
+  return (
+    /^\/(?:join|j) [a-z0-9-]{1,200}$/i.test(command) ||
+    /^\/(?:rules|help|faq|roomintro|data|dt|details|learn|dexsearch|movesearch|itemsearch|abilitysearch)(?: [^/]{1,250})?$/i.test(
+      command,
+    ) ||
     /^\/(?:cmd|query) (?:rooms|roomlist|userdetails [a-z0-9]{1,18})$/i.test(command) ||
-    /^\/poll (?:vote [1-9]\d*(?:,\s*[1-9]\d*)*|view|results)$/i.test(command);
+    /^\/poll (?:vote [1-9]\d*(?:,\s*[1-9]\d*)*|view|results)$/i.test(command)
+  );
 }
 
 DOMPurify.addHook('afterSanitizeAttributes', node => {
@@ -150,7 +223,7 @@ const luminance = (value: string): number | null => {
   }
   const hex = value.match(/^#([0-9a-f]{3}(?:[0-9a-f]{3})?)$/i);
   if (hex) {
-    const digits = hex[1].length === 3 ? [...hex[1]].map(d => d + d) : hex[1].match(/../g) as string[];
+    const digits = hex[1].length === 3 ? [...hex[1]].map(d => d + d) : (hex[1].match(/../g) as string[]);
     const [r, g, b] = digits.map(pair => parseInt(pair, 16));
     return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
   }
@@ -164,7 +237,8 @@ const isExtreme = (value: string): boolean => {
   return level !== null && (level > 0.82 || level < 0.18);
 };
 
-const CSS_NON_COLOR_WORD = /^(?:transparent|initial|inherit|unset|revert|none|repeat(?:-[xy])?|no-repeat|space|round|center|top|bottom|left|right|cover|contain|fixed|scroll|local|border-box|padding-box|content-box|url)$/i;
+const CSS_NON_COLOR_WORD =
+  /^(?:transparent|initial|inherit|unset|revert|none|repeat(?:-[xy])?|no-repeat|space|round|center|top|bottom|left|right|cover|contain|fixed|scroll|local|border-box|padding-box|content-box|url)$/i;
 
 /**
  * Solid background luminance declared on this element, or null. Reads
@@ -215,7 +289,9 @@ const colorIsJustified = (declaration: HTMLElement): boolean => {
   if (level === null) return true;
   const inheritors = [declaration, ...declaration.querySelectorAll<HTMLElement>('*')]
     .filter(el => el === declaration || !readDeclaration(el, 'color'))
-    .filter(el => [...el.childNodes].some(node => node.nodeType === 3 && (node.textContent || '').trim().length > 0));
+    .filter(el =>
+      [...el.childNodes].some(node => node.nodeType === 3 && (node.textContent || '').trim().length > 0),
+    );
   for (const el of inheritors) {
     const bg = chainBackground(el);
     if (bg !== null && Math.abs(bg - level) >= 0.35) return true;
@@ -231,7 +307,8 @@ export const sanitizeChatHtml = (html: string): string => {
   // inside markup and accidentally reinterpret its closing tags.
   if (html.length > 256 * 1024) return '<p>Room content is too large to display safely.</p>';
   const fragment = DOMPurify.sanitize(html, { ...PURIFY_OPTIONS, RETURN_DOM_FRAGMENT: true });
-  if (fragment.querySelectorAll('*').length > 3000) return '<p>Room content is too complex to display safely.</p>';
+  if (fragment.querySelectorAll('*').length > 3000)
+    return '<p>Room content is too complex to display safely.</p>';
 
   // Keep an extreme color only when contrast-justified; otherwise drop it
   // and the text-shadow designed around it (shadows INHERIT — left in place

@@ -8,7 +8,10 @@ const ICONS = {
   error: AlertCircle,
 } as const;
 
-export function StatusCallout({ children, tone = 'info' }: {
+export function StatusCallout({
+  children,
+  tone = 'info',
+}: {
   children: ReactNode;
   tone?: keyof typeof ICONS;
 }) {

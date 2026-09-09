@@ -1,7 +1,14 @@
 import { Dex } from '@pkmn/dex';
 import { Generations, ID } from '@pkmn/data';
 import { Battle } from '@pkmn/client';
-import { createBattleHistory, feedLine, flipBattleView, loadEngine, projectEngineBattle, projectEngineLog } from './engine';
+import {
+  createBattleHistory,
+  feedLine,
+  flipBattleView,
+  loadEngine,
+  projectEngineBattle,
+  projectEngineLog,
+} from './engine';
 import singlesLog from '../compat/__fixtures__/gen9ou-singles.log?raw';
 import doublesLog from '../compat/__fixtures__/gen9-doubles.log?raw';
 import playerLog from '../compat/__fixtures__/player-gen9ou.log?raw';
@@ -64,8 +71,11 @@ describe('@pkmn/client engine over fixtures', () => {
       if (line) midBattle.add(line);
     }
     const view = projectEngineBattle(midBattle, {
-      roomId: 'battle-gen9doublesou-1', perspective: null,
-      result: { ended: false }, lastRequest: undefined, waiting: false,
+      roomId: 'battle-gen9doublesou-1',
+      perspective: null,
+      result: { ended: false },
+      lastRequest: undefined,
+      waiting: false,
       format: 'gen9doublesou',
     });
     expect(view.actives?.map(pokemon => pokemon.slot)).toEqual([1, 2]);
@@ -112,15 +122,31 @@ describe('@pkmn/client engine over fixtures', () => {
 });
 
 describe('battle information and history', () => {
-  beforeAll(async () => { await loadEngine(); });
+  beforeAll(async () => {
+    await loadEngine();
+  });
 
   it('retains total unrevealed slots, public move usage and possible speed', () => {
     const battle = new Battle(gens, null);
-    for (const line of ['|gametype|singles', '|gen|9', '|player|p1|Alice', '|player|p2|Bob', '|teamsize|p1|6', '|teamsize|p2|6', '|start', '|switch|p1a: Pikachu|Pikachu|100/100', '|switch|p2a: Bulbasaur|Bulbasaur|100/100', '|move|p2a: Bulbasaur|Tackle|p1a: Pikachu']) feedLine(battle, line);
+    for (const line of [
+      '|gametype|singles',
+      '|gen|9',
+      '|player|p1|Alice',
+      '|player|p2|Bob',
+      '|teamsize|p1|6',
+      '|teamsize|p2|6',
+      '|start',
+      '|switch|p1a: Pikachu|Pikachu|100/100',
+      '|switch|p2a: Bulbasaur|Bulbasaur|100/100',
+      '|move|p2a: Bulbasaur|Tackle|p1a: Pikachu',
+    ])
+      feedLine(battle, line);
     const view = projectEngineBattle(battle, { roomId: 'battle-test', perspective: null });
     expect(view.opponentTeam).toHaveLength(1);
     expect(view.opponentTeamSize).toBe(6);
-    expect(view.opponentActive.knownMoves).toContainEqual(expect.objectContaining({ name: 'Tackle', used: 1 }));
+    expect(view.opponentActive.knownMoves).toContainEqual(
+      expect.objectContaining({ name: 'Tackle', used: 1 }),
+    );
     expect(view.opponentActive.speedRange?.[0]).toBeLessThan(view.opponentActive.speedRange![1]);
     expect(view.opponentActive.currentHp).toBeUndefined();
   });

@@ -22,10 +22,14 @@ export function useBackground() {
         validateBackground(blob);
         objectUrl = URL.createObjectURL(blob);
         document.documentElement.style.setProperty('--arena-background-image', `url("${objectUrl}")`);
-      } catch { /* The default background remains readable if storage is unavailable. */ }
+      } catch {
+        /* The default background remains readable if storage is unavailable. */
+      }
     };
     void apply();
-    const changed = () => { void apply(); };
+    const changed = () => {
+      void apply();
+    };
     window.addEventListener('arena:background-changed', changed);
     return () => {
       disposed = true;

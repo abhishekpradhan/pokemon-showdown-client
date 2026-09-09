@@ -6,7 +6,15 @@ import type { BattleTimer as BattleTimerState } from '../rooms/types';
  * Countdown chip fed by |inactive| messages. The server only speaks when the
  * clock changes, so the display ticks locally from the last known value.
  */
-export function BattleTimerChip({ timer, running = true, ended = false }: { timer: BattleTimerState; running?: boolean; ended?: boolean }) {
+export function BattleTimerChip({
+  timer,
+  running = true,
+  ended = false,
+}: {
+  timer: BattleTimerState;
+  running?: boolean;
+  ended?: boolean;
+}) {
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -16,14 +24,25 @@ export function BattleTimerChip({ timer, running = true, ended = false }: { time
   }, [timer.on, timer.secondsLeft, timer.asOf, running, ended]);
 
   if (!timer.on || ended) return null;
-  if (!running || timer.secondsLeft === undefined || !timer.asOf) return <span className="battle-timer-chip"><Timer size={13} aria-hidden />Timer on{!running ? ' · waiting' : ''}</span>;
+  if (!running || timer.secondsLeft === undefined || !timer.asOf)
+    return (
+      <span className="battle-timer-chip">
+        <Timer size={13} aria-hidden />
+        Timer on{!running ? ' · waiting' : ''}
+      </span>
+    );
 
   const elapsed = Math.max(0, Math.floor((now - timer.asOf) / 1000));
   const remaining = Math.max(0, timer.secondsLeft - elapsed);
   const urgent = remaining <= 30;
 
   return (
-    <span className="battle-timer-chip" data-urgent={urgent} role="timer" aria-label={`${remaining} seconds to choose`}>
+    <span
+      className="battle-timer-chip"
+      data-urgent={urgent}
+      role="timer"
+      aria-label={`${remaining} seconds to choose`}
+    >
       <Timer size={13} aria-hidden />
       {remaining}s
     </span>

@@ -33,7 +33,7 @@ export function CommandBar() {
       selectTeam: state.selectTeam,
       setSelectedFormat: state.setSelectedFormat,
       teams: state.teams,
-    }))
+    })),
   );
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -45,7 +45,9 @@ export function CommandBar() {
   const openPalette = (opener: HTMLElement) => {
     openerRef.current = opener;
     executedRef.current = false;
-    setQuery(''); setHighlight(0); setOpen(true);
+    setQuery('');
+    setHighlight(0);
+    setOpen(true);
   };
 
   useEffect(() => {
@@ -53,11 +55,15 @@ export function CommandBar() {
       const target = event.target as HTMLElement | null;
       const isTyping = target?.matches('input, textarea, select') || target?.isContentEditable;
       if (event.isComposing || event.defaultPrevented || target?.closest('[role="dialog"]')) return;
-      if ((event.key.toLowerCase() === 'k' && (event.metaKey || event.ctrlKey)) || (event.key === '/' && !isTyping && !event.altKey && !event.metaKey && !event.ctrlKey)) {
+      if (
+        (event.key.toLowerCase() === 'k' && (event.metaKey || event.ctrlKey)) ||
+        (event.key === '/' && !isTyping && !event.altKey && !event.metaKey && !event.ctrlKey)
+      ) {
         event.preventDefault();
         openerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
         executedRef.current = false;
-        setQuery(''); setHighlight(0);
+        setQuery('');
+        setHighlight(0);
         setOpen(true);
       }
     };
@@ -84,11 +90,14 @@ export function CommandBar() {
       .map(room => ({
         id: `room-${room.id}`,
         group: 'Open sessions',
-        label: room.type === 'battle' && room.battle.p1.name !== 'Player 1' ?
-          `${room.battle.p1.name} v ${room.battle.p2.name}` : room.title,
+        label:
+          room.type === 'battle' && room.battle.p1.name !== 'Player 1'
+            ? `${room.battle.p1.name} v ${room.battle.p2.name}`
+            : room.title,
         hint: room.type,
         run: go(() => {
-          if (room.type === 'battle') void navigate({ to: '/battle/$battleId', params: { battleId: room.id } });
+          if (room.type === 'battle')
+            void navigate({ to: '/battle/$battleId', params: { battleId: room.id } });
           else void navigate({ to: '/room/$roomId', params: { roomId: room.id } });
         }),
       }));
@@ -120,12 +129,14 @@ export function CommandBar() {
   const matches = useMemo(() => {
     const needle = query.trim().toLowerCase();
     const normalizedNeedle = toId(needle);
-    const pool = needle ?
-      commands.filter(command =>
-        command.label.toLowerCase().includes(needle) || (normalizedNeedle.length > 0 && toId(command.label).includes(normalizedNeedle))
-      ) :
-      // Empty query: pages and whatever is already open, not 400 formats.
-      commands.filter(command => command.group === 'Pages' || command.group === 'Open sessions');
+    const pool = needle
+      ? commands.filter(
+          command =>
+            command.label.toLowerCase().includes(needle) ||
+            (normalizedNeedle.length > 0 && toId(command.label).includes(normalizedNeedle)),
+        )
+      : // Empty query: pages and whatever is already open, not 400 formats.
+        commands.filter(command => command.group === 'Pages' || command.group === 'Open sessions');
     return pool.slice(0, 24);
   }, [commands, query]);
 
@@ -133,14 +144,14 @@ export function CommandBar() {
     if (!matches.length) return;
     setHighlight(current => {
       const next = Math.min(Math.max(current + delta, 0), matches.length - 1);
-      listRef.current
-        ?.querySelector(`[data-index="${next}"]`)
-        ?.scrollIntoView({ block: 'nearest' });
+      listRef.current?.querySelector(`[data-index="${next}"]`)?.scrollIntoView({ block: 'nearest' });
       return next;
     });
   };
 
-  const groups = matches.reduce<Array<{ group: Command['group']; items: Array<Command & { index: number }> }>>((acc, command, index) => {
+  const groups = matches.reduce<
+    Array<{ group: Command['group']; items: Array<Command & { index: number }> }>
+  >((acc, command, index) => {
     const bucket = acc.find(entry => entry.group === command.group);
     if (bucket) bucket.items.push({ ...command, index });
     else acc.push({ group: command.group, items: [{ ...command, index }] });
@@ -149,16 +160,34 @@ export function CommandBar() {
 
   return (
     <>
-      <button type="button" className="command-trigger" aria-label="Search" aria-haspopup="dialog" aria-expanded={open} onClick={event => openPalette(event.currentTarget)}>
+      <button
+        type="button"
+        className="command-trigger"
+        aria-label="Search"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        onClick={event => openPalette(event.currentTarget)}
+      >
         <Search size={15} aria-hidden />
         <span>Search</span>
         <kbd>{isMac ? '⌘K' : 'Ctrl K'}</kbd>
       </button>
 
-      <Dialog.Root open={open} onOpenChange={next => { setOpen(next); if (!next) { setQuery(''); setHighlight(0); } }}>
+      <Dialog.Root
+        open={open}
+        onOpenChange={next => {
+          setOpen(next);
+          if (!next) {
+            setQuery('');
+            setHighlight(0);
+          }
+        }}
+      >
         <Dialog.Portal>
           <Dialog.Overlay className="dialog-overlay" />
-          <Dialog.Content className="command-palette" aria-label="Command palette"
+          <Dialog.Content
+            className="command-palette"
+            aria-label="Command palette"
             onCloseAutoFocus={event => {
               event.preventDefault();
               if (executedRef.current) document.getElementById('workspace')?.focus({ preventScroll: true });
@@ -179,19 +208,32 @@ export function CommandBar() {
                 aria-autocomplete="list"
                 aria-expanded="true"
                 aria-controls={resultsId}
-                aria-activedescendant={matches[highlight] ? `${resultsId}-${matches[highlight].id}` : undefined}
+                aria-activedescendant={
+                  matches[highlight] ? `${resultsId}-${matches[highlight].id}` : undefined
+                }
                 value={query}
                 onChange={event => {
                   setQuery(event.currentTarget.value);
                   setHighlight(0);
                 }}
                 onKeyDown={event => {
-                  if (event.key === 'ArrowDown') { event.preventDefault(); move(1); }
-                  if (event.key === 'ArrowUp') { event.preventDefault(); move(-1); }
-                  if (event.key === 'Enter' && !event.nativeEvent.isComposing) { event.preventDefault(); matches[highlight]?.run(); }
+                  if (event.key === 'ArrowDown') {
+                    event.preventDefault();
+                    move(1);
+                  }
+                  if (event.key === 'ArrowUp') {
+                    event.preventDefault();
+                    move(-1);
+                  }
+                  if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
+                    event.preventDefault();
+                    matches[highlight]?.run();
+                  }
                 }}
               />
-              <Dialog.Close className="palette-close" aria-label="Close search"><X size={17} aria-hidden /></Dialog.Close>
+              <Dialog.Close className="palette-close" aria-label="Close search">
+                <X size={17} aria-hidden />
+              </Dialog.Close>
             </div>
             <div className="palette-results" id={resultsId} ref={listRef} role="listbox" aria-label="Results">
               {groups.map(({ group, items }) => (
@@ -210,10 +252,15 @@ export function CommandBar() {
                       onMouseEnter={() => setHighlight(command.index)}
                       onClick={command.run}
                     >
-                      {group === 'Pages' ? <LayoutGrid size={14} aria-hidden /> :
-                        group === 'Formats' ? <Swords size={14} aria-hidden /> :
-                        group === 'Teams' ? <Shield size={14} aria-hidden /> :
-                        <Hash size={14} aria-hidden />}
+                      {group === 'Pages' ? (
+                        <LayoutGrid size={14} aria-hidden />
+                      ) : group === 'Formats' ? (
+                        <Swords size={14} aria-hidden />
+                      ) : group === 'Teams' ? (
+                        <Shield size={14} aria-hidden />
+                      ) : (
+                        <Hash size={14} aria-hidden />
+                      )}
                       <span className="palette-row-label">{command.label}</span>
                       {command.hint && <small>{command.hint}</small>}
                     </button>

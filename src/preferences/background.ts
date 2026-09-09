@@ -7,7 +7,10 @@ export const validateBackground = (file: Blob) => {
   if (!file.size || file.size > MAX_BYTES) throw new Error('Choose an image smaller than 1 MB.');
 };
 
-function imageStore<T>(mode: IDBTransactionMode, action: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> {
+function imageStore<T>(
+  mode: IDBTransactionMode,
+  action: (store: IDBObjectStore) => IDBRequest<T>,
+): Promise<T> {
   return new Promise((resolve, reject) => {
     let settled = false;
     let db: IDBDatabase | undefined;
@@ -16,30 +19,51 @@ function imageStore<T>(mode: IDBTransactionMode, action: (store: IDBObjectStore)
       if (settled) return;
       settled = true;
       clearTimeout(timeout);
-      if (error && transaction) { try { transaction.abort(); } catch { /* Already finished. */ } }
+      if (error && transaction) {
+        try {
+          transaction.abort();
+        } catch {
+          /* Already finished. */
+        }
+      }
       db?.close();
-      if (error) reject(error); else resolve(value as T);
+      if (error) reject(error);
+      else resolve(value as T);
     };
-    const timeout = window.setTimeout(() => finish(new Error('Image storage timed out. Close other Arena tabs and try again.')), 10_000);
+    const timeout = window.setTimeout(
+      () => finish(new Error('Image storage timed out. Close other Arena tabs and try again.')),
+      10_000,
+    );
     try {
       const request = indexedDB.open(DB_NAME, 1);
       request.onupgradeneeded = () => {
-        if (settled) { request.transaction?.abort(); return; }
+        if (settled) {
+          request.transaction?.abort();
+          return;
+        }
         request.result.createObjectStore('images');
       };
       request.onerror = () => finish(new Error('Image storage is unavailable in this browser.'));
       request.onblocked = () => finish(new Error('Close other Arena tabs and try again.'));
       request.onsuccess = () => {
         db = request.result;
-        if (settled) { db.close(); return; }
+        if (settled) {
+          db.close();
+          return;
+        }
         try {
           transaction = db.transaction('images', mode);
           const result = action(transaction.objectStore('images'));
           transaction.oncomplete = () => finish(undefined, result.result);
-          transaction.onabort = transaction.onerror = () => finish(new Error('The image could not be stored. Free some browser storage and try again.'));
-        } catch { finish(new Error('Image storage is unavailable or full. Free some browser storage and try again.')); }
+          transaction.onabort = transaction.onerror = () =>
+            finish(new Error('The image could not be stored. Free some browser storage and try again.'));
+        } catch {
+          finish(new Error('Image storage is unavailable or full. Free some browser storage and try again.'));
+        }
       };
-    } catch { finish(new Error('Image storage is unavailable in this browser.')); }
+    } catch {
+      finish(new Error('Image storage is unavailable in this browser.'));
+    }
   });
 }
 
@@ -47,9 +71,19 @@ export async function readBackground(): Promise<Blob | undefined> {
   const stored: unknown = await imageStore('readonly', store => store.get('background'));
   if (stored === undefined) return undefined;
   // Keep early Blob records readable; new records use bytes for Safari compatibility.
-  if (stored instanceof Blob) { validateBackground(stored); return stored; }
-  if (!stored || typeof stored !== 'object' || !('bytes' in stored) || !('type' in stored) ||
-      !(stored.bytes instanceof Uint8Array) || typeof stored.type !== 'string' || stored.bytes.byteLength > MAX_BYTES) {
+  if (stored instanceof Blob) {
+    validateBackground(stored);
+    return stored;
+  }
+  if (
+    !stored ||
+    typeof stored !== 'object' ||
+    !('bytes' in stored) ||
+    !('type' in stored) ||
+    !(stored.bytes instanceof Uint8Array) ||
+    typeof stored.type !== 'string' ||
+    stored.bytes.byteLength > MAX_BYTES
+  ) {
     throw new Error('The saved image is invalid. Choose it again.');
   }
   const blob = new Blob([new Uint8Array(stored.bytes)], { type: stored.type });
@@ -66,11 +100,24 @@ export async function saveBackground(file: File): Promise<void> {
     image.src = url;
     let decodeTimeout: number | undefined;
     try {
-      await Promise.race([image.decode(), new Promise<never>((_, reject) => {
-        decodeTimeout = window.setTimeout(() => { image.src = ''; reject(new Error('Opening this image timed out. Try another image.')); }, 10_000);
-      })]);
-    } finally { clearTimeout(decodeTimeout); }
-    if (!image.naturalWidth || !image.naturalHeight || image.naturalWidth > 8192 || image.naturalHeight > 8192) {
+      await Promise.race([
+        image.decode(),
+        new Promise<never>((_, reject) => {
+          decodeTimeout = window.setTimeout(() => {
+            image.src = '';
+            reject(new Error('Opening this image timed out. Try another image.'));
+          }, 10_000);
+        }),
+      ]);
+    } finally {
+      clearTimeout(decodeTimeout);
+    }
+    if (
+      !image.naturalWidth ||
+      !image.naturalHeight ||
+      image.naturalWidth > 8192 ||
+      image.naturalHeight > 8192
+    ) {
       throw new Error('Choose an image with each side no larger than 8192 pixels.');
     }
     const bytes = new Uint8Array(await file.arrayBuffer());
@@ -78,6 +125,8 @@ export async function saveBackground(file: File): Promise<void> {
   } catch (error) {
     if (error instanceof Error && error.name !== 'EncodingError') throw error;
     throw new Error('This image could not be opened. Try another PNG, JPEG or WebP.');
-  } finally { URL.revokeObjectURL(url); }
+  } finally {
+    URL.revokeObjectURL(url);
+  }
 }
 export const backgroundChanged = () => window.dispatchEvent(new Event('arena:background-changed'));

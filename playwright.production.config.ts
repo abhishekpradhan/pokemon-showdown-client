@@ -8,7 +8,12 @@ export default defineConfig({
   workers: 1,
   outputDir: 'test-results-production',
   reporter: [['list'], ['html', { open: 'never', outputFolder: 'playwright-report-production' }]],
-  use: { baseURL: 'http://127.0.0.1:4173', colorScheme: 'dark', trace: 'retain-on-failure', screenshot: 'only-on-failure' },
+  use: {
+    baseURL: 'http://127.0.0.1:4173',
+    colorScheme: 'dark',
+    trace: 'retain-on-failure',
+    screenshot: 'only-on-failure',
+  },
   webServer: {
     command: 'npm run preview -- --host 127.0.0.1',
     url: 'http://127.0.0.1:4173',

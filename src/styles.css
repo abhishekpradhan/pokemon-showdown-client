@@ -7,20 +7,20 @@
  * shell, shell on base, base on tokens.
  */
 
-@import "./styles/tokens.css";
-@import "./styles/base.css";
-@import "./styles/matchmaking.css";
-@import "./styles/battle.css";
-@import "./styles/workspace.css";
-@import "./styles/teams.css";
-@import "./styles/rooms.css";
-@import "./styles/ladder.css";
-@import "./styles/replays.css";
-@import "./styles/settings.css";
-@import "./styles/dialogs.css";
+@import './styles/tokens.css';
+@import './styles/base.css';
+@import './styles/matchmaking.css';
+@import './styles/battle.css';
+@import './styles/workspace.css';
+@import './styles/teams.css';
+@import './styles/rooms.css';
+@import './styles/ladder.css';
+@import './styles/replays.css';
+@import './styles/settings.css';
+@import './styles/dialogs.css';
 
 /* Shell chrome loads last: it refines surfaces the app frame wraps. */
-@import "./styles/shell.css";
+@import './styles/shell.css';
 
 /* Touch minimums must beat the per-surface desktop sizing. */
-@import "./styles/touch.css";
+@import './styles/touch.css';

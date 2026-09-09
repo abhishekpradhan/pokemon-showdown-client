@@ -22,8 +22,6 @@
   ],
   "id": "/",
   "scope": "/",
-  "categories": [
-    "games"
-  ],
+  "categories": ["games"],
   "lang": "en"
 }
