@@ -23,8 +23,10 @@ import { replayUploadUrl } from '../compat/replay-upload';
 import { isServerLanguage } from '../preferences/options';
 import { avatarUrl } from '../preferences/avatars';
 import { cancelAuthentication, matchesAuthenticationIdentity } from '../compat/auth-session';
+import { recordClientError } from '../compat/diagnostics';
 import { useWorkspaceStore } from '../stores/workspace-store';
 import {
+  isRecord,
   parseChatRoomList,
   parseFormats,
   parseQueryResponse,
@@ -194,7 +196,7 @@ const handleGlobal = (line: PsLine, store: ArenaStoreApi): boolean => {
         connection: 'connected',
         // Avatar/language/status updates also use updateuser. They describe the
         // current identity, not completion of an unrelated sign-in operation.
-        ...(settlesIdentity ? { loginPending: false, needsPassword: false, lastError: undefined } : {}),
+        ...(settlesIdentity ? { loginPending: false, lastError: undefined } : {}),
       });
       if (confirmsLogin) cancelAuthentication();
       const confirmed = getState();
@@ -388,7 +390,10 @@ const handleGlobal = (line: PsLine, store: ArenaStoreApi): boolean => {
 
     case 'queryresponse': {
       const response = parseQueryResponse(line);
-      if (!response) return true;
+      // Every structured response handled here is a JSON object. `null`, a
+      // bare string or an array (laddertop, consumed elsewhere) must not reach
+      // the store hooks, which destructure their payloads.
+      if (!response || !isRecord(response.data)) return true;
       if (response.id === 'roomlist') {
         const roomList = parseRoomList(response.data);
         if (roomList) setState({ roomList });
@@ -1024,34 +1029,46 @@ export function battleEventFromLine(
   return { kind, side, sideId, slot, at: Date.now(), label };
 }
 
+const routeLine = (frame: PsFrame, roomId: string, line: PsLine, store: ArenaStoreApi) => {
+  if (!frame.roomId && handleGlobal(line, store)) return;
+  if (handleLifecycle(roomId, line, store)) return;
+  // Global commands can also arrive addressed to a room (e.g. lobby chat
+  // frames carry |users| handled above; battle frames carry |request|).
+  if (frame.roomId && handleGlobal(line, store)) return;
+
+  const room = store.getState().rooms[roomId];
+  if (room?.type === 'battle' || roomId.startsWith('battle-')) {
+    handleBattleLine(roomId, line, store);
+    return;
+  }
+
+  const chat = parseChatLine(line);
+  if (chat) {
+    store.setState(state => {
+      const target = state.rooms[roomId] || newChatRoom(roomId, roomId === 'lobby' ? 'Lobby' : roomId);
+      return {
+        rooms: upsert(
+          state.rooms,
+          appendChat(target, chat, state.activeRoomId === roomId && !document.hidden) as Room,
+        ),
+        lastError: chat.kind === 'error' ? chat.message : state.lastError,
+      };
+    });
+  }
+};
+
 export function routeFrame(frame: PsFrame, store: ArenaStoreApi) {
   const roomId = frame.roomId || 'lobby';
 
   for (const line of frame.lines) {
-    if (!frame.roomId && handleGlobal(line, store)) continue;
-    if (handleLifecycle(roomId, line, store)) continue;
-    // Global commands can also arrive addressed to a room (e.g. lobby chat
-    // frames carry |users| handled above; battle frames carry |request|).
-    if (frame.roomId && handleGlobal(line, store)) continue;
-
-    const room = store.getState().rooms[roomId];
-    if (room?.type === 'battle' || roomId.startsWith('battle-')) {
-      handleBattleLine(roomId, line, store);
-      continue;
-    }
-
-    const chat = parseChatLine(line);
-    if (chat) {
-      store.setState(state => {
-        const target = state.rooms[roomId] || newChatRoom(roomId, roomId === 'lobby' ? 'Lobby' : roomId);
-        return {
-          rooms: upsert(
-            state.rooms,
-            appendChat(target, chat, state.activeRoomId === roomId && !document.hidden) as Room,
-          ),
-          lastError: chat.kind === 'error' ? chat.message : state.lastError,
-        };
-      });
+    try {
+      routeLine(frame, roomId, line, store);
+    } catch (error) {
+      // Lines in a frame are independent: a malformed payload in one must not
+      // drop the |request| or |win| that follows it, nor unwind into the
+      // connection layer. A zustand updater that throws applies nothing, so the
+      // store is still consistent; record the failure and move on.
+      recordClientError('router', error, line.raw);
     }
   }
 }

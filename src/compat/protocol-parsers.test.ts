@@ -57,6 +57,20 @@ describe('chat room directory', () => {
       format: 'gen9ou',
     });
   });
+
+  it('skips entries that are not objects instead of failing the whole list', () => {
+    const battles = parseRoomList({
+      rooms: { 'battle-gen9ou-1': null, 'battle-gen9ou-2': 'junk', 'battle-gen9ou-3': { p1: 'A', p2: 'B' } },
+    });
+    expect(battles!.rooms.map(room => room.id)).toEqual(['battle-gen9ou-3']);
+
+    const chat = parseChatRoomList({ chat: [null, 7, live.chat[0]], sectionTitles: ['Official'] });
+    expect(chat!.rooms.map(room => room.id)).toEqual(['lobby']);
+
+    expect(parseRoomList({ rooms: null })).toBeNull();
+    expect(parseRoomList(['not', 'a', 'record'])).toBeNull();
+    expect(parseChatRoomList({ chat: [null] })).toBeNull();
+  });
 });
 
 describe('format list', () => {

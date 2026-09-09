@@ -1,7 +1,8 @@
+import { toId } from './protocol-parsers';
+
 /** One cancellable identity operation per application session. */
 let active: AbortController | undefined;
 let requestedIdentity: string | undefined;
-const identity = (name: string) => name.toLowerCase().replace(/[^a-z0-9]/g, '');
 
 export function cancelAuthentication() {
   active?.abort();
@@ -11,12 +12,12 @@ export function cancelAuthentication() {
 
 /** Arm only when /trn is about to be sent, never while a provider/fetch is pending. */
 export function expectAuthenticationIdentity(name: string) {
-  if (active && !active.signal.aborted) requestedIdentity = identity(name) || undefined;
+  if (active && !active.signal.aborted) requestedIdentity = toId(name) || undefined;
 }
 
 /** Older servers omit the target name on assertion errors, but not success ACKs. */
 export function matchesAuthenticationIdentity(name: string, allowUnnamed = false) {
-  const userid = identity(name);
+  const userid = toId(name);
   return (
     !!active &&
     !active.signal.aborted &&

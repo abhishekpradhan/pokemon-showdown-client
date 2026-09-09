@@ -8,7 +8,6 @@ import {
   buildBattleCommand,
   createBattleChoiceSession,
   demoBattle,
-  type ArenaBattle,
   type BattleSideID,
   type BattleChoice,
   type BattleChoiceState,
@@ -38,7 +37,6 @@ import {
 import { toId, type ChatRoomList, type RoomList } from '../compat/protocol-parsers';
 import {
   exportPackedTeam,
-  exportTeam,
   importPackedTeam,
   importTeams,
   loadStoredTeams,
@@ -92,11 +90,6 @@ export type Challenges = {
   to: { to: string; format: string } | null;
 };
 
-type LoginCredentials = {
-  name: string;
-  password?: string;
-};
-
 export type UserCardDetails = {
   userid: string;
   name: string;
@@ -117,11 +110,8 @@ export type ArenaState = {
   named: boolean;
   challstr: string;
   connection: ConnectionState;
-  connectionReason?: string;
   loginPending: boolean;
   loginStage?: 'authorization' | 'confirmation';
-  /** Set when the login server reports the chosen name is registered. */
-  needsPassword: boolean;
   lastError?: string;
   sessionNotice?: string;
   server: ServerConfig;
@@ -161,8 +151,7 @@ export type ArenaState = {
   hardcoreMode: boolean;
   protocolLogEnabled: boolean;
   rawProtocolLog: string[];
-  /** Replay publish flow: /savereplay → server payload → upload proxy. */
-  replayStatus?: { roomId?: string; state: 'saving' | 'uploaded' | 'failed'; url?: string; error?: string };
+  /** Replay publish flow per battle: /savereplay → server payload → upload proxy. */
   replayStatuses: Record<
     string,
     {
@@ -194,7 +183,6 @@ export type ArenaState = {
   resumeSession: (challstr: string) => Promise<void>;
   oauthAvailable: boolean;
   oauthLinked: boolean;
-  login: (credentials: LoginCredentials) => Promise<void>;
   logout: () => Promise<void>;
   joinRoom: (roomId: string) => void;
   leaveRoom: (roomId: string) => boolean;
@@ -203,7 +191,6 @@ export type ArenaState = {
   refreshChatRooms: () => void;
   sendRoomMessage: (roomId: string, message: string) => boolean;
   setSelectedFormat: (format: string) => void;
-  setActiveTeam: (team: PackedTeam) => void;
   importTeamText: (text: string, name?: string, format?: string) => void;
   selectTeam: (teamId: string) => void;
   deleteTeam: (teamId: string) => void;
@@ -212,7 +199,6 @@ export type ArenaState = {
   updateTeamFormat: (teamId: string, format: string) => void;
   replaceTeamFromText: (teamId: string, text: string) => void;
   validateTeamForFormat: (teamId?: string, formatId?: string) => TeamValidationResult;
-  exportActiveTeam: () => string;
   startSearch: () => void;
   cancelSearch: () => void;
   sendChallenge: (user: string, format?: string) => void;
@@ -311,20 +297,24 @@ const clearCancelSearchTimeout = () => {
 
 /**
  * Turns a login-server assertion into either a `/trn` handshake or a UI state.
- * Only the requested named identity in `|updateuser|` confirms the handshake.
+ * Only the requested named identity in `|updateuser|` confirms the handshake,
+ * so the confirmation timeout is armed here, when `/trn` actually goes out —
+ * never while the login server is still being waited on.
  */
 const applyAssertion = (name: string, outcome: AssertionOutcome) => {
   if (outcome.kind === 'assertion') {
+    scheduleLoginTimeout();
     expectAuthenticationIdentity(name);
     useArenaStore.getState().protocol.send(`/trn ${name},0,${outcome.assertion}`);
     return;
   }
   clearLoginTimeout();
   cancelAuthentication();
+  // Registered names never get a password prompt here: sign-in for them is
+  // OAuth on play.pokemonshowdown.com, which is what both messages point to.
   if (outcome.kind === 'needs-password') {
     useArenaStore.setState({
       loginPending: false,
-      needsPassword: false,
       lastError: `${name} is registered. Use “Sign in with Pokémon Showdown” to authorize your account.`,
     });
     return;
@@ -332,12 +322,11 @@ const applyAssertion = (name: string, outcome: AssertionOutcome) => {
   if (outcome.kind === 'needs-google') {
     useArenaStore.setState({
       loginPending: false,
-      needsPassword: false,
       lastError: `${name} uses Google sign-in. Use “Sign in with Pokémon Showdown” and sign in there.`,
     });
     return;
   }
-  useArenaStore.setState({ loginPending: false, needsPassword: false, lastError: outcome.message });
+  useArenaStore.setState({ loginPending: false, lastError: outcome.message });
 };
 
 /** Resolves an optional room id to the battle room it names, if any. */
@@ -355,7 +344,6 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
   challstr: '',
   connection: 'offline',
   loginPending: false,
-  needsPassword: false,
   userCards: {},
   oauthAvailable: oauthConfigured(),
   oauthLinked: !!storedOAuthToken(),
@@ -419,7 +407,6 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
       loginPending: false,
       searchState: 'idle',
       searchFormats: [],
-      replayStatus: undefined,
       replayStatuses: {},
       challstr: '',
       lastError: undefined,
@@ -470,7 +457,6 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
         const outcome = await getAssertion(toId(name), challstr, attempt.signal);
         if (!current()) return;
         set({ loginPending: true, loginStage: 'confirmation' });
-        scheduleLoginTimeout();
         applyAssertion(name, outcome);
       }
     } catch (error) {
@@ -501,9 +487,12 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
       return;
     }
 
-    set({ loginPending: true, loginStage: 'confirmation', lastError: undefined, needsPassword: false });
+    set({ loginPending: true, loginStage: 'confirmation', lastError: undefined });
     const attempt = beginAuthentication();
-    scheduleLoginTimeout();
+    // A previous attempt's confirmation timer must not fire into this one. The
+    // new timer is armed by applyAssertion once /trn is sent; the login-server
+    // round trip itself is bounded inside getAssertion.
+    clearLoginTimeout();
     try {
       const outcome = await getAssertion(userid, challstr, attempt.signal);
       if (!attempt.current() || get().challstr !== challstr) return;
@@ -517,7 +506,6 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
       applyAssertion(trimmed, outcome);
     } catch (error) {
       if (!attempt.current()) return;
-      clearLoginTimeout();
       set({
         loginPending: false,
         lastError: error instanceof Error ? error.message : 'Could not reach the login server.',
@@ -534,7 +522,7 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
       set({ lastError: 'Still handshaking with the server. Try again in a moment.' });
       return;
     }
-    set({ loginPending: true, loginStage: 'authorization', lastError: undefined, needsPassword: false });
+    set({ loginPending: true, loginStage: 'authorization', lastError: undefined });
     const attempt = beginAuthentication();
     clearLoginTimeout();
     try {
@@ -568,12 +556,6 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
     }
   },
 
-  login: async ({ name, password }) => {
-    if (!password) return get().chooseName(name);
-    set({
-      lastError: 'Use “Sign in with Pokémon Showdown”. Passwords are entered only on Pokémon Showdown.',
-    });
-  },
   logout: async () => {
     get().cancelLogin();
     const { protocol: client } = get();
@@ -584,7 +566,7 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
     } catch {
       /* optional */
     }
-    set({ named: false, username: 'Guest', needsPassword: false, oauthLinked: false, lastError: undefined });
+    set({ named: false, username: 'Guest', oauthLinked: false, lastError: undefined });
   },
 
   joinRoom: roomId => {
@@ -701,7 +683,6 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
   },
 
   setSelectedFormat: selectedFormat => set({ selectedFormat }),
-  setActiveTeam: activeTeam => set({ activeTeam: importPackedTeam(activeTeam), activeTeamId: undefined }),
   replaceTeamLibrary: teams => {
     const result = saveStoredTeams(teams);
     if (!result.ok) {
@@ -885,10 +866,6 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
     const selectedFormat = get().formats.find(format => format.id === (formatId || get().selectedFormat));
     if (selectedFormat?.team === false) return { ok: true, errors: [], warnings: [] };
     return team ? validateTeamSets(team.sets, formatId || get().selectedFormat) : validateStoredTeam(team);
-  },
-  exportActiveTeam: () => {
-    const team = get().teams.find(entry => entry.id === get().activeTeamId);
-    return team ? exportTeam(team.packed) : exportTeam(get().activeTeam);
   },
 
   startSearch: () => {
@@ -1343,7 +1320,6 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
     }
     if (state.replayStatuses[room.id]?.state === 'saving') return;
     const requestedAt = Date.now();
-    set({ replayStatus: { roomId: room.id, state: 'saving' } });
     set(current => ({
       replayStatuses: {
         ...current.replayStatuses,
@@ -1368,10 +1344,7 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
         ...result,
         state: result.url ? ('uploaded' as const) : ('failed' as const),
       };
-      return {
-        replayStatuses: { ...state.replayStatuses, [roomId]: status },
-        replayStatus: state.replayStatus?.roomId === roomId ? status : state.replayStatus,
-      };
+      return { replayStatuses: { ...state.replayStatuses, [roomId]: status } };
     }),
 
   toggleHardcore: hardcoreMode => set({ hardcoreMode }),
@@ -1466,7 +1439,6 @@ protocol.subscribe(event => {
     }
     useArenaStore.setState(state => ({
       connection: event.state,
-      connectionReason: event.reason,
       loginPending: event.state !== 'connected' ? false : state.loginPending,
       ...(event.state !== 'connected' ? { named: false, challstr: '' } : {}),
       lastError:
@@ -1552,13 +1524,3 @@ onEngineReady(() => {
     return { rooms };
   });
 });
-
-// ── Selectors shared by components ──────────────────────────────────────────
-
-export const selectBattleRooms = (state: ArenaState): BattleRoom[] =>
-  Object.values(state.rooms).filter((room): room is BattleRoom => room.type === 'battle');
-
-export const selectBattle = (state: ArenaState, roomId: string): ArenaBattle | undefined => {
-  const room = state.rooms[roomId];
-  return room?.type === 'battle' ? room.battle : undefined;
-};

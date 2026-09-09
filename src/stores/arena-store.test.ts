@@ -28,7 +28,7 @@ describe('arena store protocol integration', () => {
     const store = useArenaStore.getState();
 
     store.handleFrame(parsePsFrame('|challstr|1|abc'));
-    store.handleFrame(parsePsFrame('|updateuser|CodexTester|1|0'));
+    store.handleFrame(parsePsFrame('|updateuser|ArenaTester|1|0'));
     store.handleFrame(
       parsePsFrame('|formats|,1|S/V Singles|[Gen 9] Random Battle,4f|[Gen 9] OU,e|[Gen 9] Ubers,e'),
     );
@@ -36,7 +36,7 @@ describe('arena store protocol integration', () => {
 
     const state = useArenaStore.getState();
     expect(state.challstr).toBe('1|abc');
-    expect(state.username).toBe('CodexTester');
+    expect(state.username).toBe('ArenaTester');
     expect(state.named).toBe(true);
     expect(state.formats.find(format => format.id === 'gen9ou')).toMatchObject({
       id: 'gen9ou',
@@ -142,7 +142,7 @@ describe('arena store protocol integration', () => {
     expect(useArenaStore.getState().lastError).toContain('Choose a name');
     expect(send).not.toHaveBeenCalled();
 
-    store.handleFrame(parsePsFrame('|updateuser|CodexTester|1|0'));
+    store.handleFrame(parsePsFrame('|updateuser|ArenaTester|1|0'));
     store.startSearch();
     expect(useArenaStore.getState().lastError).toContain('Select or import a team');
 
@@ -162,7 +162,7 @@ describe('arena store protocol integration', () => {
 
     // Without the handshake there is nothing to sign, so `/trn` must not go out
     // — sending it unsigned is what the server rejects as an invalid token.
-    await useArenaStore.getState().chooseName('CodexTester');
+    await useArenaStore.getState().chooseName('ArenaTester');
     expect(send).not.toHaveBeenCalled();
     expect(useArenaStore.getState().lastError).toContain('handshaking');
   });
@@ -177,20 +177,20 @@ describe('arena store protocol integration', () => {
       challstr: '4|challstr-value',
     });
 
-    await useArenaStore.getState().chooseName('CodexTester');
+    await useArenaStore.getState().chooseName('ArenaTester');
 
     const body = (fetchMock.mock.calls[0][1] as RequestInit).body as URLSearchParams;
     expect(body.get('act')).toBe('getassertion');
-    expect(body.get('userid')).toBe('codextester');
+    expect(body.get('userid')).toBe('arenatester');
     expect(body.get('challstr')).toBe('4|challstr-value');
-    expect(send).toHaveBeenCalledWith('/trn CodexTester,0,4|assertion-payload');
+    expect(send).toHaveBeenCalledWith('/trn ArenaTester,0,4|assertion-payload');
     expect(useArenaStore.getState().loginPending).toBe(true);
 
-    useArenaStore.getState().handleFrame(parsePsFrame('|updateuser| CodexTester|1|0'));
+    useArenaStore.getState().handleFrame(parsePsFrame('|updateuser| ArenaTester|1|0'));
     expect(useArenaStore.getState()).toMatchObject({
       loginPending: false,
       named: true,
-      username: 'CodexTester',
+      username: 'ArenaTester',
     });
     vi.unstubAllGlobals();
   });
@@ -203,13 +203,12 @@ describe('arena store protocol integration', () => {
       protocol: { send } as unknown as ReturnType<typeof useArenaStore.getState>['protocol'],
       connection: 'connected',
       challstr: '4|challstr-value',
-      needsPassword: false,
     });
 
     await useArenaStore.getState().chooseName('Zarel');
 
     expect(send).not.toHaveBeenCalled();
-    expect(useArenaStore.getState()).toMatchObject({ needsPassword: false, loginPending: false });
+    expect(useArenaStore.getState()).toMatchObject({ loginPending: false });
     expect(useArenaStore.getState().lastError).toContain('Sign in with Pokémon Showdown');
     vi.unstubAllGlobals();
   });
@@ -223,8 +222,8 @@ describe('arena store protocol integration', () => {
       challstr: '4|challstr-value',
     });
 
-    await useArenaStore.getState().chooseName('CodexTester');
-    useArenaStore.getState().handleFrame(parsePsFrame('|nametaken|CodexTester|That name is taken.'));
+    await useArenaStore.getState().chooseName('ArenaTester');
+    useArenaStore.getState().handleFrame(parsePsFrame('|nametaken|ArenaTester|That name is taken.'));
     expect(useArenaStore.getState()).toMatchObject({
       loginPending: false,
       lastError: 'That name is taken.',
@@ -271,10 +270,10 @@ describe('arena store protocol integration', () => {
 
   it('tracks a room tournament through its lifecycle', () => {
     const store = useArenaStore.getState();
-    useArenaStore.setState({ username: 'CodexTester' });
+    useArenaStore.setState({ username: 'ArenaTester' });
     store.handleFrame(parsePsFrame('>lobby\n|init|chat\n|title|Lobby'));
     store.handleFrame(parsePsFrame('>lobby\n|tournament|create|gen9ou|Single Elimination|8'));
-    store.handleFrame(parsePsFrame('>lobby\n|tournament|join|CodexTester'));
+    store.handleFrame(parsePsFrame('>lobby\n|tournament|join|ArenaTester'));
     store.handleFrame(parsePsFrame('>lobby\n|tournament|join|Rival'));
     store.handleFrame(parsePsFrame('>lobby\n|tournament|update|{"isJoined":true,"isStarted":false}'));
 
@@ -285,17 +284,17 @@ describe('arena store protocol integration', () => {
       generator: 'Single Elimination',
       playerCap: 8,
       isJoined: true,
-      players: ['CodexTester', 'Rival'],
+      players: ['ArenaTester', 'Rival'],
     });
 
     store.handleFrame(parsePsFrame('>lobby\n|tournament|start|2'));
-    store.handleFrame(parsePsFrame('>lobby\n|tournament|battlestart|CodexTester|Rival|battle-gen9ou-77'));
+    store.handleFrame(parsePsFrame('>lobby\n|tournament|battlestart|ArenaTester|Rival|battle-gen9ou-77'));
     room = useArenaStore.getState().rooms.lobby;
     if (room?.type !== 'chat') throw new Error('expected chat room');
     expect(room.tournament).toMatchObject({ isStarted: true, currentBattle: 'battle-gen9ou-77' });
 
     store.handleFrame(
-      parsePsFrame('>lobby\n|tournament|battleend|CodexTester|Rival|win|1,0|success|battle-gen9ou-77'),
+      parsePsFrame('>lobby\n|tournament|battleend|ArenaTester|Rival|win|1,0|success|battle-gen9ou-77'),
     );
     store.handleFrame(parsePsFrame('>lobby\n|tournament|end|{}'));
     room = useArenaStore.getState().rooms.lobby;

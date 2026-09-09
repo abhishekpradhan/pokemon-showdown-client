@@ -6,6 +6,7 @@ import {
   serverWebSocketUrl,
   type ServerConfig,
 } from './protocol-client';
+import { clientErrors, resetClientErrors } from './diagnostics';
 
 class FakeWebSocket {
   static instances: FakeWebSocket[] = [];
@@ -121,6 +122,34 @@ describe('PS protocol helpers', () => {
     socket.onmessage?.({ data: '>lobby\n|c|alice|hello' });
 
     expect(roomIds).toEqual(['lobby']);
+  });
+
+  it('delivers an event to every subscriber even when an earlier one throws', () => {
+    resetClientErrors();
+    const client = new ProtocolClient(server, FakeWebSocket as unknown as typeof WebSocket);
+    const received: string[] = [];
+    client.subscribe(event => {
+      if (event.type === 'frame') throw new Error('subscriber failure');
+    });
+    client.subscribe(event => {
+      if (event.type === 'frame') received.push(event.frame.roomId);
+    });
+
+    client.connect();
+    const socket = FakeWebSocket.instances[0];
+    socket.onopen?.();
+    expect(() => socket.onmessage?.({ data: '>lobby\n|c|alice|private words' })).not.toThrow();
+
+    expect(received).toEqual(['lobby']);
+    expect(clientErrors()).toEqual([
+      expect.objectContaining({
+        source: 'protocol-client',
+        message: 'Error: subscriber failure',
+        context: '>[room]\n|c|[private payload omitted]',
+      }),
+    ]);
+    client.disconnect();
+    resetClientErrors();
   });
 });
 

@@ -46,8 +46,69 @@ afterEach(() => {
   useArenaStore.setState(initial, true);
   useWorkspaceStore.setState(preferences, true);
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
   vi.useRealTimers();
   sessionStorage.clear();
+});
+
+it('arms the confirmation timeout only once a slow login server has answered and /trn is sent', async () => {
+  vi.useFakeTimers();
+  vi.spyOn(login, 'getAssertion').mockImplementation(
+    () =>
+      new Promise<login.AssertionOutcome>(resolve => {
+        setTimeout(() => resolve({ kind: 'assertion', assertion: 'slow-assertion' }), 9_000);
+      }),
+  );
+  const pending = useArenaStore.getState().chooseName('ArenaOld');
+  // Nine seconds at the login server: longer than the 8 s server-confirmation
+  // window, which must not be running yet because nothing was sent.
+  await vi.advanceTimersByTimeAsync(9_000);
+  await pending;
+  expect(send).toHaveBeenCalledWith('/trn ArenaOld,0,slow-assertion');
+  expect(useArenaStore.getState()).toMatchObject({ loginPending: true, lastError: undefined });
+  frame('|updateuser| ArenaOld|1|lucas');
+  expect(useArenaStore.getState()).toMatchObject({ loginPending: false, named: true, username: 'ArenaOld' });
+  await vi.advanceTimersByTimeAsync(8_001);
+  expect(useArenaStore.getState().lastError).toBeUndefined();
+});
+
+it('starts the confirmation window when the assertion is sent, not when the fetch starts', async () => {
+  vi.useFakeTimers();
+  vi.spyOn(login, 'getAssertion').mockImplementation(
+    () =>
+      new Promise<login.AssertionOutcome>(resolve => {
+        setTimeout(() => resolve({ kind: 'assertion', assertion: 'slow-assertion' }), 9_000);
+      }),
+  );
+  const pending = useArenaStore.getState().chooseName('ArenaOld');
+  await vi.advanceTimersByTimeAsync(9_000);
+  await pending;
+  await vi.advanceTimersByTimeAsync(7_999);
+  expect(useArenaStore.getState()).toMatchObject({ loginPending: true, lastError: undefined });
+  await vi.advanceTimersByTimeAsync(2);
+  expect(useArenaStore.getState()).toMatchObject({ loginPending: false });
+  expect(useArenaStore.getState().lastError).toContain('did not confirm');
+});
+
+it('reports a hung login server as a clear error instead of an endless pending sign-in', async () => {
+  vi.useFakeTimers();
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(
+      (_input: unknown, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () => reject(init.signal?.reason));
+        }),
+    ),
+  );
+  const pending = useArenaStore.getState().chooseName('ArenaOld');
+  await vi.advanceTimersByTimeAsync(login.LOGIN_SERVER_TIMEOUT - 1);
+  expect(useArenaStore.getState().loginPending).toBe(true);
+  await vi.advanceTimersByTimeAsync(2);
+  await pending;
+  expect(send).not.toHaveBeenCalled();
+  expect(useArenaStore.getState().loginPending).toBe(false);
+  expect(useArenaStore.getState().lastError).toContain('did not respond in time');
 });
 
 it('keeps OAuth pending through old-account profile updates and settles only the requested identity', async () => {
