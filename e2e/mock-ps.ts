@@ -10,7 +10,7 @@ export async function installMockPs(page: Page) {
       rqid: 7,
       side: {
         id: 'p1',
-        name: 'CodexTester',
+        name: 'ArenaTester',
         pokemon: [
           {
             ident: 'p1: Iron Valiant',
@@ -151,7 +151,7 @@ export async function installMockPs(page: Page) {
             `|queryresponse|roomlist|${JSON.stringify({
               rooms: {
                 lobby: { title: 'Lobby', userCount: 2 },
-                'battle-gen9ou-1': { p1: 'CodexTester', p2: 'MockRival', minElo: 1000 },
+                'battle-gen9ou-1': { p1: 'ArenaTester', p2: 'MockRival', minElo: 1000 },
               },
               userCount: 2,
               battleCount: 1,
@@ -225,7 +225,7 @@ export async function installMockPs(page: Page) {
         // Real servers always send |gen| and |tier|; the engine needs them to
         // resolve species in the right generation.
         this.emit(
-          '>battle-gen9ou-1\n|init|battle\n|title|CodexTester vs. MockRival\n|player|p1|CodexTester|266|1000\n|player|p2|MockRival|1|1000\n|gametype|singles\n|gen|9\n|tier|[Gen 9] OU',
+          '>battle-gen9ou-1\n|init|battle\n|title|ArenaTester vs. MockRival\n|player|p1|ArenaTester|266|1000\n|player|p2|MockRival|1|1000\n|gametype|singles\n|gen|9\n|tier|[Gen 9] OU',
         );
         this.emit(
           '>battle-gen9ou-1\n|clearpoke\n|poke|p1|Iron Valiant, L80\n|poke|p1|Heatran, L80\n|poke|p1|Dragapult, L80\n|poke|p2|Great Tusk, L80\n|poke|p2|Gholdengo, L80\n|poke|p2|Dragonite, L80\n|start\n|switch|p1a: Iron Valiant|Iron Valiant, L80|156/200\n|switch|p2a: Great Tusk|Great Tusk, L80|88/200\n|turn|12',
@@ -252,16 +252,6 @@ export async function installMockPs(page: Page) {
         const userid = body.get('userid') || '';
         if (userid === 'registeredname') return Promise.resolve(new Response(';'));
         return Promise.resolve(new Response(`4|mock-assertion-for-${userid}`));
-      }
-      if (act === 'login') {
-        const ok = body.get('pass') === 'correct-horse';
-        return Promise.resolve(
-          new Response(
-            ok
-              ? `]${JSON.stringify({ assertion: '4|mock-assertion-registered', curuser: { loggedin: true, username: body.get('name') } })}`
-              : `]${JSON.stringify({ actionsuccess: false, error: 'Wrong password.' })}`,
-          ),
-        );
       }
       return Promise.resolve(new Response(''));
     }) as typeof window.fetch;

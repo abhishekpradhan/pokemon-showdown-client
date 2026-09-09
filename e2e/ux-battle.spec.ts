@@ -10,9 +10,9 @@ test.beforeEach(async ({ page }) => {
 async function startBattle(page: Page) {
   await page.goto('/');
   await page.getByRole('button', { name: 'Unnamed guest', exact: true }).click();
-  await page.getByRole('textbox', { name: 'Username' }).fill('CodexTester');
+  await page.getByRole('textbox', { name: 'Username' }).fill('ArenaTester');
   await page.getByRole('button', { name: 'Use guest name', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'CodexTester', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'ArenaTester', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Find battle', exact: true }).click();
   await expect(page.getByRole('button', { name: /^Moonblast,/ })).toBeVisible();
 }
@@ -150,7 +150,7 @@ test('a full mobile move and team selection stays readable and reachable', async
     );
     const request = {
       rqid: 8,
-      side: { id: 'p1', name: 'CodexTester', pokemon },
+      side: { id: 'p1', name: 'ArenaTester', pokemon },
       active: [
         {
           moves: ['Moonblast', 'Close Combat', 'Psyshock', 'Shadow Ball'].map(move => ({

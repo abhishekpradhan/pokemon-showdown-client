@@ -14,10 +14,10 @@ test('loads home with real readiness states and no demo language', async ({ page
   await expect(page.locator('.queue-action')).toBeEnabled();
 
   await page.getByRole('button', { name: /Unnamed guest/i }).click();
-  await page.getByRole('textbox', { name: 'Username' }).fill('CodexTester');
+  await page.getByRole('textbox', { name: 'Username' }).fill('ArenaTester');
   await page.getByRole('button', { name: /Use guest name/i }).click();
   await expect(page.getByText('Waiting for server confirmation.')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'CodexTester', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'ArenaTester', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: /find battle/i })).toBeEnabled();
 });
 
@@ -50,13 +50,13 @@ test('account dialog stays pending and shows nametaken errors', async ({ page })
 test('search creates a mock battle room and sends exact battle choices', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: /Unnamed guest/i }).click();
-  await page.getByRole('textbox', { name: 'Username' }).fill('CodexTester');
+  await page.getByRole('textbox', { name: 'Username' }).fill('ArenaTester');
   await page.getByRole('button', { name: /Use guest name/i }).click();
-  await expect(page.getByRole('button', { name: 'CodexTester', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'ArenaTester', exact: true })).toBeVisible();
   await page.getByRole('button', { name: /find battle/i }).click();
 
   await expect(page).toHaveURL(/\/battle\/battle-gen9ou-1/);
-  await expect(page.locator('.battle-room-title')).toContainText('CodexTester');
+  await expect(page.locator('.battle-room-title')).toContainText('ArenaTester');
   await expect(page.locator('.battle-room-title')).toContainText('MockRival');
   await expect(page.getByRole('button', { name: /^Moonblast,/i })).toBeVisible();
 
@@ -124,7 +124,7 @@ test('leaving a room leaves for real and lands on the directory', async ({ page 
 test('closing the active tab moves to the neighbouring tab', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: /Unnamed guest/i }).click();
-  await page.getByRole('textbox', { name: 'Username' }).fill('CodexTester');
+  await page.getByRole('textbox', { name: 'Username' }).fill('ArenaTester');
   await page.getByRole('button', { name: /Use guest name/i }).click();
   await page.getByRole('button', { name: /find battle/i }).click();
   await expect(page).toHaveURL(/\/battle\/battle-gen9ou-1/);
@@ -132,7 +132,7 @@ test('closing the active tab moves to the neighbouring tab', async ({ page }) =>
   // Lobby (joined at connect) and the battle are both open; closing the
   // active battle should land on the lobby tab, not dump to matchmaking.
   page.once('dialog', dialog => dialog.accept());
-  await page.getByRole('button', { name: 'Close CodexTester v MockRival' }).click();
+  await page.getByRole('button', { name: 'Close ArenaTester v MockRival' }).click();
   await expect(page).toHaveURL(/\/room\/lobby/);
   await expect(page.getByRole('heading', { name: 'Lobby' })).toBeVisible();
 });
@@ -198,9 +198,9 @@ test('keeps mobile battle controls usable without horizontal overflow', async ({
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
   await page.getByRole('button', { name: /Unnamed guest/i }).click();
-  await page.getByRole('textbox', { name: 'Username' }).fill('CodexTester');
+  await page.getByRole('textbox', { name: 'Username' }).fill('ArenaTester');
   await page.getByRole('button', { name: /Use guest name/i }).click();
-  await expect(page.getByRole('button', { name: 'CodexTester', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'ArenaTester', exact: true })).toBeVisible();
   await page.getByRole('button', { name: /find battle/i }).click();
   await expect(page).toHaveURL(/\/battle\/battle-gen9ou-1/);
   await expect(page.getByRole('button', { name: /^Moonblast,/i })).toBeVisible();

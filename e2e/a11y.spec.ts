@@ -39,7 +39,7 @@ for (const route of ROUTES) {
 test('the battle console is accessible mid-battle', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: /Unnamed guest/i }).click();
-  await page.getByRole('textbox', { name: 'Username' }).fill('CodexTester');
+  await page.getByRole('textbox', { name: 'Username' }).fill('ArenaTester');
   await page.getByRole('button', { name: /Use guest name/i }).click();
   await page.getByRole('button', { name: 'Find battle' }).click();
   await expect(page).toHaveURL(/\/battle\//);

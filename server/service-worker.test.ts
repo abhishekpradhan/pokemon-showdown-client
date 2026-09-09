@@ -69,7 +69,7 @@ function worker(options: { quota?: boolean; mismatchedShell?: boolean; htmlAsset
     },
   };
   const script = template.replace(
-    /const BUILD = \/\* @arena-manifest \*\/ .*;/,
+    /const BUILD = \/\* @arena-manifest \*\/ [\s\S]*?;/,
     'const BUILD = { revision: "new", assets: ["/", "/assets/editor-new.js"] };',
   );
   runInNewContext(script, context);

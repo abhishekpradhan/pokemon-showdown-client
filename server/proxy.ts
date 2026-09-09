@@ -57,17 +57,21 @@ export async function readBoundedBody(
 }
 
 export async function proxyForm(request: Request, options: ProxyOptions): Promise<Response> {
+  if (request.method === 'OPTIONS') return reply(null, 204, { Allow: 'POST, OPTIONS' });
+  if (request.method !== 'POST') return reply('Only POST is supported.', 405, { Allow: 'POST, OPTIONS' });
   const origin = request.headers.get('origin');
-  // CLI clients may omit Origin. Browser cross-site and opaque origins are
-  // rejected; absent CORS headers alone would not stop form submissions.
+  // Browsers always send Origin on POST. Requiring it and matching it to our
+  // own origin keeps the deployment from serving as an anonymous relay for
+  // scripted callers; the deployed smoke test sends it explicitly. It is a
+  // speed bump, not authentication: Origin is trivially forged outside a
+  // browser, so the hosting platform's rate limits remain the real control.
   if (
-    (origin !== null && origin !== new URL(request.url).origin) ||
+    origin === null ||
+    origin !== new URL(request.url).origin ||
     request.headers.get('sec-fetch-site') === 'cross-site'
   ) {
     return reply('Cross-origin requests are not supported.', 403);
   }
-  if (request.method === 'OPTIONS') return reply(null, 204, { Allow: 'POST, OPTIONS' });
-  if (request.method !== 'POST') return reply('Only POST is supported.', 405, { Allow: 'POST, OPTIONS' });
   if (
     request.headers.get('content-type')?.split(';')[0].trim().toLowerCase() !==
     'application/x-www-form-urlencoded'

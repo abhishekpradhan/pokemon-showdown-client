@@ -150,7 +150,7 @@ test('multiline drafts grow, survive failed sends, and return focus after succes
   await expect(page.getByText('Message was not sent. Your draft is kept here.')).toHaveCount(0);
   await page.reload();
   await expect(draft).toHaveValue('Revised draft');
-  await emit(page, '|updateuser| CodexTester|1|0');
+  await emit(page, '|updateuser| ArenaTester|1|0');
   await page.getByRole('button', { name: 'Send', exact: true }).click();
   await expect(draft).toHaveValue('');
   await expect(draft).toBeFocused();

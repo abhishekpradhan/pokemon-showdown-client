@@ -25,13 +25,13 @@ test('signs a guest name with an assertion from the login server', async ({ page
   await page.goto('/');
 
   await page.getByRole('button', { name: /Unnamed guest/i }).click();
-  await page.getByRole('textbox', { name: 'Username' }).fill('CodexTester');
+  await page.getByRole('textbox', { name: 'Username' }).fill('ArenaTester');
   await page.getByRole('button', { name: /Use guest name/i }).click();
 
-  await expect(page.getByRole('button', { name: 'CodexTester', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'ArenaTester', exact: true })).toBeVisible();
 
   const calls = await actionCalls(page);
-  expect(calls.some(call => call.includes('act=getassertion') && call.includes('userid=codextester'))).toBe(
+  expect(calls.some(call => call.includes('act=getassertion') && call.includes('userid=arenatester'))).toBe(
     true,
   );
   expect(calls.some(call => call.includes('challstr='))).toBe(true);
@@ -40,15 +40,15 @@ test('signs a guest name with an assertion from the login server', async ({ page
   const sent = await sentMessages(page);
   const trn = sent.find(message => message.includes('/trn '));
   expect(trn).toBeTruthy();
-  expect(trn).toContain('/trn CodexTester,0,4|mock-assertion-for-codextester');
+  expect(trn).toContain('/trn ArenaTester,0,4|mock-assertion-for-arenatester');
 });
 
 test('never sends an unsigned /trn', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: /Unnamed guest/i }).click();
-  await page.getByRole('textbox', { name: 'Username' }).fill('CodexTester');
+  await page.getByRole('textbox', { name: 'Username' }).fill('ArenaTester');
   await page.getByRole('button', { name: /Use guest name/i }).click();
-  await expect(page.getByRole('button', { name: 'CodexTester', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'ArenaTester', exact: true })).toBeVisible();
 
   const sent = await sentMessages(page);
   const unsigned = sent.filter(message => /\/trn [^,]+$/.test(message.trim()));
@@ -87,12 +87,12 @@ test('never collects a Showdown password; registered names go through OAuth', as
 test('strips the group symbol from the display name', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: /Unnamed guest/i }).click();
-  await page.getByRole('textbox', { name: 'Username' }).fill('CodexTester');
+  await page.getByRole('textbox', { name: 'Username' }).fill('ArenaTester');
   await page.getByRole('button', { name: /Use guest name/i }).click();
 
-  // The server sends "|updateuser| CodexTester|1|0" — the leading space is the
+  // The server sends "|updateuser| ArenaTester|1|0" — the leading space is the
   // group symbol, not part of the name.
-  await expect(page.getByRole('button', { name: 'CodexTester', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'ArenaTester', exact: true })).toBeVisible();
 });
 
 /**
@@ -104,9 +104,9 @@ test('strips the group symbol from the display name', async ({ page }) => {
 test('spectating renders a true spectator view', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: /Unnamed guest/i }).click();
-  await page.getByRole('textbox', { name: 'Username' }).fill('CodexTester');
+  await page.getByRole('textbox', { name: 'Username' }).fill('ArenaTester');
   await page.getByRole('button', { name: /Use guest name/i }).click();
-  await expect(page.getByRole('button', { name: 'CodexTester', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'ArenaTester', exact: true })).toBeVisible();
 
   await page.goto('/battle/battle-gen9uu-spectate1');
   await expect(page.locator('.battle-room-title')).toContainText('AlphaPlayer');

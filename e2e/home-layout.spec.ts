@@ -10,7 +10,7 @@ test.beforeEach(async ({ page }) => {
 test('home spectating lists battle rooms without chat rooms', async ({ page }) => {
   const live = page.getByRole('region', { name: 'Live battles', exact: true });
   await expect(live.getByRole('button')).toHaveCount(1);
-  await expect(live.getByRole('button')).toContainText('CodexTester vs MockRival');
+  await expect(live.getByRole('button')).toContainText('ArenaTester vs MockRival');
   await expect(live.getByRole('button', { name: /Lobby/ })).toHaveCount(0);
 });
 
