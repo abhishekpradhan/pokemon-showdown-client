@@ -13,13 +13,16 @@ permissions:
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Superseded pull-request pushes cancel each other; runs on main finish so their evidence stays intact.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   NODE_VERSION: 24.x
 
 jobs:
   check:
+    if: github.event_name != 'schedule'
+    timeout-minutes: 15
     name: Quality (Node ${{ matrix.node }})
     runs-on: ubuntu-latest
     strategy:
@@ -40,6 +43,7 @@ jobs:
   security:
     name: Dependency advisories
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
@@ -49,9 +53,15 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
       - run: npm ci
+      # Blocking gate: high or critical advisories in dependencies that ship to users.
       - run: npm run audit:dependencies
+      # Advisory: every severity across the full tree, including test tooling. Dependabot lands the fixes.
+      - run: npm run audit:dependencies:all
+        continue-on-error: true
 
   browsers:
+    if: github.event_name != 'schedule'
+    timeout-minutes: 25
     name: Browser (${{ matrix.project }})
     runs-on: ubuntu-latest
     strategy:
@@ -87,6 +97,8 @@ jobs:
           retention-days: 7
 
   visual:
+    if: github.event_name != 'schedule'
+    timeout-minutes: 20
     name: Visual baselines (macOS)
     runs-on: macos-15
     steps:
@@ -110,6 +122,8 @@ jobs:
           retention-days: 7
 
   production:
+    if: github.event_name != 'schedule'
+    timeout-minutes: 20
     name: Production boundary and bundle budgets
     runs-on: ubuntu-latest
     steps:
@@ -136,6 +150,7 @@ jobs:
           retention-days: 7
 
   integration:
+    if: github.event_name != 'schedule'
     name: Pinned local server integration
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -159,7 +174,8 @@ jobs:
 
   release-checks:
     name: Release checks
-    if: always()
+    if: always() && github.event_name != 'schedule'
+    timeout-minutes: 5
     needs: [check, security, browsers, visual, production, integration]
     runs-on: ubuntu-latest
     steps:
@@ -172,6 +188,7 @@ jobs:
   live:
     name: Public protocol drift (advisory)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     if: github.event_name != 'pull_request'
     continue-on-error: true
     steps:

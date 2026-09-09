@@ -54,7 +54,7 @@ export function buildArtifacts(env: Record<string, string>): Plugin {
       const buildId = createHash('sha256').update(assets.join('\n') + shell + template + revision).digest('hex').slice(0, 20);
       writeFileSync(shellPath, shell.replace('</head>', `  <meta name="arena-build" content="${buildId}" />\n  </head>`));
       const core = ['/', '/manifest.webmanifest', '/favicon.svg', '/icon-512.png', '/build-info.json', '/third-party-licenses.json', '/THIRD_PARTY_NOTICES.txt', ...assets];
-      writeFileSync(resolve(outDir, 'sw.js'), template.replace(/const BUILD = \/\* @arena-manifest \*\/ .*;/, `const BUILD = ${JSON.stringify({ revision: buildId, assets: core })};`));
+      writeFileSync(resolve(outDir, 'sw.js'), template.replace(/const BUILD = \/\* @arena-manifest \*\/ [\s\S]*?;/, `const BUILD = ${JSON.stringify({ revision: buildId, assets: core })};`));
     },
   };
 }
