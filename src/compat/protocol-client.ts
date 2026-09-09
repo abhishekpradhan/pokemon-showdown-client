@@ -1,3 +1,5 @@
+import { recordClientError } from './diagnostics';
+
 export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'offline' | 'error';
 
 export type ServerConfig = {
@@ -41,6 +43,20 @@ const DEFAULT_SERVER: ServerConfig = {
 };
 
 const SERVER_STORAGE_KEY = 'arena.server';
+
+/** What a failing subscriber was handling, for the diagnostics record (sanitized there). */
+const describeEvent = (event: ConnectionEvent): string => {
+  switch (event.type) {
+    case 'frame':
+      return event.frame.raw;
+    case 'send':
+      return event.message;
+    case 'state':
+      return `state:${event.state}`;
+    case 'error':
+      return `error:${event.error.message}`;
+  }
+};
 
 export function getDefaultServerConfig(): ServerConfig {
   return { ...DEFAULT_SERVER };
@@ -315,6 +331,14 @@ export class ProtocolClient {
   }
 
   private emit(event: ConnectionEvent) {
-    this.handlers.forEach(handler => handler(event));
+    for (const handler of this.handlers) {
+      try {
+        handler(event);
+      } catch (error) {
+        // Subscribers are independent (the store, a ladder request, a test
+        // probe): one throwing must not starve the rest of the same event.
+        recordClientError('protocol-client', error, describeEvent(event));
+      }
+    }
   }
 }

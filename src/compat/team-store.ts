@@ -1,4 +1,3 @@
-import type { PokemonSet } from './battle-adapter';
 // dex.ts wraps the lazily-loaded @pkmn chunk; importing it statically is
 // cheap and the checks below no-op until loadDex() has run somewhere.
 import { getAbility, getItem, getMove, getSpecies, isDexLoaded } from '../data/dex';
@@ -34,14 +33,6 @@ export type StoredTeam = {
   packed: string;
   sets: TeamSet[];
   updatedAt: number;
-};
-
-export type TeamSummary = {
-  id: string;
-  name: string;
-  format: string;
-  pokemon: PokemonSet[];
-  packed: string;
 };
 
 export type TeamValidationResult = {
@@ -304,22 +295,6 @@ export function importTeams(text: string, format = 'gen9ou'): StoredTeam[] {
     });
   }
   return teams;
-}
-
-export function teamSummary(team: StoredTeam): TeamSummary {
-  return {
-    id: team.id,
-    name: team.name,
-    format: team.format,
-    packed: team.packed,
-    pokemon: team.sets.map((set, index): PokemonSet => ({
-      slot: index + 1,
-      name: set.name || set.species,
-      species: toId(set.species),
-      hp: 100,
-      active: index === 0,
-    })),
-  };
 }
 
 /** The in-game cap on total EVs; the PS validator enforces it for gen 3+. */

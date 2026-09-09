@@ -1,6 +1,14 @@
-import { describe, expect, it } from 'vitest';
-import { sanitizeProtocolLog } from './diagnostics';
+import { afterEach, describe, expect, it } from 'vitest';
+import {
+  clientErrors,
+  diagnosticReport,
+  recordClientError,
+  resetClientErrors,
+  sanitizeProtocolLog,
+} from './diagnostics';
 import { replayUploadUrl } from './replay-upload';
+
+afterEach(() => resetClientErrors());
 
 describe('safe diagnostic capture', () => {
   it('removes all private bodies and credentials before storage', () => {
@@ -10,6 +18,27 @@ describe('safe diagnostic capture', () => {
     for (const secret of ['secret', 'Alice', 'Bob', 'private words', 'hidden', 'sensitive', 'credential'])
       expect(result).not.toContain(secret);
     expect(result).toContain('|request|');
+  });
+
+  it('records contained client errors with sanitized context, bounded, and ships them in the report', () => {
+    recordClientError('router', new TypeError('boom'), '|pm|Alice|Bob|private words');
+    expect(clientErrors()).toEqual([
+      expect.objectContaining({
+        source: 'router',
+        message: 'TypeError: boom',
+        context: '|pm|[private payload omitted]',
+      }),
+    ]);
+    recordClientError('protocol-client', 'not an Error instance');
+    expect(clientErrors()[1]).toMatchObject({ message: 'not an Error instance', context: undefined });
+    for (let index = 0; index < 40; index++) recordClientError('router', new Error(`overflow ${index}`));
+    expect(clientErrors()).toHaveLength(32);
+    expect(clientErrors()[0].message).toBe('Error: overflow 8');
+    const report = JSON.parse(diagnosticReport([], { connection: 'connected', server: 'x' })) as {
+      errors: unknown[];
+    };
+    expect(report.errors).toHaveLength(32);
+    expect(JSON.stringify(report)).not.toContain('private words');
   });
 });
 describe('authoritative replay links', () => {

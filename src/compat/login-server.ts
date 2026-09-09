@@ -6,9 +6,18 @@
  * request therefore goes through our own same-origin proxy (`/api/action`),
  * implemented as a serverless function in production and as a Vite dev proxy
  * locally. `VITE_PS_ACTION_URL` overrides the path for self-hosted setups.
+ *
+ * Only guest assertions go this way. Registered sign-in is OAuth (`ps-oauth`):
+ * a password is never collected by this client.
  */
 
 export const ACTION_URL = import.meta.env.VITE_PS_ACTION_URL || '/api/action';
+
+/**
+ * Upper bound on one login-server round trip. A hung proxy must surface as an
+ * error the user can act on, not as a sign-in dialog that never settles.
+ */
+export const LOGIN_SERVER_TIMEOUT = 20_000;
 
 export type AssertionOutcome =
   | { kind: 'assertion'; assertion: string }
@@ -27,23 +36,55 @@ export class LoginServerError extends Error {
   }
 }
 
+/**
+ * A signal that aborts when the caller cancels or when the request has run
+ * for `ms`. The two are distinguishable by reason: the caller's cancellation
+ * keeps its own `AbortError`, the deadline aborts with a `TimeoutError`.
+ */
+function boundedSignal(signal: AbortSignal | undefined, ms: number) {
+  const controller = new AbortController();
+  const timer = setTimeout(
+    () => controller.abort(new DOMException('The login server did not respond in time.', 'TimeoutError')),
+    ms,
+  );
+  const forward = () => controller.abort(signal?.reason);
+  if (signal?.aborted) forward();
+  else signal?.addEventListener('abort', forward, { once: true });
+  return {
+    signal: controller.signal,
+    release: () => {
+      clearTimeout(timer);
+      signal?.removeEventListener('abort', forward);
+    },
+  };
+}
+
 async function post(body: URLSearchParams, signal?: AbortSignal): Promise<string> {
-  let response: Response;
+  const request = boundedSignal(signal, LOGIN_SERVER_TIMEOUT);
   try {
-    response = await fetch(ACTION_URL, {
+    const response = await fetch(ACTION_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body,
-      signal,
+      signal: request.signal,
     });
+    if (!response.ok) {
+      throw new LoginServerError(`The login server returned an error (HTTP ${response.status}).`);
+    }
+    return await response.text();
   } catch (error) {
-    if ((error as Error)?.name === 'AbortError') throw error;
+    if (error instanceof LoginServerError) throw error;
+    const name = (error as Error)?.name;
+    if (name === 'AbortError') throw error;
+    if (name === 'TimeoutError') {
+      throw new LoginServerError(
+        'The login server did not respond in time. Check your connection and try again.',
+      );
+    }
     throw new LoginServerError('Could not reach the login server. Check your connection and try again.');
+  } finally {
+    request.release();
   }
-  if (!response.ok) {
-    throw new LoginServerError(`The login server returned an error (HTTP ${response.status}).`);
-  }
-  return response.text();
 }
 
 /** Raw `act=` query. Returns the response body verbatim. */
@@ -51,25 +92,12 @@ export async function rawQuery(act: string, data: Record<string, string>, signal
   return post(new URLSearchParams({ ...data, act }), signal);
 }
 
-/** JSON `act=` query. The login server prefixes JSON responses with `]`. */
-export async function jsonQuery<T>(
-  act: string,
-  data: Record<string, string>,
-  signal?: AbortSignal,
-): Promise<T> {
-  const text = (await rawQuery(act, data, signal)).trim();
-  try {
-    return JSON.parse(text.startsWith(']') ? text.slice(1) : text) as T;
-  } catch {
-    throw new LoginServerError(INTERFERENCE);
-  }
-}
-
 /**
  * Normalizes a raw assertion. The login server overloads the assertion string
- * to signal auth requirements: `;` means the name is registered and needs a
- * password, `;;@gmail` means it is a Google-linked account, and any other
- * `;;`-prefixed value carries an error message.
+ * to signal auth requirements: `;` means the name is registered (real servers
+ * still send it, and it routes the user to OAuth), `;;@gmail` means it is a
+ * Google-linked account, and any other `;;`-prefixed value carries an error
+ * message.
  */
 export function interpretAssertion(raw: string | null | undefined): AssertionOutcome {
   if (!raw) return { kind: 'error', message: 'The login server did not return an assertion.' };
@@ -94,34 +122,4 @@ export function interpretAssertion(raw: string | null | undefined): AssertionOut
 /** Requests an assertion for an unregistered (guest) name. */
 export async function getAssertion(userid: string, challstr: string, signal?: AbortSignal) {
   return interpretAssertion(await rawQuery('getassertion', { userid, challstr }, signal));
-}
-
-type LoginResponse = {
-  assertion?: string;
-  actionsuccess?: boolean;
-  error?: string;
-  curuser?: { loggedin?: boolean; username?: string; userid?: string };
-};
-
-/** Logs into a registered account and returns its assertion. */
-export async function loginWithPassword(
-  name: string,
-  pass: string,
-  challstr: string,
-  signal?: AbortSignal,
-): Promise<AssertionOutcome & { username?: string }> {
-  const data = await jsonQuery<LoginResponse>('login', { name, pass, challstr }, signal);
-  if (!data?.curuser?.loggedin) {
-    return { kind: 'error', message: data?.error || 'Incorrect password.' };
-  }
-  return { ...interpretAssertion(data.assertion), username: data.curuser.username };
-}
-
-/** Best-effort session teardown; failures are not surfaced to the user. */
-export async function logout(userid: string) {
-  try {
-    await rawQuery('logout', { userid });
-  } catch {
-    // The socket-level `/logout` is what actually ends the session.
-  }
 }

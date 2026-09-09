@@ -124,7 +124,3 @@ export type BattleRoom = RoomBase & {
 };
 
 export type Room = ChatRoom | PmRoom | BattleRoom;
-
-export const isBattleRoom = (room: Room | undefined): room is BattleRoom => room?.type === 'battle';
-export const isChatRoom = (room: Room | undefined): room is ChatRoom => room?.type === 'chat';
-export const isPmRoom = (room: Room | undefined): room is PmRoom => room?.type === 'pm';

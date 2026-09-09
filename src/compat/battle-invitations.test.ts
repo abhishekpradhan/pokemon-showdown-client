@@ -12,13 +12,13 @@ const emptyForm = (slot: number, room = roomId) =>
 const invitedForm =
   '<form data-submitsend="/msgroom battle-gen9multi-1,/uninvitebattle rosa"><label>Player 3: <strong>rosa</strong> (invited) <button type="submit">Uninvite</button></label></form>';
 const pm = (message: string) =>
-  useArenaStore.getState().handleFrame(parsePsFrame(`|pm|+ArenaAlice| CodexTester|${message}`));
+  useArenaStore.getState().handleFrame(parsePsFrame(`|pm|+ArenaAlice| ArenaTester|${message}`));
 beforeAll(async () => {
   await loadEngine();
 });
 beforeEach(() =>
   useArenaStore.setState({
-    username: 'CodexTester',
+    username: 'ArenaTester',
     named: true,
     connection: 'connected',
     rooms: {},
@@ -119,7 +119,7 @@ it('invites both remaining seats, revokes one, handles withdrawal, and clears co
   const state = useArenaStore.getState();
   state.handleFrame(
     parsePsFrame(
-      `>${roomId}\n|init|battle\n|gametype|multi\n|player|p1|CodexTester\n|player|p2|Rival\n|uhtmlchange|invites|${emptyForm(3)}${emptyForm(4)}`,
+      `>${roomId}\n|init|battle\n|gametype|multi\n|player|p1|ArenaTester\n|player|p2|Rival\n|uhtmlchange|invites|${emptyForm(3)}${emptyForm(4)}`,
     ),
   );
   expect(state.inviteBattlePlayer(roomId, 'p3', 'Rosa')).toBe(true);
@@ -130,7 +130,7 @@ it('invites both remaining seats, revokes one, handles withdrawal, and clears co
   expect(state.inviteBattlePlayer(roomId, 'p3', 'Other')).toBe(false);
   expect(state.revokeBattleInvitation(roomId, 'p3')).toBe(true);
   expect(state.protocol.send).toHaveBeenLastCalledWith('/uninvitebattle rosa', roomId);
-  state.handleFrame(parsePsFrame('|pm| CodexTester| Rosa|/challenge'));
+  state.handleFrame(parsePsFrame('|pm| ArenaTester| Rosa|/challenge'));
   expect(state.inviteBattlePlayer(roomId, 'p3', 'Other')).toBe(true);
   state.handleFrame(parsePsFrame(`>${roomId}\n|start`));
   expect(state.inviteBattlePlayer(roomId, 'p3', 'Another')).toBe(false);

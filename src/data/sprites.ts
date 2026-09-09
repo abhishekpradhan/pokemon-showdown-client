@@ -69,18 +69,3 @@ export function pokemonIconStyle(species: string, fainted = false) {
     opacity: fainted ? 0.4 : undefined,
   };
 }
-
-/** Item icon (held-item chips in the team panel). */
-export function itemIconStyle(item: string) {
-  const icon = Icons.getItem(item, {
-    protocol: 'https',
-    domain: SPRITE_HOST.replace(/^https?:\/\//, ''),
-  });
-  return {
-    display: 'inline-block',
-    width: '24px',
-    height: '24px',
-    imageRendering: 'pixelated' as const,
-    background: icon.css.background,
-  };
-}

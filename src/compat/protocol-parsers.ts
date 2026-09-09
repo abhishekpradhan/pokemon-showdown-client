@@ -24,6 +24,10 @@ export type SearchUpdate = {
 
 export const toId = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, '');
 
+/** A JSON object (not null, not an array): the only shape the structured query responses use. */
+export const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
 export function parseFormats(args: string[]): FormatOption[] {
   const formats: FormatOption[] = [];
   let isSection = false;
@@ -87,40 +91,42 @@ export function parseQueryResponse(line: PsLine): { id: string; data: unknown } 
   }
 }
 
+type RawBattleRoom = {
+  title?: string;
+  userCount?: number;
+  users?: number;
+  p1?: string;
+  p2?: string;
+  minElo?: number | string;
+};
+
 export function parseRoomList(data: unknown): RoomList | null {
-  if (!data || typeof data !== 'object') return null;
+  if (!isRecord(data)) return null;
   const record = data as {
-    rooms?: Record<
-      string,
-      {
-        title?: string;
-        userCount?: number;
-        users?: number;
-        p1?: string;
-        p2?: string;
-        minElo?: number | string;
-      }
-    >;
+    rooms?: Record<string, RawBattleRoom | null>;
     userCount?: number;
     battleCount?: number;
   };
-  if (!record.rooms || typeof record.rooms !== 'object') return null;
+  if (!isRecord(record.rooms)) return null;
 
   return {
     userCount: record.userCount,
     battleCount: record.battleCount,
-    rooms: Object.entries(record.rooms).map(([id, room]) => {
-      const battleMatch = id.match(/^battle-([a-z0-9]+)-/);
-      return {
-        id,
-        title: room.title || id,
-        users: room.userCount ?? room.users,
-        p1: room.p1,
-        p2: room.p2,
-        minElo: room.minElo,
-        format: battleMatch?.[1],
-      };
-    }),
+    // A single null entry must not take the whole directory down with it.
+    rooms: Object.entries(record.rooms)
+      .filter((entry): entry is [string, RawBattleRoom] => isRecord(entry[1]))
+      .map(([id, room]) => {
+        const battleMatch = id.match(/^battle-([a-z0-9]+)-/);
+        return {
+          id,
+          title: room.title || id,
+          users: room.userCount ?? room.users,
+          p1: room.p1,
+          p2: room.p2,
+          minElo: room.minElo,
+          format: battleMatch?.[1],
+        };
+      }),
   };
 }
 
@@ -162,9 +168,9 @@ type RawChatRoom = {
  * section value, not a separate array.)
  */
 export function parseChatRoomList(data: unknown): ChatRoomList | null {
-  if (!data || typeof data !== 'object') return null;
+  if (!isRecord(data)) return null;
   const record = data as {
-    chat?: RawChatRoom[];
+    chat?: unknown[];
     sectionTitles?: string[];
     userCount?: number;
     battleCount?: number;
@@ -172,6 +178,7 @@ export function parseChatRoomList(data: unknown): ChatRoomList | null {
   if (!Array.isArray(record.chat)) return null;
 
   const rooms: ChatRoomEntry[] = record.chat
+    .filter((room): room is RawChatRoom => isRecord(room))
     .map(room => ({
       id: toId(room.title || ''),
       title: room.title || '',

@@ -17,7 +17,6 @@ beforeEach(() => {
     rooms: {},
     roomErrors: {},
     replayStatuses: {},
-    replayStatus: undefined,
     lastError: undefined,
     protocol: { send } as unknown as typeof initial.protocol,
   });

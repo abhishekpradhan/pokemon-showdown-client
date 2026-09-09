@@ -112,9 +112,6 @@ export const appendLog = (room: Room, line: string): Room =>
     log: [line, ...room.log].slice(0, LOG_LIMIT),
   }) as Room;
 
-export const battleRooms = (rooms: Record<string, Room>): BattleRoom[] =>
-  Object.values(rooms).filter((room): room is BattleRoom => room.type === 'battle');
-
 export const openRooms = (rooms: Record<string, Room>): Room[] =>
   Object.values(rooms).filter(room => room.connected);
 

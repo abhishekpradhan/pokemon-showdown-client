@@ -1,4 +1,5 @@
 import { effectiveness, formatEffectiveness, genFromFormat, getMove, type TypeName } from '../data/dex';
+import { toId } from './protocol-parsers';
 
 export type BattleSideID = 'p1' | 'p2' | 'p3' | 'p4';
 export const isBattleSideID = (value: unknown): value is BattleSideID =>
@@ -453,14 +454,6 @@ export function isBattleRequest(value: unknown): value is BattleRequest {
   return true;
 }
 
-export type ChoiceBuilderAdapter = {
-  request: BattleRequest;
-  requestType: ArenaBattle['requestType'];
-  requestLength: number;
-  noCancel: boolean;
-  build: (choice: BattleChoiceState) => string;
-};
-
 /**
  * Development fixture. Species names are real dex names so sprites, types and
  * effectiveness resolve exactly as they do in a live battle.
@@ -676,7 +669,8 @@ const idToName = (id: string) =>
     .replace(/[-_]/g, ' ')
     .replace(/\b\w/g, letter => letter.toUpperCase());
 
-const speciesId = (name: string) => name.toLowerCase().replace(/[^a-z0-9]/g, '');
+/** Moves, abilities, items and weather normalize exactly like every other PS id. */
+const speciesId = toId;
 
 export type ParsedCondition = {
   hp: number;
@@ -1039,25 +1033,6 @@ export function commandForChoice(choice: BattleChoice | PokemonSet, rqid?: numbe
     return rqid ? `/choose ${choice.cmd.replace(/^\//, '')}|${rqid}` : choice.cmd;
   }
   return rqid ? `/choose switch ${choice.slot}|${rqid}` : `/choose switch ${choice.slot}`;
-}
-
-export function buildChooseCommand(choice: BattleChoiceState, rqid?: number) {
-  const suffix = rqid ? `|${rqid}` : '';
-  if (choice.kind === 'confirm') return '';
-  if (choice.kind === 'pass') return `/choose pass${suffix}`;
-  if (choice.kind === 'shift') return `/choose shift${suffix}`;
-  if (choice.kind === 'switch') return `/choose switch ${choice.slot}${suffix}`;
-  if (choice.kind === 'team') return `/choose team ${choice.order.join(',')}${suffix}`;
-
-  const flags = [
-    choice.mega ? 'mega' : '',
-    choice.ultra ? 'ultra' : '',
-    choice.z ? 'zmove' : '',
-    choice.max ? 'dynamax' : '',
-    choice.tera ? 'terastallize' : '',
-    choice.target ? String(choice.target) : '',
-  ].filter(Boolean);
-  return `/choose move ${choice.slot}${flags.length ? ` ${flags.join(' ')}` : ''}${suffix}`;
 }
 
 const requestLength = (request: BattleRequestNormalized) => {
@@ -1466,18 +1441,5 @@ export function battleDecisionState(
     targetable: !!battle.targetable,
     draft: session?.draft || battle.choiceDraft || { choices: [] },
     error: error || battle.choiceError,
-  };
-}
-
-export function createChoiceBuilder(request: BattleRequest): ChoiceBuilderAdapter {
-  const normalized = normalizeBattleRequest(request);
-  const type = normalized.requestType;
-
-  return {
-    request: normalized,
-    requestType: type,
-    requestLength: requestLength(normalized),
-    noCancel: normalized.noCancel,
-    build: choice => buildChooseCommand(choice, normalized.rqid),
   };
 }
