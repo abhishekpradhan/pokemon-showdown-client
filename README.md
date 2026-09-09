@@ -28,7 +28,7 @@ An independent, open-source browser client for [Pokémon Showdown](https://pokem
 
 Limits: rotation battles are not supported ([#14](https://github.com/abhishekpradhan/pokemon-showdown-client/issues/14)); registered sign-in needs an OAuth client ID registered for each origin, while guest names work everywhere; the interface is English (the language preference translates server messages); and the project is not affiliated with Smogon or Nintendo. The full support matrix is in [docs/compatibility.md](docs/compatibility.md).
 
-![A battle in Showdown Arena](docs/media/battle.png)
+![A battle in Showdown Arena](docs/media/battle.jpg)
 
 ## Quick start
 

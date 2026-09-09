@@ -566,7 +566,9 @@ export function BattleScreen() {
           )}
           {!historyPoint && narration.length > 1 && (
             <div className="battle-playback" aria-label="Battle narration">
-              <span>{narration.length - 1} actions queued</span>
+              <span>
+                {narration.length - 1} {narration.length === 2 ? 'action' : 'actions'} queued
+              </span>
               <select
                 aria-label="Narration speed"
                 value={speed}
