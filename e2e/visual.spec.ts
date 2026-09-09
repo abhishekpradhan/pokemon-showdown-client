@@ -30,7 +30,7 @@ test('battle cockpit visual baseline', async ({ page }) => {
   await expect(page.getByRole('button', { name: /^Moonblast/ })).toBeVisible();
   // Sprite images stream from the network; the shot must not race them.
   await page.waitForFunction(() =>
-    [...document.images].every(image => image.complete && image.naturalWidth > 0)
+    [...document.images].every(image => image.complete && image.naturalWidth > 0),
   );
   await expect(page).toHaveScreenshot('battle-cockpit.png', {
     animations: 'disabled',

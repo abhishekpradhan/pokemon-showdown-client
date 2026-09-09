@@ -1,4 +1,12 @@
-import { exportPackedTeam, exportTeam, importPackedTeam, importTeam, packTeam, unpackTeam, validateTeamSets } from './team-store';
+import {
+  exportPackedTeam,
+  exportTeam,
+  importPackedTeam,
+  importTeam,
+  packTeam,
+  unpackTeam,
+  validateTeamSets,
+} from './team-store';
 
 describe('team-store compatibility helpers', () => {
   it('imports PS text exports and packs them for /utm', () => {
@@ -9,7 +17,9 @@ describe('team-store compatibility helpers', () => {
   });
 
   it('round trips packed teams through readable exports', () => {
-    const sets = importTeam('Iron Valiant @ Booster Energy\nAbility: Quark Drive\nTera Type: Fairy\n- Moonblast\n- Close Combat');
+    const sets = importTeam(
+      'Iron Valiant @ Booster Energy\nAbility: Quark Drive\nTera Type: Fairy\n- Moonblast\n- Close Combat',
+    );
     const packed = packTeam(sets);
 
     expect(packed).toContain('Iron Valiant');
@@ -24,13 +34,13 @@ describe('team-store compatibility helpers', () => {
   });
 
   it('warns on duplicate species and EV totals over the cap, without blocking', () => {
-    const duplicates = validateTeamSets(importTeam(
-      'Pikachu\n- Thunderbolt\n\nPikachu\n- Surf'
-    ));
+    const duplicates = validateTeamSets(importTeam('Pikachu\n- Thunderbolt\n\nPikachu\n- Surf'));
     expect(duplicates.ok).toBe(true);
     expect(duplicates.warnings.some(warning => warning.includes('Species Clause'))).toBe(true);
 
-    const overcapped = validateTeamSets([{ species: 'Pikachu', moves: ['Thunderbolt'], evs: { hp: 252, atk: 252, spe: 252 } }]);
+    const overcapped = validateTeamSets([
+      { species: 'Pikachu', moves: ['Thunderbolt'], evs: { hp: 252, atk: 252, spe: 252 } },
+    ]);
     expect(overcapped.ok).toBe(true);
     expect(overcapped.warnings.some(warning => warning.includes('510'))).toBe(true);
   });
@@ -45,32 +55,90 @@ describe('team-store compatibility helpers', () => {
   });
 });
 
-import { createTeamId, exportTeams, hasStoredTeamLibrary, importTeamLibrary, listTeamDrafts, loadStoredTeams, loadTeamDraft, packTeam as pack, parseLibrary, saveStoredTeams, saveTeamDraft, TEAM_STORAGE_KEY, type StoredTeam, type TeamSet } from './team-store';
+import {
+  createTeamId,
+  exportTeams,
+  hasStoredTeamLibrary,
+  importTeamLibrary,
+  listTeamDrafts,
+  loadStoredTeams,
+  loadTeamDraft,
+  packTeam as pack,
+  parseLibrary,
+  saveStoredTeams,
+  saveTeamDraft,
+  TEAM_STORAGE_KEY,
+  type StoredTeam,
+  type TeamSet,
+} from './team-store';
 
-const fixtureTeam = (sets: TeamSet[] = [{ species: 'Pikachu', moves: [] }]): StoredTeam => ({ id: 'fixture', name: 'Electric', format: 'gen9ou', folder: 'Competition', sets, packed: pack(sets), updatedAt: 1 });
+const fixtureTeam = (sets: TeamSet[] = [{ species: 'Pikachu', moves: [] }]): StoredTeam => ({
+  id: 'fixture',
+  name: 'Electric',
+  format: 'gen9ou',
+  folder: 'Competition',
+  sets,
+  packed: pack(sets),
+  updatedAt: 1,
+});
 
 describe('lossless team compatibility', () => {
   it('parses gender before species and retains nicknames and zero happiness', () => {
-    const [set] = importTeam('Sparky (Pikachu) (M) @ Light Ball\nAbility: Static\nHappiness: 0\nIVs: 0 Atk / 0 Spe\n- Thunderbolt');
-    expect(set).toMatchObject({ name: 'Sparky', species: 'Pikachu', gender: 'M', happiness: 0, ivs: { atk: 0, spe: 0 } });
+    const [set] = importTeam(
+      'Sparky (Pikachu) (M) @ Light Ball\nAbility: Static\nHappiness: 0\nIVs: 0 Atk / 0 Spe\n- Thunderbolt',
+    );
+    expect(set).toMatchObject({
+      name: 'Sparky',
+      species: 'Pikachu',
+      gender: 'M',
+      happiness: 0,
+      ivs: { atk: 0, spe: 0 },
+    });
     expect(importTeam(exportTeam([set]))[0]).toMatchObject(set);
   });
 
   it('preserves all supported special fields through text and packed formats', () => {
-    const set: TeamSet = { species: 'Pikachu', name: 'Sparky', moves: ['Thunderbolt'], gender: 'F', shiny: true, happiness: 0, hpType: 'Ice', teraType: 'Stellar', pokeball: 'cherishball', gigantamax: true, dynamaxLevel: 0, level: 50, ivs: { hp: 0, atk: 0, def: 31, spa: 31, spd: 31, spe: 0 } };
-    for (const output of [importTeam(exportTeam([set]))[0], unpackTeam(pack([set]))[0]]) expect(output).toMatchObject(set);
+    const set: TeamSet = {
+      species: 'Pikachu',
+      name: 'Sparky',
+      moves: ['Thunderbolt'],
+      gender: 'F',
+      shiny: true,
+      happiness: 0,
+      hpType: 'Ice',
+      teraType: 'Stellar',
+      pokeball: 'cherishball',
+      gigantamax: true,
+      dynamaxLevel: 0,
+      level: 50,
+      ivs: { hp: 0, atk: 0, def: 31, spa: 31, spd: 31, spe: 0 },
+    };
+    for (const output of [importTeam(exportTeam([set]))[0], unpackTeam(pack([set]))[0]])
+      expect(output).toMatchObject(set);
   });
 
   it('resolves inherited packed ability slots using species data', async () => {
-    const { loadDex } = await import('../data/dex'); await loadDex();
+    const { loadDex } = await import('../data/dex');
+    await loadDex();
     expect(unpackTeam('Pikachu|||H|thunderbolt|||||||')[0].ability).toBe('Lightning Rod');
     expect(pack(unpackTeam('Pikachu|||H|thunderbolt|||||||'))).toContain('|lightningrod|');
   });
 
   it('roundtrips complete library backups with folders, names and formats', () => {
-    const teams = [fixtureTeam(), { ...fixtureTeam([{ species: 'Snorlax', happiness: 0, moves: ['Frustration'] }]), id: createTeamId(), name: 'Old gen', format: 'gen2ou', folder: 'Old gens' }];
+    const teams = [
+      fixtureTeam(),
+      {
+        ...fixtureTeam([{ species: 'Snorlax', happiness: 0, moves: ['Frustration'] }]),
+        id: createTeamId(),
+        name: 'Old gen',
+        format: 'gen2ou',
+        folder: 'Old gens',
+      },
+    ];
     const imported = importTeamLibrary(exportTeams(teams));
-    expect(imported.map(team => [team.name, team.format, team.folder, team.sets])).toEqual(teams.map(team => [team.name, team.format, team.folder, team.sets]));
+    expect(imported.map(team => [team.name, team.format, team.folder, team.sets])).toEqual(
+      teams.map(team => [team.name, team.format, team.folder, team.sets]),
+    );
   });
 
   it('imports upstream browser backups without confusing regular multi-Pokémon packed teams', () => {
@@ -83,7 +151,10 @@ describe('lossless team compatibility', () => {
 });
 
 describe('recoverable team storage', () => {
-  beforeEach(() => { localStorage.clear(); loadStoredTeams(); });
+  beforeEach(() => {
+    localStorage.clear();
+    loadStoredTeams();
+  });
 
   it.each(['null', '{}', '"oops"', '[null]', '{broken'])('does not crash on corrupt storage %s', raw => {
     localStorage.setItem(TEAM_STORAGE_KEY, raw);
@@ -93,15 +164,18 @@ describe('recoverable team storage', () => {
 
   it('keeps valid records and quarantines malformed entries', () => {
     const result = parseLibrary(JSON.stringify([fixtureTeam(), { id: 'bad', sets: null }]));
-    expect(result.teams).toHaveLength(1); expect(result.rejected).toHaveLength(1);
+    expect(result.teams).toHaveLength(1);
+    expect(result.rejected).toHaveLength(1);
   });
 
   it('persists an intentionally empty library and upgrades legacy arrays', () => {
     localStorage.setItem(TEAM_STORAGE_KEY, JSON.stringify([fixtureTeam()]));
-    const teams = loadStoredTeams(); expect(teams).toHaveLength(1);
+    const teams = loadStoredTeams();
+    expect(teams).toHaveLength(1);
     expect(saveStoredTeams([])).toEqual({ ok: true });
     expect(JSON.parse(localStorage.getItem(TEAM_STORAGE_KEY)!)).toMatchObject({ version: 2, teams: [] });
-    expect(loadStoredTeams()).toEqual([]); expect(hasStoredTeamLibrary()).toBe(true);
+    expect(loadStoredTeams()).toEqual([]);
+    expect(hasStoredTeamLibrary()).toBe(true);
   });
 
   it('refuses a stale tab write until the changed library is reloaded', () => {
@@ -115,16 +189,29 @@ describe('recoverable team storage', () => {
   it('reports quota errors instead of claiming a durable save', () => {
     // jsdom's Storage proxy does not support replacing methods on the
     // instance. The Node fallback in setup owns its methods directly.
-    const methods = Object.hasOwn(localStorage, 'setItem') ? localStorage : Object.getPrototypeOf(localStorage) as Storage;
-    const spy = vi.spyOn(methods, 'setItem').mockImplementation(() => { throw new DOMException('Full', 'QuotaExceededError'); });
+    const methods = Object.hasOwn(localStorage, 'setItem')
+      ? localStorage
+      : (Object.getPrototypeOf(localStorage) as Storage);
+    const spy = vi.spyOn(methods, 'setItem').mockImplementation(() => {
+      throw new DOMException('Full', 'QuotaExceededError');
+    });
     try {
       expect(saveStoredTeams([fixtureTeam()])).toMatchObject({ ok: false });
       expect(spy).toHaveBeenCalledWith(TEAM_STORAGE_KEY, expect.any(String));
-    } finally { spy.mockRestore(); }
+    } finally {
+      spy.mockRestore();
+    }
   });
 
   it('keeps incomplete drafts and detects concurrent edits without overwriting them', () => {
-    const draft = { key: 'draft', name: '', format: 'gen9ou', folder: '', sets: [{ species: '', moves: [] }], updatedAt: 1 };
+    const draft = {
+      key: 'draft',
+      name: '',
+      format: 'gen9ou',
+      folder: '',
+      sets: [{ species: '', moves: [] }],
+      updatedAt: 1,
+    };
     expect(saveTeamDraft(draft)).toEqual({ ok: true });
     expect(loadTeamDraft('draft')).toEqual(draft);
     localStorage.setItem('ps-arena-team-draft-draft', JSON.stringify({ ...draft, name: 'Remote' }));

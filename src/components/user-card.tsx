@@ -38,7 +38,7 @@ export function UserCard({ anchor, onClose }: { anchor: UserCardAnchor; onClose:
       openPmWith: state.openPmWith,
       selfName: state.username,
       named: state.named,
-    }))
+    })),
   );
   const navigate = useNavigate();
   const { ignoredUsers, setPreference } = useWorkspaceStore();
@@ -80,13 +80,19 @@ export function UserCard({ anchor, onClose }: { anchor: UserCardAnchor; onClose:
       const focused = document.activeElement;
       // Preserve focus that moved elsewhere (for example into a challenge
       // dialog); Escape/Close returns keyboard users to the invoking name.
-      if (trigger instanceof HTMLElement && trigger.isConnected &&
-        (focused === document.body || focused === cardElement || cardElement?.contains(focused))) trigger.focus();
+      if (
+        trigger instanceof HTMLElement &&
+        trigger.isConnected &&
+        (focused === document.body || focused === cardElement || cardElement?.contains(focused))
+      )
+        trigger.focus();
     };
   }, [anchor]);
 
   useEffect(() => {
-    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose(); };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
     const onPress = (event: PointerEvent) => {
       if (cardRef.current && !cardRef.current.contains(event.target as Node)) onClose();
     };
@@ -105,16 +111,41 @@ export function UserCard({ anchor, onClose }: { anchor: UserCardAnchor; onClose:
   const avatarUrl = trainerAvatarUrl(card?.avatar);
 
   return createPortal(
-    <div className="user-card" ref={cardRef} style={style} role="dialog" aria-label={`${displayName} profile`} tabIndex={-1}>
+    <div
+      className="user-card"
+      ref={cardRef}
+      style={style}
+      role="dialog"
+      aria-label={`${displayName} profile`}
+      tabIndex={-1}
+    >
       <header>
-        {avatarUrl ?
-          <img src={avatarUrl} alt="" width={40} height={40} loading="lazy" /> :
-          <span className="user-card-fallback" aria-hidden>{displayName.charAt(0).toUpperCase()}</span>}
+        {avatarUrl ? (
+          <img src={avatarUrl} alt="" width={40} height={40} loading="lazy" />
+        ) : (
+          <span className="user-card-fallback" aria-hidden>
+            {displayName.charAt(0).toUpperCase()}
+          </span>
+        )}
         <div>
-          <strong>{group && <i className="user-card-rank">{group}</i>}{displayName}</strong>
-          <small>{card ? (card.online === false ? 'Offline' : card.status || groupLabel || 'Online') : 'Looking up…'}</small>
+          <strong>
+            {group && <i className="user-card-rank">{group}</i>}
+            {displayName}
+          </strong>
+          <small>
+            {card
+              ? card.online === false
+                ? 'Offline'
+                : card.status || groupLabel || 'Online'
+              : 'Looking up…'}
+          </small>
         </div>
-        <button type="button" className="icon-button user-card-close" aria-label="Close profile" onClick={onClose}>
+        <button
+          type="button"
+          className="icon-button user-card-close"
+          aria-label="Close profile"
+          onClick={onClose}
+        >
           <X size={14} />
         </button>
       </header>
@@ -125,7 +156,10 @@ export function UserCard({ anchor, onClose }: { anchor: UserCardAnchor; onClose:
             className="secondary-action"
             disabled={!named || card?.online === false}
             title={named ? undefined : 'Sign in to challenge players'}
-            onClick={() => { openChallenge(displayName); onClose(); }}
+            onClick={() => {
+              openChallenge(displayName);
+              onClose();
+            }}
           >
             <Swords size={13} aria-hidden /> Challenge
           </button>
@@ -140,15 +174,49 @@ export function UserCard({ anchor, onClose }: { anchor: UserCardAnchor; onClose:
           >
             <MessageCircle size={13} aria-hidden /> Message
           </button>
-          <button type="button" className="secondary-action" onClick={() => setPreference('ignoredUsers', ignoredUsers.includes(userid) ? ignoredUsers.filter(id => id !== userid) : [...ignoredUsers, userid])}>{ignoredUsers.includes(userid) ? 'Unignore' : 'Ignore'}</button>
-          <a className="secondary-action" href="https://play.pokemonshowdown.com/view-help-request" target="_blank" rel="noopener noreferrer">Report to staff</a>
+          <button
+            type="button"
+            className="secondary-action"
+            onClick={() =>
+              setPreference(
+                'ignoredUsers',
+                ignoredUsers.includes(userid)
+                  ? ignoredUsers.filter(id => id !== userid)
+                  : [...ignoredUsers, userid],
+              )
+            }
+          >
+            {ignoredUsers.includes(userid) ? 'Unignore' : 'Ignore'}
+          </button>
+          <a
+            className="secondary-action"
+            href="https://play.pokemonshowdown.com/view-help-request"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Report to staff
+          </a>
         </div>
       )}
-      <div className="user-card-rooms" aria-label="Public rooms">{card?.rooms.map(room => {
-        const id = room.replace(/^[^a-z0-9]/i, '');
-        return <button type="button" className="secondary-action" key={room} onClick={() => { onClose(); void navigate({ to: `/${id.startsWith('battle-') ? 'battle' : 'room'}/${id}` }); }}>{room}</button>;
-      })}</div>
+      <div className="user-card-rooms" aria-label="Public rooms">
+        {card?.rooms.map(room => {
+          const id = room.replace(/^[^a-z0-9]/i, '');
+          return (
+            <button
+              type="button"
+              className="secondary-action"
+              key={room}
+              onClick={() => {
+                onClose();
+                void navigate({ to: `/${id.startsWith('battle-') ? 'battle' : 'room'}/${id}` });
+              }}
+            >
+              {room}
+            </button>
+          );
+        })}
+      </div>
     </div>,
-    document.body
+    document.body,
   );
 }

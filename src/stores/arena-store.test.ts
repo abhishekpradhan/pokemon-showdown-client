@@ -29,14 +29,19 @@ describe('arena store protocol integration', () => {
 
     store.handleFrame(parsePsFrame('|challstr|1|abc'));
     store.handleFrame(parsePsFrame('|updateuser|CodexTester|1|0'));
-    store.handleFrame(parsePsFrame('|formats|,1|S/V Singles|[Gen 9] Random Battle,4f|[Gen 9] OU,e|[Gen 9] Ubers,e'));
+    store.handleFrame(
+      parsePsFrame('|formats|,1|S/V Singles|[Gen 9] Random Battle,4f|[Gen 9] OU,e|[Gen 9] Ubers,e'),
+    );
     store.handleFrame(parsePsFrame('>lobby\n|init|chat\n|title|Lobby\n|c|alice|hello'));
 
     const state = useArenaStore.getState();
     expect(state.challstr).toBe('1|abc');
     expect(state.username).toBe('CodexTester');
     expect(state.named).toBe(true);
-    expect(state.formats.find(format => format.id === 'gen9ou')).toMatchObject({ id: 'gen9ou', name: '[Gen 9] OU' });
+    expect(state.formats.find(format => format.id === 'gen9ou')).toMatchObject({
+      id: 'gen9ou',
+      name: '[Gen 9] OU',
+    });
     expect(state.rooms.lobby.title).toBe('Lobby');
     expect(state.rooms.lobby.chat[0]).toMatchObject({ user: 'alice', message: 'hello' });
   });
@@ -45,7 +50,11 @@ describe('arena store protocol integration', () => {
     const store = useArenaStore.getState();
 
     store.handleFrame(parsePsFrame('>battle-gen9ou-1\n|init|battle\n|player|p1|Codex\n|player|p2|Rival'));
-    store.handleFrame(parsePsFrame('>battle-gen9ou-1\n|request|{"rqid":4,"side":{"name":"Codex","pokemon":[{"ident":"p1: Iron Valiant","details":"Iron Valiant, L80","condition":"100/100","active":true}]},"active":[{"moves":[{"move":"Moonblast","type":"Fairy","pp":11,"maxpp":16}]}]}'));
+    store.handleFrame(
+      parsePsFrame(
+        '>battle-gen9ou-1\n|request|{"rqid":4,"side":{"name":"Codex","pokemon":[{"ident":"p1: Iron Valiant","details":"Iron Valiant, L80","condition":"100/100","active":true}]},"active":[{"moves":[{"move":"Moonblast","type":"Fairy","pp":11,"maxpp":16}]}]}',
+      ),
+    );
 
     const room = useArenaStore.getState().rooms['battle-gen9ou-1'];
     if (room?.type !== 'battle') throw new Error('expected a battle room');
@@ -60,7 +69,9 @@ describe('arena store protocol integration', () => {
 
   it('tracks search state from updatesearch and sends complete targeted battle choices', () => {
     const send = vi.fn();
-    useArenaStore.setState({ protocol: { send } as unknown as ReturnType<typeof useArenaStore.getState>['protocol'] });
+    useArenaStore.setState({
+      protocol: { send } as unknown as ReturnType<typeof useArenaStore.getState>['protocol'],
+    });
     const store = useArenaStore.getState();
 
     store.handleFrame(parsePsFrame('|updatesearch|{"searching":["gen9ou"],"games":{}}'));
@@ -69,7 +80,11 @@ describe('arena store protocol integration', () => {
     expect(useArenaStore.getState().searchState).toBe('idle');
 
     store.handleFrame(parsePsFrame('>battle-gen9ou-2\n|init|battle\n|player|p1|Codex\n|player|p2|Rival'));
-    store.handleFrame(parsePsFrame('>battle-gen9ou-2\n|request|{"rqid":8,"targetable":true,"side":{"name":"Codex","pokemon":[{"ident":"p1: Iron Valiant","details":"Iron Valiant, L80","condition":"100/100","active":true}]},"active":[{"moves":[{"move":"Moonblast","id":"moonblast","type":"Fairy","pp":11,"maxpp":16,"target":"normal"}]}]}'));
+    store.handleFrame(
+      parsePsFrame(
+        '>battle-gen9ou-2\n|request|{"rqid":8,"targetable":true,"side":{"name":"Codex","pokemon":[{"ident":"p1: Iron Valiant","details":"Iron Valiant, L80","condition":"100/100","active":true}]},"active":[{"moves":[{"move":"Moonblast","id":"moonblast","type":"Fairy","pp":11,"maxpp":16,"target":"normal"}]}]}',
+      ),
+    );
     const room = useArenaStore.getState().rooms['battle-gen9ou-2'];
     if (room?.type !== 'battle') throw new Error('expected a battle room');
     const battle = room.battle;
@@ -154,9 +169,7 @@ describe('arena store protocol integration', () => {
 
   it('signs the name with an assertion and keeps pending until updateuser', async () => {
     const send = vi.fn();
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response('4|assertion-payload', { status: 200 })
-    );
+    const fetchMock = vi.fn().mockResolvedValue(new Response('4|assertion-payload', { status: 200 }));
     vi.stubGlobal('fetch', fetchMock);
     useArenaStore.setState({
       protocol: { send } as unknown as ReturnType<typeof useArenaStore.getState>['protocol'],
@@ -222,9 +235,11 @@ describe('arena store protocol integration', () => {
   it('interprets chat display directives: /raw html, /log, and // literals', () => {
     const store = useArenaStore.getState();
     store.handleFrame(parsePsFrame('>lobby\n|init|chat\n|title|Lobby'));
-    store.handleFrame(parsePsFrame(
-      '>lobby\n|c:|1735689600|*Scrappie|/raw <div class="infobox"><table><tr><td>gen 9 is trash man</td></tr></table></div>'
-    ));
+    store.handleFrame(
+      parsePsFrame(
+        '>lobby\n|c:|1735689600|*Scrappie|/raw <div class="infobox"><table><tr><td>gen 9 is trash man</td></tr></table></div>',
+      ),
+    );
     store.handleFrame(parsePsFrame('>lobby\n|c|%staff|/log Tournament created.'));
     store.handleFrame(parsePsFrame('>lobby\n|c|alice|//me is literal text'));
 
@@ -238,11 +253,19 @@ describe('arena store protocol integration', () => {
 
   it('caches |queryresponse|userdetails| into user cards', () => {
     const store = useArenaStore.getState();
-    store.handleFrame(parsePsFrame(
-      '|queryresponse|userdetails|{"userid":"zarel","name":"Zarel","group":"~","avatar":167,"status":"coding","rooms":{"lobby":{},"dev":{}}}'
-    ));
+    store.handleFrame(
+      parsePsFrame(
+        '|queryresponse|userdetails|{"userid":"zarel","name":"Zarel","group":"~","avatar":167,"status":"coding","rooms":{"lobby":{},"dev":{}}}',
+      ),
+    );
     expect(useArenaStore.getState().userCards.zarel).toEqual({
-      userid: 'zarel', name: 'Zarel', group: '~', avatar: '167', status: 'coding', rooms: ['lobby', 'dev'], online: true,
+      userid: 'zarel',
+      name: 'Zarel',
+      group: '~',
+      avatar: '167',
+      status: 'coding',
+      rooms: ['lobby', 'dev'],
+      online: true,
     });
   });
 
@@ -258,8 +281,11 @@ describe('arena store protocol integration', () => {
     let room = useArenaStore.getState().rooms.lobby;
     if (room?.type !== 'chat') throw new Error('expected chat room');
     expect(room.tournament).toMatchObject({
-      format: 'gen9ou', generator: 'Single Elimination', playerCap: 8,
-      isJoined: true, players: ['CodexTester', 'Rival'],
+      format: 'gen9ou',
+      generator: 'Single Elimination',
+      playerCap: 8,
+      isJoined: true,
+      players: ['CodexTester', 'Rival'],
     });
 
     store.handleFrame(parsePsFrame('>lobby\n|tournament|start|2'));
@@ -268,7 +294,9 @@ describe('arena store protocol integration', () => {
     if (room?.type !== 'chat') throw new Error('expected chat room');
     expect(room.tournament).toMatchObject({ isStarted: true, currentBattle: 'battle-gen9ou-77' });
 
-    store.handleFrame(parsePsFrame('>lobby\n|tournament|battleend|CodexTester|Rival|win|1,0|success|battle-gen9ou-77'));
+    store.handleFrame(
+      parsePsFrame('>lobby\n|tournament|battleend|CodexTester|Rival|win|1,0|success|battle-gen9ou-77'),
+    );
     store.handleFrame(parsePsFrame('>lobby\n|tournament|end|{}'));
     room = useArenaStore.getState().rooms.lobby;
     if (room?.type !== 'chat') throw new Error('expected chat room');

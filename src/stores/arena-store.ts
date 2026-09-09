@@ -15,11 +15,12 @@ import {
   type BattleDecisionState,
   type PokemonSet,
 } from '../compat/battle-adapter';
+import { getAssertion, type AssertionOutcome } from '../compat/login-server';
 import {
-  getAssertion,
-  type AssertionOutcome,
-} from '../compat/login-server';
-import { beginAuthentication, cancelAuthentication, expectAuthenticationIdentity } from '../compat/auth-session';
+  beginAuthentication,
+  cancelAuthentication,
+  expectAuthenticationIdentity,
+} from '../compat/auth-session';
 import { sanitizeProtocolLog } from '../compat/diagnostics';
 import { replayUploadUrl } from '../compat/replay-upload';
 import { useWorkspaceStore } from './workspace-store';
@@ -34,11 +35,7 @@ import {
   type PsFrame,
   type ServerConfig,
 } from '../compat/protocol-client';
-import {
-  toId,
-  type ChatRoomList,
-  type RoomList,
-} from '../compat/protocol-parsers';
+import { toId, type ChatRoomList, type RoomList } from '../compat/protocol-parsers';
 import {
   exportPackedTeam,
   exportTeam,
@@ -62,16 +59,16 @@ import {
 import { createEngineBattle, feedLine, onEngineReady, projectEngineBattle } from '../battle/engine';
 import { battleEventFromLine, routeFrame } from '../protocol/router';
 import {
-  assertionFromToken, clearOAuthToken, currentOAuthToken, OAUTH_STORAGE_KEY, oauthConfigured, requestOAuthGrant, saveOAuthToken, storedOAuthToken,
+  assertionFromToken,
+  clearOAuthToken,
+  currentOAuthToken,
+  OAUTH_STORAGE_KEY,
+  oauthConfigured,
+  requestOAuthGrant,
+  saveOAuthToken,
+  storedOAuthToken,
 } from '../compat/ps-oauth';
-import {
-  appendLog,
-  newBattleRoom,
-  newPmRoom,
-  patchRoom,
-  updateBattleRoom,
-  upsert,
-} from '../rooms/registry';
+import { appendLog, newBattleRoom, newPmRoom, patchRoom, updateBattleRoom, upsert } from '../rooms/registry';
 import type { BattleRoom, ChatMessage, Room } from '../rooms/types';
 
 export type { ChatMessage, Room, BattleRoom };
@@ -149,7 +146,12 @@ export type ArenaState = {
   teams: StoredTeam[];
   activeTeamId?: string;
   teamNotice?: string;
-  teamValidation?: { state: 'validating' | 'valid' | 'invalid'; format: string; message?: string; requestedAt: number };
+  teamValidation?: {
+    state: 'validating' | 'valid' | 'invalid';
+    format: string;
+    message?: string;
+    requestedAt: number;
+  };
   saveTeamDraftToLibrary: (draft: TeamDraft) => StoredTeam | undefined;
   replaceTeamLibrary: (teams: StoredTeam[]) => boolean;
   reloadTeamLibrary: () => void;
@@ -161,7 +163,16 @@ export type ArenaState = {
   rawProtocolLog: string[];
   /** Replay publish flow: /savereplay → server payload → upload proxy. */
   replayStatus?: { roomId?: string; state: 'saving' | 'uploaded' | 'failed'; url?: string; error?: string };
-  replayStatuses: Record<string, { roomId: string; state: 'saving' | 'uploaded' | 'failed'; url?: string; error?: string; requestedAt: number }>;
+  replayStatuses: Record<
+    string,
+    {
+      roomId: string;
+      state: 'saving' | 'uploaded' | 'failed';
+      url?: string;
+      error?: string;
+      requestedAt: number;
+    }
+  >;
   finishReplay: (roomId: string, result: { url?: string; error?: string }) => void;
 
   // ── Actions ──
@@ -238,7 +249,9 @@ const defaultFormats: FormatOption[] = [
   { id: 'gen9vgc2026regg', name: 'VGC 2026', team: true, searchShow: true },
 ];
 
-const sampleTeam = importPackedTeam(`Iron Valiant||boosterenergy|quarkdrive|moonblast,closecombat,thunderbolt,encore|Jolly|,,,252,4,252|||||]Dragapult||choicespecs|infiltrator|shadowball,dracometeor,uturn,flamethrower|Timid|,,,252,4,252|||||`);
+const sampleTeam = importPackedTeam(
+  `Iron Valiant||boosterenergy|quarkdrive|moonblast,closecombat,thunderbolt,encore|Jolly|,,,252,4,252|||||]Dragapult||choicespecs|infiltrator|shadowball,dracometeor,uturn,flamethrower|Timid|,,,252,4,252|||||`,
+);
 const sampleStoredTeam: StoredTeam = {
   id: 'sample-gen9ou',
   name: 'Arena sample',
@@ -327,7 +340,6 @@ const applyAssertion = (name: string, outcome: AssertionOutcome) => {
   useArenaStore.setState({ loginPending: false, needsPassword: false, lastError: outcome.message });
 };
 
-
 /** Resolves an optional room id to the battle room it names, if any. */
 const battleRoomFor = (state: ArenaState, roomId?: string): BattleRoom | undefined => {
   const id = roomId || state.activeRoomId;
@@ -407,7 +419,8 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
       loginPending: false,
       searchState: 'idle',
       searchFormats: [],
-      replayStatus: undefined, replayStatuses: {},
+      replayStatus: undefined,
+      replayStatuses: {},
       challstr: '',
       lastError: undefined,
     });
@@ -427,7 +440,8 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
   },
   resumeSession: async challstr => {
     const attempt = beginAuthentication();
-    const current = () => attempt.current() && get().challstr === challstr && get().connection === 'connected';
+    const current = () =>
+      attempt.current() && get().challstr === challstr && get().connection === 'connected';
     try {
       const stored = oauthConfigured() ? await currentOAuthToken(attempt.signal) : null;
       if (!current()) return;
@@ -447,7 +461,11 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
         get().protocol.send(`/trn ${name},0,${result.assertion}`);
       } else {
         let name = '';
-        try { name = sessionStorage.getItem('arena-guest-name') || ''; } catch { /* optional */ }
+        try {
+          name = sessionStorage.getItem('arena-guest-name') || '';
+        } catch {
+          /* optional */
+        }
         if (!name) return;
         const outcome = await getAssertion(toId(name), challstr, attempt.signal);
         if (!current()) return;
@@ -456,7 +474,12 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
         applyAssertion(name, outcome);
       }
     } catch (error) {
-      if (current()) set({ loginPending: false, sessionNotice: error instanceof Error ? error.message : 'Sign-in could not be restored. Try signing in again.' });
+      if (current())
+        set({
+          loginPending: false,
+          sessionNotice:
+            error instanceof Error ? error.message : 'Sign-in could not be restored. Try signing in again.',
+        });
     }
   },
 
@@ -485,7 +508,11 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
       const outcome = await getAssertion(userid, challstr, attempt.signal);
       if (!attempt.current() || get().challstr !== challstr) return;
       if (outcome.kind === 'assertion') {
-        try { sessionStorage.setItem('arena-guest-name', trimmed); } catch { /* optional */ }
+        try {
+          sessionStorage.setItem('arena-guest-name', trimmed);
+        } catch {
+          /* optional */
+        }
       }
       applyAssertion(trimmed, outcome);
     } catch (error) {
@@ -514,8 +541,19 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
       const grant = await requestOAuthGrant(challstr, attempt.signal);
       if (!attempt.current() || get().challstr !== challstr) return;
       const saved = saveOAuthToken(grant.token, grant.user);
-      try { sessionStorage.removeItem('arena-guest-name'); } catch { /* optional */ }
-      set({ loginPending: true, oauthLinked: true, loginStage: 'confirmation', sessionNotice: saved ? undefined : 'Signed in for this session. Browser storage is blocked, so sign-in cannot be remembered.' });
+      try {
+        sessionStorage.removeItem('arena-guest-name');
+      } catch {
+        /* optional */
+      }
+      set({
+        loginPending: true,
+        oauthLinked: true,
+        loginStage: 'confirmation',
+        sessionNotice: saved
+          ? undefined
+          : 'Signed in for this session. Browser storage is blocked, so sign-in cannot be remembered.',
+      });
       scheduleLoginTimeout();
       const name = grant.user || get().username;
       expectAuthenticationIdentity(name);
@@ -532,23 +570,45 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
 
   login: async ({ name, password }) => {
     if (!password) return get().chooseName(name);
-    set({ lastError: 'Use “Sign in with Pokémon Showdown”. Passwords are entered only on Pokémon Showdown.' });
+    set({
+      lastError: 'Use “Sign in with Pokémon Showdown”. Passwords are entered only on Pokémon Showdown.',
+    });
   },
   logout: async () => {
     get().cancelLogin();
     const { protocol: client } = get();
     client.send('/logout');
     clearOAuthToken();
-    try { sessionStorage.removeItem('arena-guest-name'); } catch { /* optional */ }
+    try {
+      sessionStorage.removeItem('arena-guest-name');
+    } catch {
+      /* optional */
+    }
     set({ named: false, username: 'Guest', needsPassword: false, oauthLinked: false, lastError: undefined });
   },
 
   joinRoom: roomId => {
-    const id = toId(roomId) ? roomId.trim().toLowerCase().replace(/[^a-z0-9-]/g, '') : '';
+    const id = toId(roomId)
+      ? roomId
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9-]/g, '')
+      : '';
     if (!id) return;
-    if (id.startsWith('pm-')) { get().openPmWith(id.slice(3)); return; }
+    if (id.startsWith('pm-')) {
+      get().openPmWith(id.slice(3));
+      return;
+    }
     if (id.startsWith('battle-') && !battleSupport(id.split('-')[1]).supported) {
-      set(state => ({ roomErrors: setRoomError(state.roomErrors, id, battleSupport(id.split('-')[1]).reason || 'Unsupported battle format. Open this battle in the official client.') })); return;
+      set(state => ({
+        roomErrors: setRoomError(
+          state.roomErrors,
+          id,
+          battleSupport(id.split('-')[1]).reason ||
+            'Unsupported battle format. Open this battle in the official client.',
+        ),
+      }));
+      return;
     }
     if (get().connection !== 'connected') {
       set(state => ({ roomErrors: setRoomError(state.roomErrors, id, 'Reconnect to join this room.') }));
@@ -569,33 +629,42 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
     set(state => ({
       activeRoomId: state.activeRoomId === id ? undefined : state.activeRoomId,
       roomErrors: setRoomError(state.roomErrors, id),
-      rooms: upsert(state.rooms, room.type === 'battle' ? {
-        ...newBattleRoom(id), title: room.title, connected: false,
-      } : { ...room, connected: false }),
+      rooms: upsert(
+        state.rooms,
+        room.type === 'battle'
+          ? {
+              ...newBattleRoom(id),
+              title: room.title,
+              connected: false,
+            }
+          : { ...room, connected: false },
+      ),
     }));
     set(state => {
       const closed = Object.values(state.rooms).filter(item => !item.connected);
       if (closed.length <= 12) return state;
       const rooms = { ...state.rooms };
       let roomErrors = state.roomErrors;
-      for (const item of closed.slice(0, -12)) { delete rooms[item.id]; roomErrors = setRoomError(roomErrors, item.id); }
+      for (const item of closed.slice(0, -12)) {
+        delete rooms[item.id];
+        roomErrors = setRoomError(roomErrors, item.id);
+      }
       return { rooms, roomErrors };
     });
     return true;
   },
-  focusRoom: activeRoomId => set(state => {
-    if (document.hidden) activeRoomId = undefined;
-    // No-op when nothing changes — components call this from effects, and a
-    // fresh state object here would re-fire them forever.
-    const room = activeRoomId ? state.rooms[activeRoomId] : undefined;
-    if (state.activeRoomId === activeRoomId && (!room || room.unread === 0)) return state;
-    return {
-      activeRoomId,
-      rooms: room && room.unread > 0 ?
-        patchRoom(state.rooms, activeRoomId!, { unread: 0 }) :
-        state.rooms,
-    };
-  }),
+  focusRoom: activeRoomId =>
+    set(state => {
+      if (document.hidden) activeRoomId = undefined;
+      // No-op when nothing changes — components call this from effects, and a
+      // fresh state object here would re-fire them forever.
+      const room = activeRoomId ? state.rooms[activeRoomId] : undefined;
+      if (state.activeRoomId === activeRoomId && (!room || room.unread === 0)) return state;
+      return {
+        activeRoomId,
+        rooms: room && room.unread > 0 ? patchRoom(state.rooms, activeRoomId!, { unread: 0 }) : state.rooms,
+      };
+    }),
   refreshRoomList: format => {
     const suffix = format ? ` ${toId(format)},,` : '';
     get().protocol.send(`/cmd roomlist${suffix}`);
@@ -609,8 +678,14 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
     if (!trimmed) return false;
     const ignore = trimmed.match(/^\/(unignore|ignore)\s+(.+)$/i);
     if (ignore) {
-      const preferences = useWorkspaceStore.getState(); const id = toId(ignore[2]);
-      preferences.setPreference('ignoredUsers', ignore[1].toLowerCase() === 'unignore' ? preferences.ignoredUsers.filter(user => user !== id) : [...new Set([...preferences.ignoredUsers, id])]);
+      const preferences = useWorkspaceStore.getState();
+      const id = toId(ignore[2]);
+      preferences.setPreference(
+        'ignoredUsers',
+        ignore[1].toLowerCase() === 'unignore'
+          ? preferences.ignoredUsers.filter(user => user !== id)
+          : [...new Set([...preferences.ignoredUsers, id])],
+      );
       return true;
     }
     const state = get();
@@ -629,7 +704,10 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
   setActiveTeam: activeTeam => set({ activeTeam: importPackedTeam(activeTeam), activeTeamId: undefined }),
   replaceTeamLibrary: teams => {
     const result = saveStoredTeams(teams);
-    if (!result.ok) { set({ teamNotice: undefined, lastError: result.error }); return false; }
+    if (!result.ok) {
+      set({ teamNotice: undefined, lastError: result.error });
+      return false;
+    }
     const active = teams.find(team => team.id === get().activeTeamId) || teams[0];
     set({ teams, activeTeamId: active?.id, activeTeam: active?.packed || '', lastError: undefined });
     return true;
@@ -637,28 +715,67 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
   reloadTeamLibrary: () => {
     const teams = loadStoredTeams();
     const active = teams.find(team => team.id === get().activeTeamId) || teams[0];
-    set({ teams, activeTeamId: active?.id, activeTeam: active?.packed || '', teamNotice: 'Library reloaded. Open drafts are preserved.', lastError: undefined });
+    set({
+      teams,
+      activeTeamId: active?.id,
+      activeTeam: active?.packed || '',
+      teamNotice: 'Library reloaded. Open drafts are preserved.',
+      lastError: undefined,
+    });
   },
   saveTeamDraftToLibrary: draft => {
     const existing = get().teams.find(team => team.id === draft.teamId);
     if (existing && draft.baseUpdatedAt !== undefined && draft.baseUpdatedAt !== existing.updatedAt) {
-      set({ lastError: 'The saved team changed since this draft was opened. Duplicate your draft to save a copy, or reload the saved version before replacing it.', teamNotice: undefined });
+      set({
+        lastError:
+          'The saved team changed since this draft was opened. Duplicate your draft to save a copy, or reload the saved version before replacing it.',
+        teamNotice: undefined,
+      });
       return;
     }
-    const team: StoredTeam = { id: draft.teamId || createTeamId(), name: draft.name.trim() || 'Untitled team', format: draft.format, folder: draft.folder.trim(), sets: structuredClone(draft.sets), packed: packTeam(draft.sets), updatedAt: Date.now() };
+    const team: StoredTeam = {
+      id: draft.teamId || createTeamId(),
+      name: draft.name.trim() || 'Untitled team',
+      format: draft.format,
+      folder: draft.folder.trim(),
+      sets: structuredClone(draft.sets),
+      packed: packTeam(draft.sets),
+      updatedAt: Date.now(),
+    };
     const previous = get().teams;
-    const teams = previous.some(entry => entry.id === team.id) ? previous.map(entry => entry.id === team.id ? team : entry) : [team, ...previous];
+    const teams = previous.some(entry => entry.id === team.id)
+      ? previous.map(entry => (entry.id === team.id ? team : entry))
+      : [team, ...previous];
     if (!get().replaceTeamLibrary(teams)) return;
-    set({ activeTeamId: team.id, activeTeam: team.packed, teamNotice: `${team.name} saved in this browser.` });
+    set({
+      activeTeamId: team.id,
+      activeTeam: team.packed,
+      teamNotice: `${team.name} saved in this browser.`,
+    });
     return team;
   },
   importTeamText: (text, name, format) => {
     try {
-      const imported = importTeamLibrary(text, format || get().selectedFormat).map(team => ({ ...team, name: name?.trim() || team.name }));
-      if (!imported.length) { set({ lastError: 'No teams were found in that import.', teamNotice: undefined }); return; }
+      const imported = importTeamLibrary(text, format || get().selectedFormat).map(team => ({
+        ...team,
+        name: name?.trim() || team.name,
+      }));
+      if (!imported.length) {
+        set({ lastError: 'No teams were found in that import.', teamNotice: undefined });
+        return;
+      }
       if (!get().replaceTeamLibrary([...imported, ...get().teams])) return;
-      set({ activeTeamId: imported[0].id, activeTeam: imported[0].packed, teamNotice: `${imported.length} team(s) imported.` });
-    } catch (error) { set({ lastError: error instanceof Error ? error.message : 'Team import failed.', teamNotice: undefined }); }
+      set({
+        activeTeamId: imported[0].id,
+        activeTeam: imported[0].packed,
+        teamNotice: `${imported.length} team(s) imported.`,
+      });
+    } catch (error) {
+      set({
+        lastError: error instanceof Error ? error.message : 'Team import failed.',
+        teamNotice: undefined,
+      });
+    }
   },
   selectTeam: teamId => {
     const team = get().teams.find(entry => entry.id === teamId);
@@ -667,32 +784,85 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
   deleteTeam: teamId => {
     const deleted = get().teams.find(team => team.id === teamId);
     if (!deleted) return;
-    const recovery = saveTeamDraft({ key: `deleted-${createTeamId()}`, name: `${deleted.name} (deleted)`, format: deleted.format, folder: deleted.folder || '', sets: deleted.sets, updatedAt: Date.now() });
-    if (!recovery.ok) { set({ lastError: recovery.error }); return; }
-    if (get().replaceTeamLibrary(get().teams.filter(team => team.id !== teamId))) set({ teamNotice: `${deleted.name} moved to recoverable drafts.` });
+    const recovery = saveTeamDraft({
+      key: `deleted-${createTeamId()}`,
+      name: `${deleted.name} (deleted)`,
+      format: deleted.format,
+      folder: deleted.folder || '',
+      sets: deleted.sets,
+      updatedAt: Date.now(),
+    });
+    if (!recovery.ok) {
+      set({ lastError: recovery.error });
+      return;
+    }
+    if (get().replaceTeamLibrary(get().teams.filter(team => team.id !== teamId)))
+      set({ teamNotice: `${deleted.name} moved to recoverable drafts.` });
   },
   renameTeam: (teamId, name) => {
-    if (!name.trim()) { set({ lastError: 'Team name cannot be empty.' }); return; }
-    if (get().replaceTeamLibrary(get().teams.map(team => team.id === teamId ? { ...team, name: name.trim(), updatedAt: Date.now() } : team))) set({ teamNotice: 'Team renamed.' });
+    if (!name.trim()) {
+      set({ lastError: 'Team name cannot be empty.' });
+      return;
+    }
+    if (
+      get().replaceTeamLibrary(
+        get().teams.map(team =>
+          team.id === teamId ? { ...team, name: name.trim(), updatedAt: Date.now() } : team,
+        ),
+      )
+    )
+      set({ teamNotice: 'Team renamed.' });
   },
   duplicateTeam: teamId => {
     const team = get().teams.find(entry => entry.id === teamId);
-    if (team) get().saveTeamDraftToLibrary({ key: '', name: `${team.name} copy`, format: team.format, folder: team.folder || '', sets: team.sets, updatedAt: Date.now() });
+    if (team)
+      get().saveTeamDraftToLibrary({
+        key: '',
+        name: `${team.name} copy`,
+        format: team.format,
+        folder: team.folder || '',
+        sets: team.sets,
+        updatedAt: Date.now(),
+      });
   },
   updateTeamFormat: (teamId, format) => {
-    if (get().replaceTeamLibrary(get().teams.map(team => team.id === teamId ? { ...team, format, updatedAt: Date.now() } : team))) set({ teamNotice: 'Team format updated.' });
+    if (
+      get().replaceTeamLibrary(
+        get().teams.map(team => (team.id === teamId ? { ...team, format, updatedAt: Date.now() } : team)),
+      )
+    )
+      set({ teamNotice: 'Team format updated.' });
   },
   replaceTeamFromText: (teamId, text) => {
     const current = get().teams.find(team => team.id === teamId);
-    if (!current) { get().importTeamText(text); return; }
+    if (!current) {
+      get().importTeamText(text);
+      return;
+    }
     try {
       const replacement = importTeamLibrary(text, current.format)[0];
-      if (!replacement) { set({ lastError: 'No team found in the import.' }); return; }
-      get().saveTeamDraftToLibrary({ key: teamId, teamId, name: current.name, format: current.format, folder: current.folder || '', sets: replacement.sets, updatedAt: Date.now() });
-    } catch (error) { set({ lastError: error instanceof Error ? error.message : 'Team import failed.' }); }
+      if (!replacement) {
+        set({ lastError: 'No team found in the import.' });
+        return;
+      }
+      get().saveTeamDraftToLibrary({
+        key: teamId,
+        teamId,
+        name: current.name,
+        format: current.format,
+        folder: current.folder || '',
+        sets: replacement.sets,
+        updatedAt: Date.now(),
+      });
+    } catch (error) {
+      set({ lastError: error instanceof Error ? error.message : 'Team import failed.' });
+    }
   },
   validateTeamOnServer: (sets, format) => {
-    if (get().connection !== 'connected') { set({ lastError: 'Connect to validate this team with the server.' }); return; }
+    if (get().connection !== 'connected') {
+      set({ lastError: 'Connect to validate this team with the server.' });
+      return;
+    }
     if (get().teamValidation?.state === 'validating') return;
     const requestedAt = Date.now();
     set({ teamValidation: { state: 'validating', format, requestedAt }, lastError: undefined });
@@ -700,7 +870,14 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
     get().protocol.send(`/vtm ${format}`);
     window.setTimeout(() => {
       const current = get().teamValidation;
-      if (current?.state === 'validating' && current.requestedAt === requestedAt) set({ teamValidation: { ...current, state: 'invalid', message: 'No validation response received. Reconnect and retry.' } });
+      if (current?.state === 'validating' && current.requestedAt === requestedAt)
+        set({
+          teamValidation: {
+            ...current,
+            state: 'invalid',
+            message: 'No validation response received. Reconnect and retry.',
+          },
+        });
     }, 15_000);
   },
   validateTeamForFormat: (teamId, formatId) => {
@@ -715,7 +892,16 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
   },
 
   startSearch: () => {
-    const { protocol: client, selectedFormat, activeTeam, activeTeamId, formats, connection, named, searchState } = get();
+    const {
+      protocol: client,
+      selectedFormat,
+      activeTeam,
+      activeTeamId,
+      formats,
+      connection,
+      named,
+      searchState,
+    } = get();
     const format = formats.find(entry => entry.id === selectedFormat);
     const validation = get().validateTeamForFormat(activeTeamId, selectedFormat);
     const blockers = [
@@ -731,7 +917,8 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
       set({ lastError: blockers.join(' ') });
       return;
     }
-    if (format?.team !== false && activeTeam && client.send(`/utm ${exportPackedTeam(activeTeam)}`) === false) return;
+    if (format?.team !== false && activeTeam && client.send(`/utm ${exportPackedTeam(activeTeam)}`) === false)
+      return;
     if (useWorkspaceStore.getState().privateBattles) client.send('/hidenext');
     if (client.send(`/search ${selectedFormat}`) === false) return;
     set({ searchState: 'searching', searchFormats: [selectedFormat], lastError: undefined });
@@ -755,8 +942,14 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
     const { protocol: client, selectedFormat, formats, activeTeam, named, connection } = get();
     const formatId = format || selectedFormat;
     const entry = formats.find(item => item.id === formatId);
-    if (!toId(user) || toId(user) === toId(get().username)) { set({ lastError: 'Choose another player to challenge.' }); return; }
-    if (!battleSupport(formatId).supported || entry?.challengeShow === false || !entry) { set({ lastError: battleSupport(formatId).reason || 'This format is not available for challenges.' }); return; }
+    if (!toId(user) || toId(user) === toId(get().username)) {
+      set({ lastError: 'Choose another player to challenge.' });
+      return;
+    }
+    if (!battleSupport(formatId).supported || entry?.challengeShow === false || !entry) {
+      set({ lastError: battleSupport(formatId).reason || 'This format is not available for challenges.' });
+      return;
+    }
     if (connection !== 'connected' || !named) {
       set({ lastError: 'Connect and choose a name before challenging.' });
       return;
@@ -771,7 +964,10 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
     }
     if (useWorkspaceStore.getState().privateBattles) client.send('/hidenext');
     if (client.send(`/challenge ${toId(user)}, ${formatId}`) === false) return;
-    set(state => ({ lastError: undefined, challenges: { ...state.challenges, to: { to: user, format: formatId } } }));
+    set(state => ({
+      lastError: undefined,
+      challenges: { ...state.challenges, to: { to: user, format: formatId } },
+    }));
   },
   requestUserDetails: name => {
     const userid = toId(name);
@@ -782,7 +978,9 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
     const partner = name.replace(/^[^A-Za-z0-9]/, '');
     const pmRoomId = `pm-${toId(partner) || 'system'}`;
     set(state => ({
-      rooms: state.rooms[pmRoomId] ? patchRoom(state.rooms, pmRoomId, { connected: true }) : upsert(state.rooms, newPmRoom(pmRoomId, partner) as Room),
+      rooms: state.rooms[pmRoomId]
+        ? patchRoom(state.rooms, pmRoomId, { connected: true })
+        : upsert(state.rooms, newPmRoom(pmRoomId, partner) as Room),
     }));
     get().focusRoom(pmRoomId);
     return pmRoomId;
@@ -791,8 +989,14 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
     const { challenges, formats, activeTeam } = get();
     const formatId = Object.entries(challenges.from).find(([name]) => toId(name) === toId(user))?.[1];
     const detail = challenges.details?.[toId(user)];
-    if (get().connection !== 'connected' || !get().named || !formatId) { set({ lastError: 'Connect and choose a name before accepting an active challenge.' }); return; }
-    if (!battleSupport(formatId).supported) { set({ lastError: battleSupport(formatId).reason }); return; }
+    if (get().connection !== 'connected' || !get().named || !formatId) {
+      set({ lastError: 'Connect and choose a name before accepting an active challenge.' });
+      return;
+    }
+    if (!battleSupport(formatId).supported) {
+      set({ lastError: battleSupport(formatId).reason });
+      return;
+    }
     const teamFormat = detail?.teambuilderFormat ?? formatId;
     const entry = formats.find(item => item.id === toId(teamFormat));
     if (teamFormat && entry?.team !== false) {
@@ -824,7 +1028,10 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
       for (const name of Object.keys(from)) if (toId(name) === toId(user)) delete from[name];
       const details = { ...state.challenges.details };
       delete details[toId(user)];
-      return { lastError: undefined, challenges: { ...state.challenges, from, ...(state.challenges.details ? { details } : {}) } };
+      return {
+        lastError: undefined,
+        challenges: { ...state.challenges, from, ...(state.challenges.details ? { details } : {}) },
+      };
     });
   },
   cancelChallenge: () => {
@@ -839,17 +1046,43 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
     const room = state.rooms[roomId];
     const seat = room?.type === 'battle' ? room.invitations?.find(entry => entry.slot === slot) : undefined;
     const userid = toId(user);
-    if (!userid || userid === toId(state.username) || /[\r\n|,]/.test(user)) { set({ lastError: 'Choose another player to invite.' }); return false; }
-    if (room?.type !== 'battle' || !room.connected || room.result?.ended || !seat?.canInvite) { set({ lastError: 'That battle seat is no longer available. Wait for the server to refresh the invitation.' }); return false; }
-    if (state.connection !== 'connected' || !state.named || state.protocol.send(`/invitebattle ${userid}, ${slot}`, roomId) === false) { set({ lastError: 'The invitation was not sent. Connect and choose a name, then retry.' }); return false; }
+    if (!userid || userid === toId(state.username) || /[\r\n|,]/.test(user)) {
+      set({ lastError: 'Choose another player to invite.' });
+      return false;
+    }
+    if (room?.type !== 'battle' || !room.connected || room.result?.ended || !seat?.canInvite) {
+      set({
+        lastError: 'That battle seat is no longer available. Wait for the server to refresh the invitation.',
+      });
+      return false;
+    }
+    if (
+      state.connection !== 'connected' ||
+      !state.named ||
+      state.protocol.send(`/invitebattle ${userid}, ${slot}`, roomId) === false
+    ) {
+      set({ lastError: 'The invitation was not sent. Connect and choose a name, then retry.' });
+      return false;
+    }
     set({ lastError: undefined });
     return true;
   },
   revokeBattleInvitation: (roomId, slot) => {
     const state = get();
     const room = state.rooms[roomId];
-    const invited = room?.type === 'battle' ? room.invitations?.find(entry => entry.slot === slot)?.invited : undefined;
-    if (room?.type !== 'battle' || !room.connected || !invited || state.connection !== 'connected' || !state.named || state.protocol.send(`/uninvitebattle ${invited}`, roomId) === false) { set({ lastError: 'The invitation could not be removed. Reconnect and check the current seat.' }); return false; }
+    const invited =
+      room?.type === 'battle' ? room.invitations?.find(entry => entry.slot === slot)?.invited : undefined;
+    if (
+      room?.type !== 'battle' ||
+      !room.connected ||
+      !invited ||
+      state.connection !== 'connected' ||
+      !state.named ||
+      state.protocol.send(`/uninvitebattle ${invited}`, roomId) === false
+    ) {
+      set({ lastError: 'The invitation could not be removed. Reconnect and check the current seat.' });
+      return false;
+    }
     set({ lastError: undefined });
     return true;
   },
@@ -859,27 +1092,46 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
     const room = battleRoomFor(state, roomId);
     if (!room) return;
     const { battle, choiceSession: session } = room;
-    if (state.connection !== 'connected' || !room.connected || battle.ended || battle.mode !== 'player' || battle.supportReason || battle.engineWarning) {
-      set(current => ({ rooms: updateBattleRoom(current.rooms, room.id, target => ({ ...target, choiceError: battle.supportReason || 'Reconnect to your active battle before choosing.' })) }));
+    if (
+      state.connection !== 'connected' ||
+      !room.connected ||
+      battle.ended ||
+      battle.mode !== 'player' ||
+      battle.supportReason ||
+      battle.engineWarning
+    ) {
+      set(current => ({
+        rooms: updateBattleRoom(current.rooms, room.id, target => ({
+          ...target,
+          choiceError: battle.supportReason || 'Reconnect to your active battle before choosing.',
+        })),
+      }));
       return;
     }
 
-    const choiceState: BattleChoiceState = 'kind' in choice ? choice : 'cmd' in choice ? {
-      kind: 'move',
-      slot: choice.slot,
-      activeIndex: choice.activeIndex,
-      tera: choice.cmd.includes('terastallize'),
-      mega: choice.cmd.includes('mega'),
-      ultra: choice.cmd.includes('ultra'),
-      z: choice.cmd.includes('zmove'),
-      max: choice.cmd.includes('dynamax') || choice.cmd.includes(' max'),
-    } : battle.requestType === 'team' ? {
-      kind: 'team',
-      order: [choice.slot],
-    } : {
-      kind: 'switch',
-      slot: choice.slot,
-    };
+    const choiceState: BattleChoiceState =
+      'kind' in choice
+        ? choice
+        : 'cmd' in choice
+          ? {
+              kind: 'move',
+              slot: choice.slot,
+              activeIndex: choice.activeIndex,
+              tera: choice.cmd.includes('terastallize'),
+              mega: choice.cmd.includes('mega'),
+              ultra: choice.cmd.includes('ultra'),
+              z: choice.cmd.includes('zmove'),
+              max: choice.cmd.includes('dynamax') || choice.cmd.includes(' max'),
+            }
+          : battle.requestType === 'team'
+            ? {
+                kind: 'team',
+                order: [choice.slot],
+              }
+            : {
+                kind: 'switch',
+                slot: choice.slot,
+              };
 
     if (!session) {
       set(current => ({
@@ -905,26 +1157,53 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
     }
 
     if (result.command && state.protocol.send(result.command, room.id) === false) {
-      set(current => ({ rooms: updateBattleRoom(current.rooms, room.id, target => ({ ...target, choiceError: 'Your choice was not sent. Reconnect and try again.' })) }));
+      set(current => ({
+        rooms: updateBattleRoom(current.rooms, room.id, target => ({
+          ...target,
+          choiceError: 'Your choice was not sent. Reconnect and try again.',
+        })),
+      }));
       return;
     }
-    const logLine = result.message || ('kind' in choice ? result.command ? 'Battle choice sent.' : 'Team selection updated.' : buildBattleCommand(choice, battle.rqid));
+    const logLine =
+      result.message ||
+      ('kind' in choice
+        ? result.command
+          ? 'Battle choice sent.'
+          : 'Team selection updated.'
+        : buildBattleCommand(choice, battle.rqid));
     set(current => ({
-      rooms: updateBattleRoom(current.rooms, room.id, target => appendLog({
-        ...target,
-        battle: { ...target.battle, waiting: !!result.command, noCancel: result.session.noCancel },
-        choicePending: !!result.command,
-        choiceSession: result.session,
-        choiceDraft: result.draft,
-        choiceError: undefined,
-      }, logLine) as BattleRoom),
+      rooms: updateBattleRoom(
+        current.rooms,
+        room.id,
+        target =>
+          appendLog(
+            {
+              ...target,
+              battle: { ...target.battle, waiting: !!result.command, noCancel: result.session.noCancel },
+              choicePending: !!result.command,
+              choiceSession: result.session,
+              choiceDraft: result.draft,
+              choiceError: undefined,
+            },
+            logLine,
+          ) as BattleRoom,
+      ),
     }));
   },
   submitBattleTarget: (target, roomId) => {
     const state = get();
     const room = battleRoomFor(state, roomId);
     if (!room) return;
-    if (state.connection !== 'connected' || !room.connected || room.battle.mode !== 'player' || room.battle.ended || room.battle.supportReason || room.battle.engineWarning) return;
+    if (
+      state.connection !== 'connected' ||
+      !room.connected ||
+      room.battle.mode !== 'player' ||
+      room.battle.ended ||
+      room.battle.supportReason ||
+      room.battle.engineWarning
+    )
+      return;
     const pending = room.choiceSession?.draft.pendingMove;
     if (!room.choiceSession || !pending) {
       set(current => ({
@@ -937,18 +1216,31 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
     }
     const result = addBattleChoice(room.choiceSession, { ...pending, target });
     if (result.command && state.protocol.send(result.command, room.id) === false) {
-      set(current => ({ rooms: updateBattleRoom(current.rooms, room.id, item => ({ ...item, choiceError: 'Your choice was not sent. Reconnect and try again.' })) }));
+      set(current => ({
+        rooms: updateBattleRoom(current.rooms, room.id, item => ({
+          ...item,
+          choiceError: 'Your choice was not sent. Reconnect and try again.',
+        })),
+      }));
       return;
     }
     set(current => ({
-      rooms: updateBattleRoom(current.rooms, room.id, item => appendLog({
-        ...item,
-        battle: { ...item.battle, waiting: !!result.command, noCancel: result.session.noCancel },
-        choicePending: !!result.command,
-        choiceSession: result.session,
-        choiceDraft: result.draft,
-        choiceError: result.error,
-      }, result.complete ? 'Battle choice sent.' : result.message || 'Target selected.') as BattleRoom),
+      rooms: updateBattleRoom(
+        current.rooms,
+        room.id,
+        item =>
+          appendLog(
+            {
+              ...item,
+              battle: { ...item.battle, waiting: !!result.command, noCancel: result.session.noCancel },
+              choicePending: !!result.command,
+              choiceSession: result.session,
+              choiceDraft: result.draft,
+              choiceError: result.error,
+            },
+            result.complete ? 'Battle choice sent.' : result.message || 'Target selected.',
+          ) as BattleRoom,
+      ),
     }));
   },
   getBattleDecision: roomId => {
@@ -967,7 +1259,11 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
     const state = get();
     const room = battleRoomFor(state, roomId);
     if (!room) return;
-    if (room.choicePending || room.choiceSession?.status === 'submitted' || room.choiceSession?.status === 'cancelling') {
+    if (
+      room.choicePending ||
+      room.choiceSession?.status === 'submitted' ||
+      room.choiceSession?.status === 'cancelling'
+    ) {
       state.undoBattleChoice(room.id);
       return;
     }
@@ -984,7 +1280,11 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
     const state = get();
     const room = battleRoomFor(state, roomId);
     if (!room) return;
-    if (!room.choicePending && room.choiceSession?.status !== 'submitted' && room.choiceSession?.status !== 'cancelling') {
+    if (
+      !room.choicePending &&
+      room.choiceSession?.status !== 'submitted' &&
+      room.choiceSession?.status !== 'cancelling'
+    ) {
       state.resetBattleChoiceSession(room.id);
       return;
     }
@@ -993,20 +1293,27 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
       return;
     }
     if (state.connection !== 'connected' || state.protocol.send('/undo', room.id) === false) return;
-    set(current => ({ rooms: updateBattleRoom(current.rooms, room.id, item => ({ ...item, choiceSession: item.choiceSession ? { ...item.choiceSession, status: 'cancelling' } : undefined })) }));
+    set(current => ({
+      rooms: updateBattleRoom(current.rooms, room.id, item => ({
+        ...item,
+        choiceSession: item.choiceSession ? { ...item.choiceSession, status: 'cancelling' } : undefined,
+      })),
+    }));
     state.recordBattleEvent('Choice cancellation sent.', room.id);
   },
   toggleBattleTimer: roomId => {
     const state = get();
     const room = battleRoomFor(state, roomId);
-    if (!room || state.connection !== 'connected' || room.battle.mode !== 'player' || room.battle.ended) return;
+    if (!room || state.connection !== 'connected' || room.battle.mode !== 'player' || room.battle.ended)
+      return;
     const timerOn = !room.timer.on;
     state.protocol.send(`/timer ${timerOn ? 'on' : 'off'}`, room.id);
   },
   forfeitBattle: roomId => {
     const state = get();
     const room = battleRoomFor(state, roomId);
-    if (!room || state.connection !== 'connected' || room.battle.ended || room.battle.mode !== 'player') return;
+    if (!room || state.connection !== 'connected' || room.battle.ended || room.battle.mode !== 'player')
+      return;
     if (state.protocol.send('/forfeit', room.id) === false) return;
     state.recordBattleEvent('Forfeit command sent.', room.id);
   },
@@ -1030,34 +1337,51 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
     const state = get();
     const room = battleRoomFor(state, roomId);
     if (!room) return;
-    if (state.connection !== 'connected' || !room.connected) { set({ lastError: 'Reconnect before saving this replay.' }); return; }
+    if (state.connection !== 'connected' || !room.connected) {
+      set({ lastError: 'Reconnect before saving this replay.' });
+      return;
+    }
     if (state.replayStatuses[room.id]?.state === 'saving') return;
     const requestedAt = Date.now();
     set({ replayStatus: { roomId: room.id, state: 'saving' } });
-    set(current => ({ replayStatuses: { ...current.replayStatuses, [room.id]: { roomId: room.id, state: 'saving', requestedAt } } }));
+    set(current => ({
+      replayStatuses: {
+        ...current.replayStatuses,
+        [room.id]: { roomId: room.id, state: 'saving', requestedAt },
+      },
+    }));
     state.protocol.send('/savereplay', room.id);
     // Neither response path arriving within a sane window is a failure the
     // user can retry, not a spinner forever.
     window.setTimeout(() => {
       const current = useArenaStore.getState().replayStatuses[room.id];
-      if (current?.requestedAt === requestedAt && current.state === 'saving') get().finishReplay(room.id, { error: 'The server did not confirm the save. Retry when connected.' });
+      if (current?.requestedAt === requestedAt && current.state === 'saving')
+        get().finishReplay(room.id, { error: 'The server did not confirm the save. Retry when connected.' });
     }, 30_000);
   },
-  finishReplay: (roomId, result) => set(state => {
-    const current = state.replayStatuses[roomId];
-    if (!current || current.state !== 'saving') return state;
-    const status = { ...current, ...result, state: result.url ? 'uploaded' as const : 'failed' as const };
-    return { replayStatuses: { ...state.replayStatuses, [roomId]: status }, replayStatus: state.replayStatus?.roomId === roomId ? status : state.replayStatus };
-  }),
+  finishReplay: (roomId, result) =>
+    set(state => {
+      const current = state.replayStatuses[roomId];
+      if (!current || current.state !== 'saving') return state;
+      const status = {
+        ...current,
+        ...result,
+        state: result.url ? ('uploaded' as const) : ('failed' as const),
+      };
+      return {
+        replayStatuses: { ...state.replayStatuses, [roomId]: status },
+        replayStatus: state.replayStatus?.roomId === roomId ? status : state.replayStatus,
+      };
+    }),
 
   toggleHardcore: hardcoreMode => set({ hardcoreMode }),
   toggleProtocolLog: protocolLogEnabled => set({ protocolLogEnabled }),
 
   handleFrame: frame => {
     set(state => ({
-      rawProtocolLog: state.protocolLogEnabled ?
-        [`<< ${sanitizeProtocolLog(frame.raw)}`, ...state.rawProtocolLog].slice(0, 240) :
-        state.rawProtocolLog,
+      rawProtocolLog: state.protocolLogEnabled
+        ? [`<< ${sanitizeProtocolLog(frame.raw)}`, ...state.rawProtocolLog].slice(0, 240)
+        : state.rawProtocolLog,
     }));
     routeFrame(frame, useArenaStore);
   },
@@ -1066,13 +1390,20 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
     clearLoginTimeout();
     const state = get();
     Object.values(state.rooms)
-      .filter(room => room.connected && room.type !== 'pm' && room.id !== 'lobby' && room.id !== demoBattle.id)
+      .filter(
+        room => room.connected && room.type !== 'pm' && room.id !== 'lobby' && room.id !== demoBattle.id,
+      )
       .forEach(room => state.protocol.send(`/join ${room.id}`));
     if (state.named) {
       const preferences = useWorkspaceStore.getState();
-      for (const id of preferences.autojoinRooms.filter(id => /^[a-z0-9-]+$/.test(id) && !id.startsWith('battle-')).slice(0, 20)) state.protocol.send(`/join ${id}`);
-      if (preferences.preferredAvatar && preferences.preferredAvatar !== avatarName(state.avatar || '')) state.applyAvatarPreference();
-      if (preferences.serverLanguage !== (state.serverLanguage || 'english')) state.protocol.send(`/language ${preferences.serverLanguage}`);
+      for (const id of preferences.autojoinRooms
+        .filter(id => /^[a-z0-9-]+$/.test(id) && !id.startsWith('battle-'))
+        .slice(0, 20))
+        state.protocol.send(`/join ${id}`);
+      if (preferences.preferredAvatar && preferences.preferredAvatar !== avatarName(state.avatar || ''))
+        state.applyAvatarPreference();
+      if (preferences.serverLanguage !== (state.serverLanguage || 'english'))
+        state.protocol.send(`/language ${preferences.serverLanguage}`);
       if (preferences.blockPms) state.protocol.send('/blockpms');
       if (preferences.blockChallenges) state.protocol.send('/blockchallenges');
     }
@@ -1086,12 +1417,17 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
     if (!pending || pending.state !== 'saving') return;
     const serverId = get().server.id;
     const replayId = serverId !== 'showdown' ? `${toId(serverId.split(':')[0])}-${id}` : id;
-    const current = () => get().server.id === serverId && get().replayStatuses[roomId]?.requestedAt === pending.requestedAt;
+    const current = () =>
+      get().server.id === serverId && get().replayStatuses[roomId]?.requestedAt === pending.requestedAt;
     void (async () => {
       try {
         const body = new URLSearchParams({ id: replayId, log, serverid: toId(serverId.split(':')[0]) });
         if (password) body.set('password', password);
-        const response = await fetch('/api/replay', { method: 'POST', body, signal: AbortSignal.timeout(25_000) });
+        const response = await fetch('/api/replay', {
+          method: 'POST',
+          body,
+          signal: AbortSignal.timeout(25_000),
+        });
         const text = await response.text();
         if (!response.ok || /error|invalid/i.test(text.slice(0, 80))) {
           throw new Error(text.slice(0, 120) || `HTTP ${response.status}`);
@@ -1100,7 +1436,8 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
         if (!url) throw new Error('The replay service did not return a confirmed replay URL.');
         if (current()) get().finishReplay(roomId, { url });
       } catch (error) {
-        if (current()) get().finishReplay(roomId, { error: error instanceof Error ? error.message : 'Upload failed.' });
+        if (current())
+          get().finishReplay(roomId, { error: error instanceof Error ? error.message : 'Upload failed.' });
       }
     })();
   },
@@ -1111,10 +1448,14 @@ export const useArenaStore = create<ArenaState>((set, get) => ({
 useWorkspaceStore.subscribe((preferences, previous) => {
   const state = useArenaStore.getState();
   if (!state.named || state.connection !== 'connected') return;
-  if (preferences.preferredAvatar && preferences.preferredAvatar !== previous.preferredAvatar) state.applyAvatarPreference();
-  if (preferences.serverLanguage !== previous.serverLanguage) state.protocol.send(`/language ${preferences.serverLanguage}`);
-  if (preferences.blockPms !== previous.blockPms) state.protocol.send(preferences.blockPms ? '/blockpms' : '/unblockpms');
-  if (preferences.blockChallenges !== previous.blockChallenges) state.protocol.send(preferences.blockChallenges ? '/blockchallenges' : '/unblockchallenges');
+  if (preferences.preferredAvatar && preferences.preferredAvatar !== previous.preferredAvatar)
+    state.applyAvatarPreference();
+  if (preferences.serverLanguage !== previous.serverLanguage)
+    state.protocol.send(`/language ${preferences.serverLanguage}`);
+  if (preferences.blockPms !== previous.blockPms)
+    state.protocol.send(preferences.blockPms ? '/blockpms' : '/unblockpms');
+  if (preferences.blockChallenges !== previous.blockChallenges)
+    state.protocol.send(preferences.blockChallenges ? '/blockchallenges' : '/unblockchallenges');
 });
 
 protocol.subscribe(event => {
@@ -1128,17 +1469,18 @@ protocol.subscribe(event => {
       connectionReason: event.reason,
       loginPending: event.state !== 'connected' ? false : state.loginPending,
       ...(event.state !== 'connected' ? { named: false, challstr: '' } : {}),
-      lastError: state.loginPending && (event.state === 'offline' || event.state === 'error') ?
-        'Connection closed before the name was confirmed.' :
-        state.lastError,
+      lastError:
+        state.loginPending && (event.state === 'offline' || event.state === 'error')
+          ? 'Connection closed before the name was confirmed.'
+          : state.lastError,
     }));
   } else if (event.type === 'frame') {
     useArenaStore.getState().handleFrame(event.frame);
   } else if (event.type === 'send') {
     useArenaStore.setState(state => ({
-      rawProtocolLog: state.protocolLogEnabled ?
-        [`>> ${sanitizeProtocolLog(event.message)}`, ...state.rawProtocolLog].slice(0, 240) :
-        state.rawProtocolLog,
+      rawProtocolLog: state.protocolLogEnabled
+        ? [`>> ${sanitizeProtocolLog(event.message)}`, ...state.rawProtocolLog].slice(0, 240)
+        : state.rawProtocolLog,
     }));
   } else if (event.type === 'error') {
     useArenaStore.setState({ lastError: event.error.message, connection: protocol.state });
@@ -1164,8 +1506,10 @@ if (typeof window !== 'undefined') {
 // lines. Replay them through fresh engine instances the moment it is ready.
 onEngineReady(() => {
   const state = useArenaStore.getState();
-  const pending = Object.values(state.rooms)
-    .filter((room): room is BattleRoom => room.type === 'battle' && room.connected && !room.engine && room.id !== demoBattle.id);
+  const pending = Object.values(state.rooms).filter(
+    (room): room is BattleRoom =>
+      room.type === 'battle' && room.connected && !room.engine && room.id !== demoBattle.id,
+  );
   if (!pending.length) return;
   useArenaStore.setState(current => {
     let rooms = current.rooms;
@@ -1189,14 +1533,19 @@ onEngineReady(() => {
           ...item,
           lastEvent,
           engine,
-          battle: { ...projectEngineBattle(engine, {
-            roomId: item.id,
-            perspective: item.perspective,
-            result: item.result,
-            lastRequest: item.lastRequest,
-            waiting: item.choicePending || !!item.lastRequest?.wait,
-            format: item.battle.format,
-          }), timerOn: item.timer.on, logTruncated: item.battle.logTruncated, noCancel: item.choiceSession?.noCancel ?? item.battle.noCancel },
+          battle: {
+            ...projectEngineBattle(engine, {
+              roomId: item.id,
+              perspective: item.perspective,
+              result: item.result,
+              lastRequest: item.lastRequest,
+              waiting: item.choicePending || !!item.lastRequest?.wait,
+              format: item.battle.format,
+            }),
+            timerOn: item.timer.on,
+            logTruncated: item.battle.logTruncated,
+            noCancel: item.choiceSession?.noCancel ?? item.battle.noCancel,
+          },
         };
       });
     }

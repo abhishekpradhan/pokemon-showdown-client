@@ -3,20 +3,38 @@ import type { Page } from '@playwright/test';
 import { installMockPs } from './mock-ps';
 
 const emit = async (page: Page, raw: string) => {
-  await page.waitForFunction(() => (window as unknown as { __mockPsSockets?: unknown[] }).__mockPsSockets?.length);
-  await page.evaluate(line => (window as unknown as { __mockPsSockets: Array<{ emit: (text: string) => void }> }).__mockPsSockets[0].emit(line), raw);
+  await page.waitForFunction(
+    () => (window as unknown as { __mockPsSockets?: unknown[] }).__mockPsSockets?.length,
+  );
+  await page.evaluate(
+    line =>
+      (
+        window as unknown as { __mockPsSockets: Array<{ emit: (text: string) => void }> }
+      ).__mockPsSockets[0].emit(line),
+    raw,
+  );
 };
 const directory = {
   chat: [
     { title: 'Lobby', desc: 'General discussion and help.', userCount: 345, section: 'Official' },
-    { title: 'Competitive Tutoring', desc: 'Learn battle strategy with the community.', userCount: 137, section: 'Official' },
+    {
+      title: 'Competitive Tutoring',
+      desc: 'Learn battle strategy with the community.',
+      userCount: 137,
+      section: 'Official',
+    },
     { title: 'OverUsed', desc: 'Discuss the current OU metagame.', userCount: 278, section: 'Metagames' },
-  ], sectionTitles: ['Official', 'Metagames'],
+  ],
+  sectionTitles: ['Official', 'Metagames'],
 };
 
-test.beforeEach(async ({ page }) => { await installMockPs(page); });
+test.beforeEach(async ({ page }) => {
+  await installMockPs(page);
+});
 
-test('room browsing filters descriptions, saves without navigating, and explains invalid links', async ({ page }) => {
+test('room browsing filters descriptions, saves without navigating, and explains invalid links', async ({
+  page,
+}) => {
   await page.goto('/rooms');
   await emit(page, `|queryresponse|rooms|${JSON.stringify(directory)}`);
   const filter = page.getByRole('textbox', { name: 'Filter rooms', exact: true });
@@ -27,7 +45,10 @@ test('room browsing filters descriptions, saves without navigating, and explains
   await expect(filter).toBeFocused();
   await page.getByRole('button', { name: 'Favorite Lobby', exact: true }).click();
   await expect(page).toHaveURL(/\/rooms$/);
-  await expect(page.getByRole('button', { name: 'Unfavorite Lobby', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: 'Unfavorite Lobby', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
   const join = page.getByRole('textbox', { name: 'Room to join', exact: true });
   await join.fill('https://unrelated.example/lobby');
   await page.getByRole('button', { name: 'Join room', exact: true }).click();
@@ -44,7 +65,13 @@ test('compact directory and conversation controls fit narrow widths', async ({ p
   await emit(page, `|queryresponse|rooms|${JSON.stringify(directory)}`);
   for (const width of [320, 390, 768]) {
     await page.setViewportSize({ width, height: 844 });
-    for (const selector of ['.directory-tools', '.directory-join input', '.directory-join button', '.directory-room-entry', '.directory-favorite']) {
+    for (const selector of [
+      '.directory-tools',
+      '.directory-join input',
+      '.directory-join button',
+      '.directory-room-entry',
+      '.directory-favorite',
+    ]) {
       const bounds = await page.locator(selector).first().boundingBox();
       expect(bounds, selector).not.toBeNull();
       expect(bounds!.x, selector).toBeGreaterThanOrEqual(0);
@@ -68,7 +95,9 @@ test('compact directory and conversation controls fit narrow widths', async ({ p
   }
 });
 
-test('user search stays separate from message search and conversation view state resets', async ({ page }) => {
+test('user search stays separate from message search and conversation view state resets', async ({
+  page,
+}) => {
   await page.goto('/room/lobby');
   const history = page.getByRole('searchbox', { name: 'Search chat history', exact: true });
   await history.fill('Welcome');
@@ -82,17 +111,24 @@ test('user search stays separate from message search and conversation view state
   await page.getByRole('button', { name: 'Close user list' }).click();
   await expect(page.getByRole('button', { name: '2 users', exact: true })).toBeFocused();
   await page.getByRole('textbox', { name: 'Message Lobby', exact: true }).fill('Lobby draft survives');
-  await emit(page, `|pm| Bob| Guest 1000|Hello\n${Array.from({ length: 100 }, (_, index) => `|pm| Bob| Guest 1000|Bob line ${index}`).join('\n')}`);
+  await emit(
+    page,
+    `|pm| Bob| Guest 1000|Hello\n${Array.from({ length: 100 }, (_, index) => `|pm| Bob| Guest 1000|Bob line ${index}`).join('\n')}`,
+  );
   await page.locator('.session-tab-open').filter({ hasText: 'Bob' }).click();
   await expect(history).toHaveValue('');
   await expect(userSearch).toHaveCount(0);
   await expect(page.getByText('Bob line 99', { exact: true })).toBeInViewport();
   await page.locator('.session-tab-open').filter({ hasText: 'Lobby' }).click();
   await expect(history).toHaveValue('');
-  await expect(page.getByRole('textbox', { name: 'Message Lobby', exact: true })).toHaveValue('Lobby draft survives');
+  await expect(page.getByRole('textbox', { name: 'Message Lobby', exact: true })).toHaveValue(
+    'Lobby draft survives',
+  );
 });
 
-test('multiline drafts grow, survive failed sends, and return focus after success', async ({ page }, testInfo) => {
+test('multiline drafts grow, survive failed sends, and return focus after success', async ({
+  page,
+}, testInfo) => {
   await page.goto('/room/pm-bob');
   const draft = page.getByRole('textbox', { name: 'Message bob', exact: true });
   const initialViewport = page.viewportSize();
@@ -144,7 +180,8 @@ test('spoilers can be revealed and hidden by touch or keyboard', async ({ page, 
   await emit(page, '>lobby\n|c|Reader|The answer is ||Pikachu||.');
   const spoiler = page.getByRole('button', { name: 'Reveal spoiler', exact: true });
   await expect(spoiler).toHaveAttribute('aria-expanded', 'false');
-  if (isMobile) await spoiler.tap(); else await spoiler.click();
+  if (isMobile) await spoiler.tap();
+  else await spoiler.click();
   const revealed = page.getByRole('button', { name: 'Hide spoiler: Pikachu', exact: true });
   await expect(revealed).toHaveAttribute('aria-expanded', 'true');
   await revealed.press('Space');

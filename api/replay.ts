@@ -12,7 +12,11 @@ export default function handler(request: Request): Promise<Response> {
     timeout: 20_000,
     label: 'replay',
     validate(form) {
-      if ([...form.keys()].some(key => !['act', 'serverid', 'id', 'log', 'password'].includes(key) || form.getAll(key).length !== 1)) {
+      if (
+        [...form.keys()].some(
+          key => !['act', 'serverid', 'id', 'log', 'password'].includes(key) || form.getAll(key).length !== 1,
+        )
+      ) {
         return 'Unsupported or duplicate replay field.';
       }
       if (!/^[a-z0-9-]{1,200}$/.test(form.get('id') || '')) return 'Invalid replay ID.';

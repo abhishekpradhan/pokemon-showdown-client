@@ -13,7 +13,9 @@ import { SPRITE_HOST } from '../data/sprites';
 
 let unlocked = false;
 if (typeof window !== 'undefined') {
-  const unlock = () => { unlocked = true; };
+  const unlock = () => {
+    unlocked = true;
+  };
   window.addEventListener('pointerdown', unlock, { once: true, capture: true });
   window.addEventListener('keydown', unlock, { once: true, capture: true });
 }
@@ -39,7 +41,10 @@ export const playCry = (species: string, volume = 0.45): void => {
       audio = new Audio(url);
       if (cryCache.size >= MAX_CACHED_CRIES) {
         const oldest = cryCache.keys().next().value;
-        if (oldest) { cryCache.get(oldest)?.pause(); cryCache.delete(oldest); }
+        if (oldest) {
+          cryCache.get(oldest)?.pause();
+          cryCache.delete(oldest);
+        }
       }
       cryCache.set(url, audio);
     }
@@ -59,11 +64,18 @@ export const playTurnPing = (volume = 0.25): void => {
     const ctx = pingContext;
     if (ctx.state === 'suspended') void ctx.resume().catch(() => {});
     const now = ctx.currentTime;
-    for (const [at, freq] of [[0, 660], [0.11, 880]] as const) {
+    for (const [at, freq] of [
+      [0, 660],
+      [0.11, 880],
+    ] as const) {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       pingOscillators.add(osc);
-      osc.onended = () => { pingOscillators.delete(osc); osc.disconnect(); gain.disconnect(); };
+      osc.onended = () => {
+        pingOscillators.delete(osc);
+        osc.disconnect();
+        gain.disconnect();
+      };
       osc.type = 'sine';
       osc.frequency.value = freq;
       gain.gain.setValueAtTime(0, now + at);
@@ -80,12 +92,24 @@ export const playTurnPing = (volume = 0.25): void => {
 
 export const stopBattleSounds = () => {
   for (const audio of cryCache.values()) audio.pause();
-  for (const oscillator of pingOscillators) { try { oscillator.stop(); oscillator.disconnect(); } catch { /* Already stopped. */ } }
+  for (const oscillator of pingOscillators) {
+    try {
+      oscillator.stop();
+      oscillator.disconnect();
+    } catch {
+      /* Already stopped. */
+    }
+  }
   pingOscillators.clear();
   if (pingContext?.state === 'running') void pingContext.suspend().catch(() => {});
 };
 
 export const __testables = {
-  markUnlocked: () => { unlocked = true; },
-  reset: () => { unlocked = false; cryCache.clear(); },
+  markUnlocked: () => {
+    unlocked = true;
+  },
+  reset: () => {
+    unlocked = false;
+    cryCache.clear();
+  },
 };

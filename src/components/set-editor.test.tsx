@@ -3,7 +3,9 @@ import { SetEditor } from './set-editor';
 import { loadDex } from '../data/dex';
 
 describe('format-aware set editor', () => {
-  beforeAll(async () => { await loadDex(); });
+  beforeAll(async () => {
+    await loadDex();
+  });
 
   it('offers inherited moves and lets permissive formats select any move', async () => {
     const onChange = vi.fn();
@@ -23,18 +25,28 @@ describe('format-aware set editor', () => {
     render(<SetEditor set={{ species: 'Pikachu', moves: [] }} formatId="gen2ou" onChange={vi.fn()} />);
     expect(screen.getByLabelText('HP DV')).toHaveValue(15);
     fireEvent.click(screen.getByRole('button', { name: 'Species' }));
-    fireEvent.change(screen.getByRole('combobox', { name: /filter$/ }), { target: { value: 'Iron Valiant' } });
+    fireEvent.change(screen.getByRole('combobox', { name: /filter$/ }), {
+      target: { value: 'Iron Valiant' },
+    });
     expect(screen.queryByRole('option', { name: /Iron Valiant/ })).not.toBeInTheDocument();
   });
 
   it('clears moves and preserves all unrelated details', async () => {
     const onChange = vi.fn();
-    render(<SetEditor set={{ species: 'Pikachu', moves: ['Thunderbolt'], gender: 'F', happiness: 0, ivs: { atk: 0 } }} formatId="gen9ou" onChange={onChange} />);
+    render(
+      <SetEditor
+        set={{ species: 'Pikachu', moves: ['Thunderbolt'], gender: 'F', happiness: 0, ivs: { atk: 0 } }}
+        formatId="gen9ou"
+        onChange={onChange}
+      />,
+    );
     // Exercise the loaded species list, rather than scanning the temporary
     // all-moves fallback while its asynchronous learnset is still loading.
     await screen.findByText(/Pikachu learnset/);
     fireEvent.click(screen.getByRole('button', { name: 'Move 1' }));
     fireEvent.click(screen.getByRole('option', { name: 'Clear move' }));
-    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ moves: [''], gender: 'F', happiness: 0, ivs: { atk: 0 } }));
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({ moves: [''], gender: 'F', happiness: 0, ivs: { atk: 0 } }),
+    );
   });
 });

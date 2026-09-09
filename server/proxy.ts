@@ -9,15 +9,16 @@ type ProxyOptions = {
 
 class BodyLimitError extends Error {}
 
-const reply = (body: string | null, status: number, headers: Record<string, string> = {}) => new Response(body, {
-  status,
-  headers: {
-    'Content-Type': 'text/plain; charset=utf-8',
-    'Cache-Control': 'no-store',
-    'X-Content-Type-Options': 'nosniff',
-    ...headers,
-  },
-});
+const reply = (body: string | null, status: number, headers: Record<string, string> = {}) =>
+  new Response(body, {
+    status,
+    headers: {
+      'Content-Type': 'text/plain; charset=utf-8',
+      'Cache-Control': 'no-store',
+      'X-Content-Type-Options': 'nosniff',
+      ...headers,
+    },
+  });
 
 /** Count network bytes before decoding; cancel immediately when the limit is exceeded. */
 export async function readBoundedBody(
@@ -59,16 +60,25 @@ export async function proxyForm(request: Request, options: ProxyOptions): Promis
   const origin = request.headers.get('origin');
   // CLI clients may omit Origin. Browser cross-site and opaque origins are
   // rejected; absent CORS headers alone would not stop form submissions.
-  if ((origin !== null && origin !== new URL(request.url).origin) || request.headers.get('sec-fetch-site') === 'cross-site') {
+  if (
+    (origin !== null && origin !== new URL(request.url).origin) ||
+    request.headers.get('sec-fetch-site') === 'cross-site'
+  ) {
     return reply('Cross-origin requests are not supported.', 403);
   }
   if (request.method === 'OPTIONS') return reply(null, 204, { Allow: 'POST, OPTIONS' });
   if (request.method !== 'POST') return reply('Only POST is supported.', 405, { Allow: 'POST, OPTIONS' });
-  if (request.headers.get('content-type')?.split(';')[0].trim().toLowerCase() !== 'application/x-www-form-urlencoded') {
+  if (
+    request.headers.get('content-type')?.split(';')[0].trim().toLowerCase() !==
+    'application/x-www-form-urlencoded'
+  ) {
     return reply('Use application/x-www-form-urlencoded.', 415);
   }
   const declaredLength = request.headers.get('content-length');
-  if (declaredLength !== null && (!/^\d+$/.test(declaredLength) || Number(declaredLength) > options.requestLimit)) {
+  if (
+    declaredLength !== null &&
+    (!/^\d+$/.test(declaredLength) || Number(declaredLength) > options.requestLimit)
+  ) {
     return reply('Request body too large.', 413);
   }
   let body: string;
@@ -111,7 +121,13 @@ export async function proxyForm(request: Request, options: ProxyOptions): Promis
     const text = await readBoundedBody(upstream.body, options.responseLimit, signal);
     return reply([204, 205].includes(upstream.status) ? null : text, upstream.status);
   } catch (error) {
-    const kind = error instanceof Error && ['Error', 'TypeError', 'RangeError', 'TimeoutError', 'AbortError', 'BodyLimitError'].includes(error.name) ? error.name : 'UnknownError';
+    const kind =
+      error instanceof Error &&
+      ['Error', 'TypeError', 'RangeError', 'TimeoutError', 'AbortError', 'BodyLimitError'].includes(
+        error.name,
+      )
+        ? error.name
+        : 'UnknownError';
     // Error messages, causes, URLs and request/response contents can contain
     // credentials. Record only fixed categories useful for runtime diagnosis.
     console.error('Upstream request failed', { service: options.label, stage, kind });

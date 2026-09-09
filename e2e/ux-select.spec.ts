@@ -2,18 +2,26 @@ import type { Page } from '@playwright/test';
 import { expect, test } from './fixtures';
 import { installMockPs } from './mock-ps';
 
-test.beforeEach(async ({ page }) => { await installMockPs(page); });
+test.beforeEach(async ({ page }) => {
+  await installMockPs(page);
+});
 
 async function openChallenge(page: Page) {
   await page.goto('/');
   await page.getByRole('button', { name: 'Select battle format', exact: true }).waitFor();
-  await page.evaluate(() => window.dispatchEvent(new CustomEvent('arena:challenge', { detail: { user: 'Bob', format: 'gen9ou', accept: false } })));
+  await page.evaluate(() =>
+    window.dispatchEvent(
+      new CustomEvent('arena:challenge', { detail: { user: 'Bob', format: 'gen9ou', accept: false } }),
+    ),
+  );
   const dialog = page.getByRole('dialog', { name: 'Challenge · Bob' });
   await expect(dialog).toBeVisible();
   return dialog;
 }
 
-test('challenge selectors accept pointer input and Escape dismisses one layer at a time', async ({ page }) => {
+test('challenge selectors accept pointer input and Escape dismisses one layer at a time', async ({
+  page,
+}) => {
   const dialog = await openChallenge(page);
   const format = dialog.getByRole('button', { name: 'Select battle format', exact: true });
   await format.click();
@@ -56,7 +64,9 @@ test('Tab follows the challenge form and outside dismissal clears the filter', a
   await expect(filter).toHaveCount(0);
   await format.click();
   await expect(filter).toHaveValue('');
-  await expect(page.getByRole('listbox', { name: 'Select battle format', exact: true }).getByRole('option')).toHaveCount(2);
+  await expect(
+    page.getByRole('listbox', { name: 'Select battle format', exact: true }).getByRole('option'),
+  ).toHaveCount(2);
 });
 
 test('a short viewport and a simulated keyboard keep the popup inside visible bounds', async ({ page }) => {
@@ -77,13 +87,20 @@ test('a short viewport and a simulated keyboard keep the popup inside visible bo
     Object.defineProperty(window.visualViewport, 'offsetTop', { configurable: true, value: 120 });
     window.visualViewport!.dispatchEvent(new Event('resize'));
   });
-  await expect.poll(async () => { const rect = (await popup.boundingBox())!; return rect.y >= 128 && rect.y + rect.height <= 292; }).toBe(true);
+  await expect
+    .poll(async () => {
+      const rect = (await popup.boundingBox())!;
+      return rect.y >= 128 && rect.y + rect.height <= 292;
+    })
+    .toBe(true);
   await expect(page.getByRole('combobox', { name: 'Select battle format filter' })).toBeFocused();
   await page.screenshot({ path: `/tmp/select-ux-keyboard-${test.info().project.name}.png` });
 });
 
 test('modal selection remains usable when native popovers are unavailable', async ({ page }) => {
-  await page.addInitScript(() => Object.defineProperty(HTMLElement.prototype, 'showPopover', { configurable: true, value: undefined }));
+  await page.addInitScript(() =>
+    Object.defineProperty(HTMLElement.prototype, 'showPopover', { configurable: true, value: undefined }),
+  );
   const dialog = await openChallenge(page);
   const format = dialog.getByRole('button', { name: 'Select battle format', exact: true });
   await format.click();

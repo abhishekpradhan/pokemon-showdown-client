@@ -17,8 +17,12 @@ export function expectAuthenticationIdentity(name: string) {
 /** Older servers omit the target name on assertion errors, but not success ACKs. */
 export function matchesAuthenticationIdentity(name: string, allowUnnamed = false) {
   const userid = identity(name);
-  return !!active && !active.signal.aborted && !!requestedIdentity &&
-    (userid === requestedIdentity || (allowUnnamed && !userid));
+  return (
+    !!active &&
+    !active.signal.aborted &&
+    !!requestedIdentity &&
+    (userid === requestedIdentity || (allowUnnamed && !userid))
+  );
 }
 
 export function beginAuthentication() {

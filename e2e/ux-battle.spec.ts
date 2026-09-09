@@ -29,7 +29,13 @@ test('move targeting keeps keyboard focus and has an explicit route back', async
   expect(targetBox && regionBox && targetBox.width >= regionBox.width - 2).toBeTruthy();
   await page.getByRole('button', { name: 'Back to moves', exact: true }).click();
   await expect(move).toBeFocused();
-  expect(await page.evaluate(() => (window as unknown as { __mockPsSent: string[] }).__mockPsSent.filter(command => command.includes('/choose')))).toEqual([]);
+  expect(
+    await page.evaluate(() =>
+      (window as unknown as { __mockPsSent: string[] }).__mockPsSent.filter(command =>
+        command.includes('/choose'),
+      ),
+    ),
+  ).toEqual([]);
   await page.keyboard.press('Enter');
   await expect(target).toBeFocused();
   await page.keyboard.press('Enter');
@@ -46,7 +52,13 @@ test('spectator playback stays compact and preserves the battlefield', async ({ 
       const rect = document.querySelector(selector)!.getBoundingClientRect();
       return { top: rect.top, bottom: rect.bottom, height: rect.height };
     };
-    return { width: innerWidth, playback: box('.battle-playback'), field: box('.battle-field'), dock: box('.decision-dock'), overflow: document.documentElement.scrollWidth - innerWidth };
+    return {
+      width: innerWidth,
+      playback: box('.battle-playback'),
+      field: box('.battle-field'),
+      dock: box('.decision-dock'),
+      overflow: document.documentElement.scrollWidth - innerWidth,
+    };
   });
   expect(geometry.playback.height).toBeLessThanOrEqual(geometry.width <= 560 ? 160 : 110);
   expect(geometry.field.height).toBeGreaterThan(geometry.playback.height);
@@ -83,7 +95,9 @@ test('mobile inspector traps focus, supports tab keys and returns to its opener'
   await expect(opener).toBeFocused();
 });
 
-test('mobile inspection returns focus and the timer and switch names stay readable', async ({ page }, info) => {
+test('mobile inspection returns focus and the timer and switch names stay readable', async ({
+  page,
+}, info) => {
   test.skip(info.project.name !== 'mobile', 'Touch affordances are exposed on coarse pointers.');
   await startBattle(page);
   const inspect = page.getByRole('button', { name: 'Inspect Moonblast', exact: true });
@@ -92,16 +106,28 @@ test('mobile inspection returns focus and the timer and switch names stay readab
   await page.getByRole('button', { name: 'Close details', exact: true }).click();
   await expect(inspect).toBeFocused();
   await expect(page.locator('.bench-body strong', { hasText: 'Heatran' })).toBeVisible();
-  const roster = await page.locator('.field-hud').first().locator('.roster-pips').evaluate(element => {
-    const parent = element.parentElement!.getBoundingClientRect();
-    const bounds = element.getBoundingClientRect();
-    return { right: bounds.right, parentRight: parent.right, pips: Array.from(element.children).map(pip => ({ width: pip.getBoundingClientRect().width, height: pip.getBoundingClientRect().height })) };
-  });
+  const roster = await page
+    .locator('.field-hud')
+    .first()
+    .locator('.roster-pips')
+    .evaluate(element => {
+      const parent = element.parentElement!.getBoundingClientRect();
+      const bounds = element.getBoundingClientRect();
+      return {
+        right: bounds.right,
+        parentRight: parent.right,
+        pips: Array.from(element.children).map(pip => ({
+          width: pip.getBoundingClientRect().width,
+          height: pip.getBoundingClientRect().height,
+        })),
+      };
+    });
   expect(roster.pips).toHaveLength(6);
   expect(roster.pips.every(pip => pip.width >= 6 && Math.abs(pip.width - pip.height) < 1)).toBe(true);
   expect(roster.right).toBeLessThanOrEqual(roster.parentRight);
   await page.evaluate(() => {
-    const socket = (window as unknown as { __mockPsSockets: Array<{ emit: (value: string) => void }> }).__mockPsSockets[0];
+    const socket = (window as unknown as { __mockPsSockets: Array<{ emit: (value: string) => void }> })
+      .__mockPsSockets[0];
     socket.emit('>battle-gen9ou-1\n|inactive|Time left: 25 sec this turn | 150 sec total');
   });
   await expect(page.getByRole('timer')).toBeVisible();
@@ -111,13 +137,32 @@ test('a full mobile move and team selection stays readable and reachable', async
   test.skip(info.project.name !== 'mobile', 'Exercises the compact decision layout.');
   await startBattle(page);
   await page.evaluate(() => {
-    const socket = (window as unknown as { __mockPsSockets: Array<{ emit: (value: string) => void }> }).__mockPsSockets[0];
-    const pokemon = ['Iron Valiant', 'Heatran', 'Dragapult', 'Kingambit', 'Samurott-Hisui', 'Gholdengo'].map((name, index) => ({
-      ident: `p1: ${name}`, details: `${name}, L80`, condition: '200/200', active: index === 0, moves: ['moonblast', 'closecombat', 'psyshock', 'shadowball'],
-    }));
-    const request = { rqid: 8, side: { id: 'p1', name: 'CodexTester', pokemon }, active: [{
-      moves: ['Moonblast', 'Close Combat', 'Psyshock', 'Shadow Ball'].map(move => ({ move, pp: 10, maxpp: 16, target: 'normal' })), canTerastallize: 'Fairy',
-    }] };
+    const socket = (window as unknown as { __mockPsSockets: Array<{ emit: (value: string) => void }> })
+      .__mockPsSockets[0];
+    const pokemon = ['Iron Valiant', 'Heatran', 'Dragapult', 'Kingambit', 'Samurott-Hisui', 'Gholdengo'].map(
+      (name, index) => ({
+        ident: `p1: ${name}`,
+        details: `${name}, L80`,
+        condition: '200/200',
+        active: index === 0,
+        moves: ['moonblast', 'closecombat', 'psyshock', 'shadowball'],
+      }),
+    );
+    const request = {
+      rqid: 8,
+      side: { id: 'p1', name: 'CodexTester', pokemon },
+      active: [
+        {
+          moves: ['Moonblast', 'Close Combat', 'Psyshock', 'Shadow Ball'].map(move => ({
+            move,
+            pp: 10,
+            maxpp: 16,
+            target: 'normal',
+          })),
+          canTerastallize: 'Fairy',
+        },
+      ],
+    };
     socket.emit(`>battle-gen9ou-1\n|request|${JSON.stringify(request)}`);
   });
   await expect(page.locator('.move-choice')).toHaveCount(4);
@@ -125,9 +170,17 @@ test('a full mobile move and team selection stays readable and reachable', async
   const second = await page.locator('.move-choice').nth(1).boundingBox();
   const third = await page.locator('.move-choice').nth(2).boundingBox();
   expect(first && second && third && Math.abs(first.y - second.y) < 1 && third.y > first.y).toBeTruthy();
-  const lastSwitch = page.getByRole('group', { name: 'Team bench', exact: true }).getByRole('button', { name: /^Gholdengo,/ });
+  const lastSwitch = page
+    .getByRole('group', { name: 'Team bench', exact: true })
+    .getByRole('button', { name: /^Gholdengo,/ });
   await lastSwitch.scrollIntoViewIfNeeded();
   await expect(lastSwitch.locator('strong')).toBeVisible();
   await lastSwitch.click();
-  expect(await page.evaluate(() => (window as unknown as { __mockPsSent: string[] }).__mockPsSent.filter(command => command.includes('/choose')))).toEqual(['battle-gen9ou-1|/choose switch 6|8']);
+  expect(
+    await page.evaluate(() =>
+      (window as unknown as { __mockPsSent: string[] }).__mockPsSent.filter(command =>
+        command.includes('/choose'),
+      ),
+    ),
+  ).toEqual(['battle-gen9ou-1|/choose switch 6|8']);
 });

@@ -23,7 +23,14 @@ type TabModel = {
   unread: number;
 };
 
-const SessionTab = memo(function SessionTab({ id, type, title, live, unread, active }: TabModel & { active: boolean }) {
+const SessionTab = memo(function SessionTab({
+  id,
+  type,
+  title,
+  live,
+  unread,
+  active,
+}: TabModel & { active: boolean }) {
   const navigate = useNavigate();
   const tabRef = useRef<HTMLSpanElement>(null);
   useEffect(() => {
@@ -41,10 +48,13 @@ const SessionTab = memo(function SessionTab({ id, type, title, live, unread, act
     const next = nextRouteAfterClose(state.rooms, id);
     if (!state.leaveRoom(id)) return;
     if (active) void navigate({ to: next });
-    else requestAnimationFrame(() => {
-      const tab = document.querySelector<HTMLElement>('.session-tab.is-active .session-tab-open') || document.querySelector<HTMLElement>('.session-tab-open');
-      (tab || document.getElementById('workspace'))?.focus({ preventScroll: true });
-    });
+    else
+      requestAnimationFrame(() => {
+        const tab =
+          document.querySelector<HTMLElement>('.session-tab.is-active .session-tab-open') ||
+          document.querySelector<HTMLElement>('.session-tab-open');
+        (tab || document.getElementById('workspace'))?.focus({ preventScroll: true });
+      });
   };
 
   return (
@@ -56,12 +66,20 @@ const SessionTab = memo(function SessionTab({ id, type, title, live, unread, act
         title={title}
         onClick={open}
       >
-        {type === 'battle' ? <Swords size={13} aria-hidden /> :
-          type === 'pm' ? <MessageCircle size={13} aria-hidden /> :
-          <Hash size={13} aria-hidden />}
+        {type === 'battle' ? (
+          <Swords size={13} aria-hidden />
+        ) : type === 'pm' ? (
+          <MessageCircle size={13} aria-hidden />
+        ) : (
+          <Hash size={13} aria-hidden />
+        )}
         <span className="session-tab-title">{title}</span>
         {live && <span className="session-tab-live" role="img" aria-label="Live" />}
-        {unread > 0 && !active && <i className="session-tab-unread" aria-label={`${unread} unread messages`}>{unread > 99 ? '99+' : unread}</i>}
+        {unread > 0 && !active && (
+          <i className="session-tab-unread" aria-label={`${unread} unread messages`}>
+            {unread > 99 ? '99+' : unread}
+          </i>
+        )}
       </button>
       <button type="button" className="session-tab-close" aria-label={`Close ${title}`} onClick={close}>
         <X size={12} />
@@ -73,7 +91,7 @@ const SessionTab = memo(function SessionTab({ id, type, title, live, unread, act
 export function SessionTabs() {
   const location = useLocation();
   const { rooms, searchState } = useArenaStore(
-    useShallow(state => ({ rooms: state.rooms, searchState: state.searchState }))
+    useShallow(state => ({ rooms: state.rooms, searchState: state.searchState })),
   );
 
   const tabs: TabModel[] = Object.values(rooms)
@@ -81,15 +99,22 @@ export function SessionTabs() {
     .map(room => ({
       id: room.id,
       type: room.type,
-      title: room.type === 'battle' && room.battle.p1.name !== 'Player 1' ?
-        room.battle.p3 && room.battle.p4 ? room.battle.gameType === 'multi' ? `${room.battle.p1.name} + ${room.battle.p3.name} v ${room.battle.p2.name} + ${room.battle.p4.name}` : [room.battle.p1, room.battle.p2, room.battle.p3, room.battle.p4].map(side => side.name).join(' v ') : `${room.battle.p1.name} v ${room.battle.p2.name}` :
-        room.title,
+      title:
+        room.type === 'battle' && room.battle.p1.name !== 'Player 1'
+          ? room.battle.p3 && room.battle.p4
+            ? room.battle.gameType === 'multi'
+              ? `${room.battle.p1.name} + ${room.battle.p3.name} v ${room.battle.p2.name} + ${room.battle.p4.name}`
+              : [room.battle.p1, room.battle.p2, room.battle.p3, room.battle.p4]
+                  .map(side => side.name)
+                  .join(' v ')
+            : `${room.battle.p1.name} v ${room.battle.p2.name}`
+          : room.title,
       live: room.type === 'battle' && !room.battle.ended,
       unread: room.unread,
     }));
   if (!tabs.length && searchState !== 'searching') return null;
 
-  const routeFor = (tab: TabModel) => tab.type === 'battle' ? `/battle/${tab.id}` : `/room/${tab.id}`;
+  const routeFor = (tab: TabModel) => (tab.type === 'battle' ? `/battle/${tab.id}` : `/room/${tab.id}`);
 
   return (
     <nav className="session-tabs" aria-label="Open sessions">

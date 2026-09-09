@@ -12,8 +12,7 @@ import type { GenerationNum } from '@pkmn/types';
 import { DEFAULT_GEN } from './dex';
 
 /** Where sprite and icon assets are served from. */
-export const SPRITE_HOST =
-  import.meta.env.VITE_PS_SPRITE_HOST || 'https://play.pokemonshowdown.com';
+export const SPRITE_HOST = import.meta.env.VITE_PS_SPRITE_HOST || 'https://play.pokemonshowdown.com';
 
 export type SpriteOptions = {
   /** `near` renders the player's back sprite, `far` the opponent's front. */

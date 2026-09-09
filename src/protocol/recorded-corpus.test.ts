@@ -4,14 +4,26 @@ import { useArenaStore } from '../stores/arena-store';
 import { loadEngine } from '../battle/engine';
 
 const initial = useArenaStore.getState();
-beforeAll(async () => { await loadEngine(); });
-afterEach(() => { useArenaStore.setState(initial, true); });
+beforeAll(async () => {
+  await loadEngine();
+});
+afterEach(() => {
+  useArenaStore.setState(initial, true);
+});
 
 describe('recorded pinned-server protocol corpus', () => {
   for (const recording of corpus.cases) {
     it(`projects ${recording.scenario} ${recording.seat} ownership and replaces its reconnect transcript`, () => {
-      useArenaStore.setState({ rooms: {}, roomErrors: {}, rawProtocolLog: [], protocolLogEnabled: false, username: recording.username,
-        named: true, connection: 'connected', activeRoomId: undefined });
+      useArenaStore.setState({
+        rooms: {},
+        roomErrors: {},
+        rawProtocolLog: [],
+        protocolLogEnabled: false,
+        username: recording.username,
+        named: true,
+        connection: 'connected',
+        activeRoomId: undefined,
+      });
       const frames = recording.frames.map(parsePsFrame);
       for (const frame of frames) useArenaStore.getState().handleFrame(frame);
       const roomId = frames[0].roomId;
@@ -24,7 +36,11 @@ describe('recorded pinned-server protocol corpus', () => {
       expect(room.battle.team).toHaveLength(6);
       expect(room.lastRequest?.side?.id).toBe(recording.seat);
       expect(room.lastRequest?.side?.pokemon).toHaveLength(6);
-      expect(room.lastRequest?.side?.pokemon?.every(pokemon => pokemon.ident.match(new RegExp(`^${recording.seat}[a-c]?:`)))).toBe(true);
+      expect(
+        room.lastRequest?.side?.pokemon?.every(pokemon =>
+          pokemon.ident.match(new RegExp(`^${recording.seat}[a-c]?:`)),
+        ),
+      ).toBe(true);
       const sides = room.battle.sides || [];
       expect(sides).toHaveLength(['multi', 'freeforall'].includes(recording.scenario) ? 4 : 2);
       expect(new Set(sides.map(side => side.id)).size).toBe(sides.length);

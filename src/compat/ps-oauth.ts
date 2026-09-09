@@ -32,7 +32,12 @@ export const storedOAuthToken = (): StoredToken | null => {
     const meta = JSON.parse(record || localStorage.getItem(TOKEN_META_KEY) || '{}') as Partial<StoredToken>;
     const token = record ? meta?.token : localStorage.getItem(TOKEN_KEY);
     if (!token || typeof token !== 'string') return null;
-    if (!meta || typeof meta.issuedAt !== 'number' || !Number.isFinite(meta.issuedAt) || Date.now() - meta.issuedAt > TOKEN_LIFETIME) {
+    if (
+      !meta ||
+      typeof meta.issuedAt !== 'number' ||
+      !Number.isFinite(meta.issuedAt) ||
+      Date.now() - meta.issuedAt > TOKEN_LIFETIME
+    ) {
       clearOAuthToken();
       return null;
     }
@@ -58,7 +63,9 @@ export const clearOAuthToken = (): void => {
     localStorage.removeItem(OAUTH_STORAGE_KEY);
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(TOKEN_META_KEY);
-  } catch { /* Storage may be disabled; logout still ends the live session. */ }
+  } catch {
+    /* Storage may be disabled; logout still ends the live session. */
+  }
 };
 
 /**
@@ -69,7 +76,12 @@ const parseAssertionResponse = (body: string): { assertion?: string; user?: stri
   const text = body.trim();
   if (text.startsWith(']')) {
     try {
-      const data = JSON.parse(text.slice(1)) as { success?: unknown; data?: string; assertion?: string; user?: string };
+      const data = JSON.parse(text.slice(1)) as {
+        success?: unknown;
+        data?: string;
+        assertion?: string;
+        user?: string;
+      };
       if (data.success === false) return { failed: true };
       const assertion = data.data ?? data.assertion;
       if (typeof assertion === 'string' && assertion && !assertion.startsWith(';')) {
@@ -88,7 +100,7 @@ const parseAssertionResponse = (body: string): { assertion?: string; user?: stri
 export const assertionFromToken = async (
   challstr: string,
   token: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<{ assertion: string; user?: string } | null> => {
   const url = new URL(`${OAUTH_ROOT}/oauth/api/getassertion`);
   url.searchParams.set('challenge', challstr);
@@ -143,9 +155,16 @@ export const authorizeUrl = (challstr: string, state?: string): string => {
  */
 export const requestOAuthGrant = (challstr: string, signal?: AbortSignal): Promise<OAuthGrant> =>
   new Promise((resolve, reject) => {
-    if (signal?.aborted) { reject(new DOMException('Login cancelled.', 'AbortError')); return; }
+    if (signal?.aborted) {
+      reject(new DOMException('Login cancelled.', 'AbortError'));
+      return;
+    }
     const state = crypto.randomUUID();
-    const popup = window.open(authorizeUrl(challstr, state), `ps-oauth-${state}`, 'popup=1,width=500,height=700');
+    const popup = window.open(
+      authorizeUrl(challstr, state),
+      `ps-oauth-${state}`,
+      'popup=1,width=500,height=700',
+    );
     if (!popup) {
       reject(new Error('The login popup was blocked. Allow popups for this site and try again.'));
       return;
@@ -158,7 +177,12 @@ export const requestOAuthGrant = (challstr: string, signal?: AbortSignal): Promi
       signal?.removeEventListener('abort', onAbort);
       clearInterval(poll);
       clearTimeout(timeout);
-      try { popup.name = ''; popup.close(); } catch { /* already closed */ }
+      try {
+        popup.name = '';
+        popup.close();
+      } catch {
+        /* already closed */
+      }
       if (grant) resolve(grant);
       else reject(new Error(error || 'Login was cancelled.'));
     };
@@ -176,23 +200,35 @@ export const requestOAuthGrant = (challstr: string, signal?: AbortSignal): Promi
       if (data?.type !== 'ps-oauth' || typeof data.search !== 'string') return;
       const params = new URLSearchParams(data.search);
       if (params.get('state') !== state) return;
-      try { if (popup.location.pathname !== '/oauth.html') return; } catch { return; }
+      try {
+        if (popup.location.pathname !== '/oauth.html') return;
+      } catch {
+        return;
+      }
       const grant = fromParams(params);
       settle(grant, grant ? undefined : 'The login server did not return an assertion.');
     };
     window.addEventListener('message', onMessage);
     const poll = setInterval(() => {
       try {
-        if (popup.closed) { settle(null); return; }
+        if (popup.closed) {
+          settle(null);
+          return;
+        }
         if (popup.location?.origin === location.origin && popup.location.pathname === '/oauth.html') {
           const query = popup.name.startsWith('ps-oauth:') ? popup.name.slice(9) : popup.location.search;
           const grant = fromParams(new URLSearchParams(query));
           if (grant) settle(grant);
         }
-      } catch { /* still cross-origin */ }
+      } catch {
+        /* still cross-origin */
+      }
     }, 500);
     const onAbort = () => settle(null, 'Login was cancelled.');
-    const timeout = setTimeout(() => settle(null, 'Authorization timed out. Open sign-in again to retry.'), 5 * 60_000);
+    const timeout = setTimeout(
+      () => settle(null, 'Authorization timed out. Open sign-in again to retry.'),
+      5 * 60_000,
+    );
     signal?.addEventListener('abort', onAbort, { once: true });
   });
 
@@ -206,7 +242,8 @@ export async function currentOAuthToken(signal: AbortSignal): Promise<StoredToke
     const replacement = await refreshOAuthToken(stored.token, signal);
     if (signal.aborted || storedOAuthToken()?.token !== stored.token) return storedOAuthToken();
     if (!replacement) return stored;
-    if (!saveOAuthToken(replacement, stored.user)) return { token: replacement, user: stored.user, issuedAt: Date.now() };
+    if (!saveOAuthToken(replacement, stored.user))
+      return { token: replacement, user: stored.user, issuedAt: Date.now() };
     return storedOAuthToken();
   };
   if (typeof navigator !== 'undefined' && navigator.locks) {

@@ -8,8 +8,8 @@ button:focus-visible,
 a:focus-visible,
 input:focus-visible,
 textarea:focus-visible,
-[role="menuitem"]:focus-visible,
-[role="tab"]:focus-visible {
+[role='menuitem']:focus-visible,
+[role='tab']:focus-visible {
   outline: 2px solid var(--arena-cyan);
   outline-offset: 2px;
 }
@@ -22,8 +22,7 @@ textarea:focus-visible,
   min-height: 0;
   overflow: hidden;
   background:
-    radial-gradient(circle at 66% -20%, rgba(91, 156, 255, 0.07), transparent 34%),
-    var(--arena-ink);
+    radial-gradient(circle at 66% -20%, rgba(91, 156, 255, 0.07), transparent 34%), var(--arena-ink);
 }
 
 .primary-rail {
@@ -51,7 +50,9 @@ textarea:focus-visible,
   transition: border-color var(--arena-fast) ease;
 }
 
-.brand-mark:hover { border-color: var(--arena-line-strong); }
+.brand-mark:hover {
+  border-color: var(--arena-line-strong);
+}
 
 .brand-mark img {
   width: 26px;
@@ -74,7 +75,9 @@ textarea:focus-visible,
   padding: 7px 2px;
   color: var(--arena-faint);
   border-radius: 9px;
-  transition: color 140ms ease, background 140ms ease;
+  transition:
+    color 140ms ease,
+    background 140ms ease;
 }
 
 .primary-nav-link span {
@@ -84,7 +87,7 @@ textarea:focus-visible,
 }
 
 .primary-nav-link::before {
-  content: "";
+  content: '';
   position: absolute;
   left: -6px;
   width: 2px;
@@ -120,7 +123,9 @@ textarea:focus-visible,
   text-decoration: none;
   text-transform: uppercase;
   border-radius: 7px;
-  transition: background var(--arena-fast) ease, color var(--arena-fast) ease;
+  transition:
+    background var(--arena-fast) ease,
+    color var(--arena-fast) ease;
 }
 
 .rail-status:hover {
@@ -226,7 +231,9 @@ textarea:focus-visible,
   border: 1px solid var(--arena-line);
   border-radius: 8px;
   cursor: pointer;
-  transition: border-color var(--arena-fast) ease, background var(--arena-fast) ease;
+  transition:
+    border-color var(--arena-fast) ease,
+    background var(--arena-fast) ease;
 }
 
 .command-trigger:hover {
@@ -235,7 +242,10 @@ textarea:focus-visible,
   border-color: var(--arena-line-strong);
 }
 
-.command-trigger span { flex: 1; text-align: start; }
+.command-trigger span {
+  flex: 1;
+  text-align: start;
+}
 
 .command-trigger kbd {
   padding: 2px 6px;
@@ -283,7 +293,9 @@ textarea:focus-visible,
   outline: none;
 }
 
-.palette-input input::placeholder { color: var(--arena-faint); }
+.palette-input input::placeholder {
+  color: var(--arena-faint);
+}
 
 .palette-input kbd {
   padding: 2px 6px;
@@ -326,7 +338,10 @@ textarea:focus-visible,
   cursor: pointer;
 }
 
-.palette-row svg { color: var(--arena-faint); flex: none; }
+.palette-row svg {
+  color: var(--arena-faint);
+  flex: none;
+}
 
 .palette-row-label {
   flex: 1;
@@ -346,7 +361,9 @@ textarea:focus-visible,
   background: rgb(91 156 255 / 14%);
 }
 
-.palette-row.is-highlighted svg { color: var(--arena-accent); }
+.palette-row.is-highlighted svg {
+  color: var(--arena-accent);
+}
 
 .palette-empty {
   padding: 22px 12px;
@@ -485,7 +502,6 @@ textarea:focus-visible,
 }
 
 @media (max-width: 980px) {
-
   .topbar {
     grid-template-columns: minmax(130px, 0.4fr) minmax(220px, 1fr) auto;
   }
@@ -584,7 +600,6 @@ textarea:focus-visible,
   }
 }
 
-
 /* ── Session tabs ────────────────────────────────────────────────────────
    The one list of open rooms. Horizontal, scrollable, always visible when
    anything is open. */
@@ -612,12 +627,16 @@ textarea:focus-visible,
   transition: background var(--arena-fast) ease;
 }
 
-.session-tab:hover { background: var(--arena-panel); }
+.session-tab:hover {
+  background: var(--arena-panel);
+}
 
-.session-tab.is-active { background: var(--arena-panel-strong); }
+.session-tab.is-active {
+  background: var(--arena-panel-strong);
+}
 
 .session-tab.is-active::after {
-  content: "";
+  content: '';
   position: absolute;
   inset-block-end: 0;
   inset-inline: 8px;
@@ -648,7 +667,9 @@ textarea:focus-visible,
   cursor: pointer;
 }
 
-.session-tab.is-active .session-tab-open { color: var(--arena-text); }
+.session-tab.is-active .session-tab-open {
+  color: var(--arena-text);
+}
 
 .session-tab-title {
   overflow: hidden;
@@ -693,13 +714,14 @@ textarea:focus-visible,
 
 .session-tab:hover .session-tab-close,
 .session-tab.is-active .session-tab-close,
-.session-tab-close:focus-visible { opacity: 1; }
+.session-tab-close:focus-visible {
+  opacity: 1;
+}
 
 .session-tab-close:hover {
   color: var(--arena-text);
   background: var(--arena-line);
 }
-
 
 /* ── Topbar theme toggle ─────────────────────────────────────────────────── */
 
@@ -724,10 +746,14 @@ textarea:focus-visible,
   border: none;
   border-radius: 6px;
   cursor: pointer;
-  transition: color var(--arena-fast) ease, background var(--arena-fast) ease;
+  transition:
+    color var(--arena-fast) ease,
+    background var(--arena-fast) ease;
 }
 
-.theme-segment button:hover { color: var(--arena-text); }
+.theme-segment button:hover {
+  color: var(--arena-text);
+}
 
 .theme-segment button.is-selected {
   color: var(--arena-text);
@@ -736,41 +762,139 @@ textarea:focus-visible,
 }
 
 /* Workspace orientation remains visible on compact screens. */
-.user-trigger span { max-inline-size: 140px; overflow: hidden; text-overflow: ellipsis; }
-.notification-popover { max-height: min(520px, calc(100dvh - 140px)); overflow-y: auto; }
-.notification-popover[data-state='open'] { animation: dialog-overlay-in var(--arena-fast) ease; }
-.command-palette { max-block-size: min(520px, calc(100dvh - 100px)); }
-.palette-close { display: grid; place-items: center; flex: none; width: 30px; height: 30px; border: 0; border-radius: 6px; color: var(--arena-muted); background: transparent; cursor: pointer; }
-.palette-close:hover { color: var(--arena-text); background: var(--arena-hover); }
-.palette-row { min-height: 40px; }
-@media (max-width: 980px) { .topbar-actions .theme-segment { display: none; } }
+.user-trigger span {
+  max-inline-size: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.notification-popover {
+  max-height: min(520px, calc(100dvh - 140px));
+  overflow-y: auto;
+}
+.notification-popover[data-state='open'] {
+  animation: dialog-overlay-in var(--arena-fast) ease;
+}
+.command-palette {
+  max-block-size: min(520px, calc(100dvh - 100px));
+}
+.palette-close {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 6px;
+  color: var(--arena-muted);
+  background: transparent;
+  cursor: pointer;
+}
+.palette-close:hover {
+  color: var(--arena-text);
+  background: var(--arena-hover);
+}
+.palette-row {
+  min-height: 40px;
+}
+@media (max-width: 980px) {
+  .topbar-actions .theme-segment {
+    display: none;
+  }
+}
 @media (max-width: 760px) {
-  .topbar { grid-template-columns: minmax(0, 1fr) 40px auto; gap: 4px; }
-  .workspace-context { display: flex; gap: 7px; padding-left: 4px; }
-  .workspace-context strong { font-size: 13px; }
-  .workspace-context small { display: none; }
-  .command-trigger { justify-content: center; width: 40px; height: 40px; padding: 0; background: transparent; border-color: transparent; }
-  .command-trigger span, .command-trigger kbd { display: none; }
-  .user-trigger { width: auto; max-width: 126px; padding-inline: 7px; }
-  .user-trigger span { display: block; max-width: 80px; font-size: 11px; }
-  .notification-popover { position: fixed; top: 58px; right: 10px; width: calc(100vw - 20px); }
-  .command-palette { top: max(12px, env(safe-area-inset-top)); inline-size: calc(100vw - 20px); max-block-size: calc(100dvh - 24px); }
-  .primary-rail { height: calc(58px + env(safe-area-inset-bottom)); }
-  .workspace { padding-bottom: calc(70px + env(safe-area-inset-bottom)); }
+  .topbar {
+    grid-template-columns: minmax(0, 1fr) 40px auto;
+    gap: 4px;
+  }
+  .workspace-context {
+    display: flex;
+    gap: 7px;
+    padding-left: 4px;
+  }
+  .workspace-context strong {
+    font-size: 13px;
+  }
+  .workspace-context small {
+    display: none;
+  }
+  .command-trigger {
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    background: transparent;
+    border-color: transparent;
+  }
+  .command-trigger span,
+  .command-trigger kbd {
+    display: none;
+  }
+  .user-trigger {
+    width: auto;
+    max-width: 126px;
+    padding-inline: 7px;
+  }
+  .user-trigger span {
+    display: block;
+    max-width: 80px;
+    font-size: 11px;
+  }
+  .notification-popover {
+    position: fixed;
+    top: 58px;
+    right: 10px;
+    width: calc(100vw - 20px);
+  }
+  .command-palette {
+    top: max(12px, env(safe-area-inset-top));
+    inline-size: calc(100vw - 20px);
+    max-block-size: calc(100dvh - 24px);
+  }
+  .primary-rail {
+    height: calc(58px + env(safe-area-inset-bottom));
+  }
+  .workspace {
+    padding-bottom: calc(70px + env(safe-area-inset-bottom));
+  }
 }
 @media (max-width: 359px) {
-  .workspace-context > svg { display: none; }
-  .user-trigger > svg:first-child { display: none; }
+  .workspace-context > svg {
+    display: none;
+  }
+  .user-trigger > svg:first-child {
+    display: none;
+  }
 }
-@media (pointer: coarse) { .session-tab-close { opacity: 1; min-inline-size: 30px; } }
-button:disabled:hover { transform: none; }
-.select-popover { z-index: 210; }
+@media (pointer: coarse) {
+  .session-tab-close {
+    opacity: 1;
+    min-inline-size: 30px;
+  }
+}
+button:disabled:hover {
+  transform: none;
+}
+.select-popover {
+  z-index: 210;
+}
 
 /* Personal backdrops stay behind an opaque reading surface in every theme. */
-html[data-background='ocean'] { --arena-background-image: linear-gradient(135deg, #17385b, #387b84, #182c51); }
-html[data-background='dusk'] { --arena-background-image: linear-gradient(135deg, #533557, #a66354, #252956); }
-html[data-background='forest'] { --arena-background-image: linear-gradient(135deg, #193f36, #526e43, #143339); }
+html[data-background='ocean'] {
+  --arena-background-image: linear-gradient(135deg, #17385b, #387b84, #182c51);
+}
+html[data-background='dusk'] {
+  --arena-background-image: linear-gradient(135deg, #533557, #a66354, #252956);
+}
+html[data-background='forest'] {
+  --arena-background-image: linear-gradient(135deg, #193f36, #526e43, #143339);
+}
 html[data-background]:not([data-background='none']) .arena-app {
-  background-image: linear-gradient(color-mix(in srgb, var(--arena-ink) 80%, transparent), color-mix(in srgb, var(--arena-ink) 80%, transparent)), var(--arena-background-image);
-  background-size: cover; background-position: center;
+  background-image:
+    linear-gradient(
+      color-mix(in srgb, var(--arena-ink) 80%, transparent),
+      color-mix(in srgb, var(--arena-ink) 80%, transparent)
+    ),
+    var(--arena-background-image);
+  background-size: cover;
+  background-position: center;
 }

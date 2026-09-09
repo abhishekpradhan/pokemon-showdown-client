@@ -6,12 +6,23 @@ import { isAudioUnlocked, stopBattleSounds } from './sound';
 
 const music = new BattleMusic();
 export function useBattleAudio(active: boolean) {
-  const preferences = useWorkspaceStore(useShallow(({ soundEnabled, musicEnabled, musicTrack, musicVolume }) => ({ soundEnabled, musicEnabled, musicTrack, musicVolume })));
+  const preferences = useWorkspaceStore(
+    useShallow(({ soundEnabled, musicEnabled, musicTrack, musicVolume }) => ({
+      soundEnabled,
+      musicEnabled,
+      musicTrack,
+      musicVolume,
+    })),
+  );
   useEffect(() => {
     const sync = () => {
       const visible = active && !document.hidden;
       if (!visible || !preferences.soundEnabled) stopBattleSounds();
-      music.sync(visible && preferences.soundEnabled && preferences.musicEnabled && isAudioUnlocked(), preferences.musicTrack, preferences.musicVolume);
+      music.sync(
+        visible && preferences.soundEnabled && preferences.musicEnabled && isAudioUnlocked(),
+        preferences.musicTrack,
+        preferences.musicVolume,
+      );
     };
     sync();
     window.addEventListener('pointerdown', sync);

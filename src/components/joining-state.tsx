@@ -6,7 +6,13 @@ import { useEffect, useState } from 'react';
  * honest copy when it is taking too long, and a way out. Every surface that
  * waits on a server room renders this instead of a bare text flash.
  */
-export function JoiningState({ title, detail, connected, backTo, backLabel }: {
+export function JoiningState({
+  title,
+  detail,
+  connected,
+  backTo,
+  backLabel,
+}: {
   title: string;
   detail?: string;
   connected: boolean;
@@ -26,12 +32,16 @@ export function JoiningState({ title, detail, connected, backTo, backLabel }: {
       <h1>{connected ? title : 'Waiting for the server'}</h1>
       {detail && <p className="joining-detail">{detail}</p>}
       <p className="joining-hint">
-        {!connected ? 'Reconnect to the battle server to continue.' :
-          slow ? 'Still trying — the room may be full, private, or already gone.' :
-          'This usually takes a moment.'}
+        {!connected
+          ? 'Reconnect to the battle server to continue.'
+          : slow
+            ? 'Still trying — the room may be full, private, or already gone.'
+            : 'This usually takes a moment.'}
       </p>
       {(slow || !connected) && (
-        <Link to={backTo} className="secondary-action">{backLabel}</Link>
+        <Link to={backTo} className="secondary-action">
+          {backLabel}
+        </Link>
       )}
     </section>
   );

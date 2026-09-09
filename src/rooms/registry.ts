@@ -59,15 +59,15 @@ export const newBattleRoom = (id: string): BattleRoom => ({
   timer: { on: false },
 });
 
-export const upsert = <R extends Room>(
-  rooms: Record<string, Room>,
-  room: R
-): Record<string, Room> => ({ ...rooms, [room.id]: room });
+export const upsert = <R extends Room>(rooms: Record<string, Room>, room: R): Record<string, Room> => ({
+  ...rooms,
+  [room.id]: room,
+});
 
 export const patchRoom = (
   rooms: Record<string, Room>,
   id: string,
-  patch: Partial<RoomPatchable>
+  patch: Partial<RoomPatchable>,
 ): Record<string, Room> => {
   const room = rooms[id];
   if (!room) return rooms;
@@ -79,7 +79,7 @@ type RoomPatchable = Pick<Room, 'title' | 'connected' | 'users' | 'unread'>;
 export const updateBattleRoom = (
   rooms: Record<string, Room>,
   id: string,
-  update: (room: BattleRoom) => BattleRoom
+  update: (room: BattleRoom) => BattleRoom,
 ): Record<string, Room> => {
   const room = rooms[id];
   if (room?.type !== 'battle') return rooms;
@@ -106,10 +106,11 @@ export const appendChat = (room: Room, message: ChatMessage, focused: boolean): 
   } as Room;
 };
 
-export const appendLog = (room: Room, line: string): Room => ({
-  ...room,
-  log: [line, ...room.log].slice(0, LOG_LIMIT),
-} as Room);
+export const appendLog = (room: Room, line: string): Room =>
+  ({
+    ...room,
+    log: [line, ...room.log].slice(0, LOG_LIMIT),
+  }) as Room;
 
 export const battleRooms = (rooms: Record<string, Room>): BattleRoom[] =>
   Object.values(rooms).filter((room): room is BattleRoom => room.type === 'battle');

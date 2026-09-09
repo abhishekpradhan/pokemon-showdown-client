@@ -1,16 +1,24 @@
 import { vi } from 'vitest';
 import { canNotify, desktopNotify, requestNotifyPermission } from './desktop-notify';
 
-const stubNotification = (permission: NotificationPermission, requestResult: NotificationPermission = 'granted') => {
+const stubNotification = (
+  permission: NotificationPermission,
+  requestResult: NotificationPermission = 'granted',
+) => {
   const instances: Array<{ title: string; options?: NotificationOptions }> = [];
-  const NotificationMock = vi.fn(function (this: { onclick: null }, title: string, options?: NotificationOptions) {
+  const NotificationMock = vi.fn(function (
+    this: { onclick: null },
+    title: string,
+    options?: NotificationOptions,
+  ) {
     instances.push({ title, options });
     this.onclick = null;
     return this;
   }) as unknown as typeof Notification & { instances: typeof instances };
   Object.defineProperty(NotificationMock, 'permission', { value: permission, configurable: true });
-  (NotificationMock as unknown as { requestPermission: () => Promise<NotificationPermission> }).requestPermission =
-    vi.fn().mockResolvedValue(requestResult);
+  (
+    NotificationMock as unknown as { requestPermission: () => Promise<NotificationPermission> }
+  ).requestPermission = vi.fn().mockResolvedValue(requestResult);
   (NotificationMock as { instances: typeof instances }).instances = instances;
   vi.stubGlobal('Notification', NotificationMock);
   return NotificationMock;
@@ -28,7 +36,10 @@ describe('desktop notifications', () => {
     Object.defineProperty(document, 'hidden', { value: true, configurable: true });
     desktopNotify('Zarel challenged you', 'gen9ou', 'challenge-zarel');
     expect(mock.instances).toEqual([
-      { title: 'Zarel challenged you', options: { body: 'gen9ou', tag: 'challenge-zarel', icon: '/icon-512.png' } },
+      {
+        title: 'Zarel challenged you',
+        options: { body: 'gen9ou', tag: 'challenge-zarel', icon: '/icon-512.png' },
+      },
     ]);
   });
 

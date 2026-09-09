@@ -16,7 +16,9 @@ describe('battle sound', () => {
   it('stays silent until the page has seen a user gesture', () => {
     const play = vi.fn().mockResolvedValue(undefined);
     // A constructible double: `new` on an arrow implementation throws.
-    const AudioMock = vi.fn(function () { return { play, volume: 0, currentTime: 0 }; });
+    const AudioMock = vi.fn(function () {
+      return { play, volume: 0, currentTime: 0 };
+    });
     vi.stubGlobal('Audio', AudioMock);
 
     playCry('Pikachu');
@@ -30,7 +32,9 @@ describe('battle sound', () => {
 
   it('reuses one element per species and survives play() rejection', () => {
     const play = vi.fn().mockRejectedValue(new Error('NotAllowedError'));
-    const AudioMock = vi.fn(function () { return { play, volume: 0, currentTime: 0 }; });
+    const AudioMock = vi.fn(function () {
+      return { play, volume: 0, currentTime: 0 };
+    });
     vi.stubGlobal('Audio', AudioMock);
     __testables.markUnlocked();
 

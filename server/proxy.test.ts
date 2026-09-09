@@ -4,19 +4,35 @@ import login from '../api/action';
 import replay from '../api/replay';
 import { readBoundedBody } from './proxy';
 
-const request = (body: BodyInit = 'act=getassertion&userid=alice&challstr=4%7Ctest', headers: Record<string, string> = {}) =>
+const request = (
+  body: BodyInit = 'act=getassertion&userid=alice&challstr=4%7Ctest',
+  headers: Record<string, string> = {},
+) =>
   new Request('https://arena.example/api/action', {
-    method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', Origin: 'https://arena.example', ...headers }, body,
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      Origin: 'https://arena.example',
+      ...headers,
+    },
+    body,
   });
 
-afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); vi.restoreAllMocks(); });
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
+  vi.restoreAllMocks();
+});
 
 describe('production proxy boundary', () => {
   it('serves assertions when hosted fetch rejects the error redirect mode', async () => {
-    vi.stubGlobal('fetch', vi.fn((_url: string, options: RequestInit) => {
-      if (options.redirect === 'error') throw new TypeError('Hosted fetch cannot use this redirect mode');
-      return Promise.resolve(new Response('signed-assertion'));
-    }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((_url: string, options: RequestInit) => {
+        if (options.redirect === 'error') throw new TypeError('Hosted fetch cannot use this redirect mode');
+        return Promise.resolve(new Response('signed-assertion'));
+      }),
+    );
     const response = await login(request());
     expect(response.status).toBe(200);
     expect(await response.text()).toBe('signed-assertion');
@@ -24,9 +40,12 @@ describe('production proxy boundary', () => {
 
   it('never follows upstream redirects or leaks their contents into diagnostics', async () => {
     const log = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const fetchMock = vi.fn().mockResolvedValue(new Response('private-token-content', {
-      status: 307, headers: { Location: 'https://another.example/?token=private-token' },
-    }));
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response('private-token-content', {
+        status: 307,
+        headers: { Location: 'https://another.example/?token=private-token' },
+      }),
+    );
     vi.stubGlobal('fetch', fetchMock);
     const response = await login(request());
     expect(response.status).toBe(502);
@@ -34,7 +53,11 @@ describe('production proxy boundary', () => {
     expect(fetchMock.mock.calls[0][1].redirect).toBe('manual');
     expect(response.headers.get('location')).toBeNull();
     expect(await response.text()).not.toContain('private-token');
-    expect(log).toHaveBeenCalledWith('Upstream request failed', { service: 'login', stage: 'upstream-redirect', kind: 'Error' });
+    expect(log).toHaveBeenCalledWith('Upstream request failed', {
+      service: 'login',
+      stage: 'upstream-redirect',
+      kind: 'Error',
+    });
     expect(JSON.stringify(log.mock.calls)).not.toContain('private-token');
   });
 
@@ -49,7 +72,11 @@ describe('production proxy boundary', () => {
 
   it('forwards allowed requests without cookies and prevents upstream active HTML or cookies escaping', async () => {
     vi.stubEnv('PS_LOGIN_SERVER', 'https://login.example/action.php');
-    const fetchMock = vi.fn().mockResolvedValue(new Response('assertion', { headers: { 'Content-Type': 'text/html', 'Set-Cookie': 'bad=value' } }));
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        new Response('assertion', { headers: { 'Content-Type': 'text/html', 'Set-Cookie': 'bad=value' } }),
+      );
     vi.stubGlobal('fetch', fetchMock);
     const response = await login(request(undefined, { Cookie: 'secret', Authorization: 'Bearer secret' }));
     expect(response.status).toBe(200);
@@ -75,19 +102,31 @@ describe('production proxy boundary', () => {
   });
 
   it('counts bytes without Content-Length and cancels oversized streams', async () => {
-    expect((await login(request(`act=getassertion&userid=alice&challstr=${'界'.repeat(23_000)}`))).status).toBe(413);
+    expect(
+      (await login(request(`act=getassertion&userid=alice&challstr=${'界'.repeat(23_000)}`))).status,
+    ).toBe(413);
     let cancelled = false;
     const stream = new ReadableStream<Uint8Array>({
-      pull(controller) { controller.enqueue(new Uint8Array(40)); },
-      cancel() { cancelled = true; },
+      pull(controller) {
+        controller.enqueue(new Uint8Array(40));
+      },
+      cancel() {
+        cancelled = true;
+      },
     });
     await expect(readBoundedBody(stream, 64, AbortSignal.timeout(1000))).rejects.toThrow('Body too large');
     expect(cancelled).toBe(true);
   });
 
   it('terminates a stalled body', async () => {
-    const stream = new ReadableStream<Uint8Array>({ pull() { return new Promise(() => {}); } });
-    await expect(readBoundedBody(stream, 64, AbortSignal.timeout(10))).rejects.toMatchObject({ name: 'TimeoutError' });
+    const stream = new ReadableStream<Uint8Array>({
+      pull() {
+        return new Promise(() => {});
+      },
+    });
+    await expect(readBoundedBody(stream, 64, AbortSignal.timeout(10))).rejects.toMatchObject({
+      name: 'TimeoutError',
+    });
   });
 
   it('bounds upstream responses and does not expose upstream failure details', async () => {
@@ -103,10 +142,29 @@ describe('production proxy boundary', () => {
     vi.stubEnv('PS_LOGIN_SERVER', 'https://login.example/action.php');
     const fetchMock = vi.fn().mockResolvedValue(new Response('ok'));
     vi.stubGlobal('fetch', fetchMock);
-    expect((await replay(request(new URLSearchParams({ serverid: 'custom', id: 'custom-gen9ou-123', log: '|turn|1', password: 'private' })))).status).toBe(200);
+    expect(
+      (
+        await replay(
+          request(
+            new URLSearchParams({
+              serverid: 'custom',
+              id: 'custom-gen9ou-123',
+              log: '|turn|1',
+              password: 'private',
+            }),
+          ),
+        )
+      ).status,
+    ).toBe(200);
     expect(String(fetchMock.mock.calls[0][0])).toBe('https://login.example/action.php');
     const forwarded = new URLSearchParams(fetchMock.mock.calls[0][1].body);
-    expect(Object.fromEntries(forwarded)).toEqual({ act: 'uploadreplay', serverid: 'custom', id: 'custom-gen9ou-123', log: '|turn|1', password: 'private' });
+    expect(Object.fromEntries(forwarded)).toEqual({
+      act: 'uploadreplay',
+      serverid: 'custom',
+      id: 'custom-gen9ou-123',
+      log: '|turn|1',
+      password: 'private',
+    });
     expect((await replay(request('id=../../bad&log=test'))).status).toBe(400);
     expect((await replay(request('id=gen9ou-123&log=test&serverid=showdown&act=login'))).status).toBe(400);
   });

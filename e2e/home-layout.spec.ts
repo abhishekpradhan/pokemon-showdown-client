@@ -21,15 +21,42 @@ test('home setup and readiness stay reachable without sideways scrolling', async
       const rect = (selector: string) => {
         const element = document.querySelector<HTMLElement>(selector)!;
         const bounds = element.getBoundingClientRect();
-        return { left: bounds.left, right: bounds.right, top: bounds.top, bottom: bounds.bottom, height: bounds.height, width: bounds.width, scrollWidth: element.scrollWidth };
+        return {
+          left: bounds.left,
+          right: bounds.right,
+          top: bounds.top,
+          bottom: bounds.bottom,
+          height: bounds.height,
+          width: bounds.width,
+          scrollWidth: element.scrollWidth,
+        };
       };
-      return { width: innerWidth, setup: rect('.match-stage'), form: rect('.queue-controls'), fields: [...document.querySelectorAll('.queue-controls .control-field')].map(element => element.getBoundingClientRect().toJSON()), action: rect('.queue-action'), readiness: rect('.match-inspector'), live: rect('.live-now'), chooseName: rect('.queue-action') };
+      return {
+        width: innerWidth,
+        setup: rect('.match-stage'),
+        form: rect('.queue-controls'),
+        fields: [...document.querySelectorAll('.queue-controls .control-field')].map(element =>
+          element.getBoundingClientRect().toJSON(),
+        ),
+        action: rect('.queue-action'),
+        readiness: rect('.match-inspector'),
+        live: rect('.live-now'),
+        chooseName: rect('.queue-action'),
+      };
     });
-    for (const target of [geometry.setup, geometry.form, geometry.action, geometry.readiness, ...geometry.fields]) {
+    for (const target of [
+      geometry.setup,
+      geometry.form,
+      geometry.action,
+      geometry.readiness,
+      ...geometry.fields,
+    ]) {
       expect(target.left, `${width}px control starts on screen`).toBeGreaterThanOrEqual(0);
       expect(target.right, `${width}px control ends on screen`).toBeLessThanOrEqual(geometry.width);
     }
-    expect(geometry.form.scrollWidth, `${width}px form does not overflow internally`).toBeLessThanOrEqual(geometry.form.width + 1);
+    expect(geometry.form.scrollWidth, `${width}px form does not overflow internally`).toBeLessThanOrEqual(
+      geometry.form.width + 1,
+    );
     expect(geometry.action.height).toBeGreaterThanOrEqual(40);
     if (width <= 560) {
       expect(geometry.fields[1].top).toBeGreaterThanOrEqual(geometry.fields[0].bottom);

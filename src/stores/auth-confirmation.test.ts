@@ -10,18 +10,35 @@ const preferences = useWorkspaceStore.getState();
 const send = vi.fn(() => true);
 const frame = (raw: string) => useArenaStore.getState().handleFrame(parsePsFrame(raw));
 const grant = { user: 'ArenaNew', token: 'synthetic-token', assertion: 'synthetic-assertion' };
-const deferred = <T,>() => {
+const deferred = <T>() => {
   let resolve!: (value: T) => void;
-  const promise = new Promise<T>(done => { resolve = done; });
+  const promise = new Promise<T>(done => {
+    resolve = done;
+  });
   return { promise, resolve };
 };
 
 beforeEach(() => {
   useArenaStore.getState().cancelLogin();
   send.mockClear();
-  useWorkspaceStore.setState({ autojoinRooms: [], preferredAvatar: '', serverLanguage: 'english', blockPms: false, blockChallenges: false });
-  useArenaStore.setState({ ...initial, named: true, username: 'ArenaOld', connection: 'connected', challstr: '1|synthetic-challenge',
-    rooms: {}, lastError: undefined, loginPending: false, protocol: { send } as unknown as typeof initial.protocol });
+  useWorkspaceStore.setState({
+    autojoinRooms: [],
+    preferredAvatar: '',
+    serverLanguage: 'english',
+    blockPms: false,
+    blockChallenges: false,
+  });
+  useArenaStore.setState({
+    ...initial,
+    named: true,
+    username: 'ArenaOld',
+    connection: 'connected',
+    challstr: '1|synthetic-challenge',
+    rooms: {},
+    lastError: undefined,
+    loginPending: false,
+    protocol: { send } as unknown as typeof initial.protocol,
+  });
   vi.spyOn(oauth, 'saveOAuthToken').mockReturnValue(true);
 });
 afterEach(() => {
@@ -38,7 +55,13 @@ it('keeps OAuth pending through old-account profile updates and settles only the
   vi.spyOn(oauth, 'requestOAuthGrant').mockReturnValue(authorization.promise);
   const pending = useArenaStore.getState().loginWithOAuth();
   frame('|updateuser| ArenaOld@!|1|lucas|{"language":"french"}');
-  expect(useArenaStore.getState()).toMatchObject({ loginPending: true, loginStage: 'authorization', username: 'ArenaOld', avatar: 'lucas', serverLanguage: 'french' });
+  expect(useArenaStore.getState()).toMatchObject({
+    loginPending: true,
+    loginStage: 'authorization',
+    username: 'ArenaOld',
+    avatar: 'lucas',
+    serverLanguage: 'french',
+  });
   expect(send).not.toHaveBeenCalled();
   authorization.resolve(grant);
   await pending;
@@ -84,9 +107,16 @@ it('ignores unrelated rejections and accepts an unnamed rejection only after sen
   frame('|nametaken|ArenaOld|Unrelated rejection');
   expect(useArenaStore.getState()).toMatchObject({ loginPending: true, lastError: undefined });
   frame('|nametaken||The assertion was rejected.');
-  expect(useArenaStore.getState()).toMatchObject({ loginPending: false, username: 'ArenaOld', lastError: 'The assertion was rejected.' });
+  expect(useArenaStore.getState()).toMatchObject({
+    loginPending: false,
+    username: 'ArenaOld',
+    lastError: 'The assertion was rejected.',
+  });
   frame('|updateuser| ArenaOld@!|1|dawn|{"language":"french"}');
-  expect(useArenaStore.getState()).toMatchObject({ loginPending: false, lastError: 'The assertion was rejected.' });
+  expect(useArenaStore.getState()).toMatchObject({
+    loginPending: false,
+    lastError: 'The assertion was rejected.',
+  });
 });
 
 it('cannot settle a replacement login with the previous attempt identity', async () => {
@@ -103,8 +133,15 @@ it('cannot settle a replacement login with the previous attempt identity', async
 
 it('binds resumed OAuth assertions to their confirmed registered identity', async () => {
   vi.spyOn(oauth, 'oauthConfigured').mockReturnValue(true);
-  vi.spyOn(oauth, 'currentOAuthToken').mockResolvedValue({ token: 'synthetic-token', user: 'ArenaNew', issuedAt: Date.now() });
-  vi.spyOn(oauth, 'assertionFromToken').mockResolvedValue({ user: 'ArenaNew', assertion: 'synthetic-assertion' });
+  vi.spyOn(oauth, 'currentOAuthToken').mockResolvedValue({
+    token: 'synthetic-token',
+    user: 'ArenaNew',
+    issuedAt: Date.now(),
+  });
+  vi.spyOn(oauth, 'assertionFromToken').mockResolvedValue({
+    user: 'ArenaNew',
+    assertion: 'synthetic-assertion',
+  });
   await useArenaStore.getState().resumeSession('1|synthetic-challenge');
   frame('|updateuser| ArenaOld|1|lucas');
   expect(useArenaStore.getState().loginPending).toBe(true);

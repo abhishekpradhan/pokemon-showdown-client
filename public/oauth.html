@@ -1,26 +1,35 @@
 <!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta name="robots" content="noindex" />
-<meta name="referrer" content="no-referrer" />
-<title>Signing in — Showdown Arena</title>
-<style>
-  :root { color-scheme: light dark; }
-  body {
-    display: grid;
-    place-items: center;
-    min-height: 100vh;
-    margin: 0;
-    font: 500 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
-    text-align: center;
-  }
-  p { max-width: 30ch; padding: 0 20px; }
-</style>
-</head>
-<body>
-  <p id="status">Finishing sign-in…</p>
-  <script src="/oauth-callback.js" defer></script>
-</body>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <meta name="referrer" content="no-referrer" />
+    <title>Signing in — Showdown Arena</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+      }
+      body {
+        display: grid;
+        place-items: center;
+        min-height: 100vh;
+        margin: 0;
+        font:
+          500 14px/1.5 system-ui,
+          -apple-system,
+          'Segoe UI',
+          sans-serif;
+        text-align: center;
+      }
+      p {
+        max-width: 30ch;
+        padding: 0 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <p id="status">Finishing sign-in…</p>
+    <script src="/oauth-callback.js" defer></script>
+  </body>
 </html>

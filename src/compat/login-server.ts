@@ -52,7 +52,11 @@ export async function rawQuery(act: string, data: Record<string, string>, signal
 }
 
 /** JSON `act=` query. The login server prefixes JSON responses with `]`. */
-export async function jsonQuery<T>(act: string, data: Record<string, string>, signal?: AbortSignal): Promise<T> {
+export async function jsonQuery<T>(
+  act: string,
+  data: Record<string, string>,
+  signal?: AbortSignal,
+): Promise<T> {
   const text = (await rawQuery(act, data, signal)).trim();
   try {
     return JSON.parse(text.startsWith(']') ? text.slice(1) : text) as T;
@@ -104,7 +108,7 @@ export async function loginWithPassword(
   name: string,
   pass: string,
   challstr: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<AssertionOutcome & { username?: string }> {
   const data = await jsonQuery<LoginResponse>('login', { name, pass, challstr }, signal);
   if (!data?.curuser?.loggedin) {

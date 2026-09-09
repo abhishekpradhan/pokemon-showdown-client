@@ -89,8 +89,11 @@ test('every surface keeps its primary heading', async ({ page }) => {
   for (const route of ROUTES) {
     await page.goto(route.path);
     await expect(
-      page.getByRole('heading', { level: 1 }).or(page.getByRole('heading', { level: 2 })).first(),
-      `${route.name} should have a heading`
+      page
+        .getByRole('heading', { level: 1 })
+        .or(page.getByRole('heading', { level: 2 }))
+        .first(),
+      `${route.name} should have a heading`,
     ).toBeVisible();
   }
 });
@@ -125,7 +128,9 @@ test.describe('touch targets', () => {
           if (el.classList.contains('chat-author')) continue;
           if (rect.height < MIN) {
             const cls = (el.className || '').toString().split(' ')[0];
-            bad.push(`${el.tagName.toLowerCase()}.${cls} ${Math.round(rect.width)}x${Math.round(rect.height)}`);
+            bad.push(
+              `${el.tagName.toLowerCase()}.${cls} ${Math.round(rect.width)}x${Math.round(rect.height)}`,
+            );
           }
         }
         return [...new Set(bad)];

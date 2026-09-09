@@ -3,11 +3,15 @@ import { isSafeChatCommand, normalizeChatHref, sanitizeChatHtml } from './chat-h
 describe('sanitizeChatHtml', () => {
   it('keeps safe navigation and poll controls without allowing consequential commands', () => {
     expect(normalizeChatHref('/lobby')).toBe('/room/lobby');
-    expect(normalizeChatHref('https://play.pokemonshowdown.com/battle-gen9ou-123')).toBe('/battle/battle-gen9ou-123');
+    expect(normalizeChatHref('https://play.pokemonshowdown.com/battle-gen9ou-123')).toBe(
+      '/battle/battle-gen9ou-123',
+    );
     expect(normalizeChatHref('#help')).toBe('/room/help');
     expect(normalizeChatHref('javascript:alert(1)')).toBeNull();
     expect(normalizeChatHref('https://user:pass@example.com/')).toBeNull();
-    const out = sanitizeChatHtml('<a href="/lobby">Lobby</a><button data-href="battle-gen9ou-123">Watch</button><button data-cmd="/poll vote 1">Vote</button><button data-cmd="/forfeit" value="/logout">Bad</button>');
+    const out = sanitizeChatHtml(
+      '<a href="/lobby">Lobby</a><button data-href="battle-gen9ou-123">Watch</button><button data-cmd="/poll vote 1">Vote</button><button data-cmd="/forfeit" value="/logout">Bad</button>',
+    );
     expect(out).toContain('href="/room/lobby"');
     expect(out).toContain('data-href="/battle/battle-gen9ou-123"');
     expect(out).toContain('data-cmd="/poll vote 1"');
@@ -24,7 +28,7 @@ describe('sanitizeChatHtml', () => {
   });
   it('strips scripts and event handlers but keeps PS content structure', () => {
     const out = sanitizeChatHtml(
-      '<div class="infobox"><script>alert(1)</script><table><tr><td onclick="x()">cell</td></tr></table></div>'
+      '<div class="infobox"><script>alert(1)</script><table><tr><td onclick="x()">cell</td></tr></table></div>',
     );
     expect(out).toContain('<table>');
     expect(out).toContain('cell');
@@ -39,12 +43,14 @@ describe('sanitizeChatHtml', () => {
     const dropped = sanitizeChatHtml('<div style="background-image: url(javascript:alert(1))">x</div>');
     expect(dropped).not.toContain('style=');
 
-    const data = sanitizeChatHtml("<div style=\"background: url('data:image/png;base64,AA')\">x</div>");
+    const data = sanitizeChatHtml('<div style="background: url(\'data:image/png;base64,AA\')">x</div>');
     expect(data).not.toContain('style=');
   });
 
   it('drops stranded near-white text color so theme tokens rule', () => {
-    const out = sanitizeChatHtml('<div style="color: #fff; font-style: italic">Please only talk in Hindi</div>');
+    const out = sanitizeChatHtml(
+      '<div style="color: #fff; font-style: italic">Please only talk in Hindi</div>',
+    );
     expect(out).not.toMatch(/color:/);
     expect(out).toContain('font-style: italic');
   });
@@ -53,7 +59,9 @@ describe('sanitizeChatHtml', () => {
     const ownBg = sanitizeChatHtml('<div style="color:#fff;background:#223">x</div>');
     expect(ownBg).toMatch(/color:/);
 
-    const ancestorBg = sanitizeChatHtml('<div style="background-color:#223"><span style="color:#fff">x</span></div>');
+    const ancestorBg = sanitizeChatHtml(
+      '<div style="background-color:#223"><span style="color:#fff">x</span></div>',
+    );
     expect(ancestorBg).toMatch(/color:\s*(#fff|rgb\(255)/);
 
     const midtone = sanitizeChatHtml('<span style="color:#484">Poll</span>');
@@ -70,20 +78,24 @@ describe('sanitizeChatHtml', () => {
     // text-shadow INHERITS: a wrapper-level outline must go even when the
     // extreme color lives on children, or token text gets a dark halo.
     const inherited = sanitizeChatHtml(
-      '<div style="text-shadow:1px 0 0 #000"><h2 style="color:#fff">Welcome!</h2><p>subtitle</p></div>'
+      '<div style="text-shadow:1px 0 0 #000"><h2 style="color:#fff">Welcome!</h2><p>subtitle</p></div>',
     );
     expect(inherited).not.toContain('text-shadow');
 
-    const ghostButton = sanitizeChatHtml('<button style="color:#fff;border:1px solid #fff" value="/rules">Rules!</button>');
+    const ghostButton = sanitizeChatHtml(
+      '<button style="color:#fff;border:1px solid #fff" value="/rules">Rules!</button>',
+    );
     expect(ghostButton).not.toMatch(/color:\s*(#fff|rgb\(255)/);
 
-    const backedOutline = sanitizeChatHtml('<div style="background:#223;color:#fff;text-shadow:1px 0 0 #000">x</div>');
+    const backedOutline = sanitizeChatHtml(
+      '<div style="background:#223;color:#fff;text-shadow:1px 0 0 #000">x</div>',
+    );
     expect(backedOutline).toContain('text-shadow');
 
     // Declared background images routinely fail to load (hotlink blocks);
     // they don't shield stranded colors the way solid colors do.
     const imageOnly = sanitizeChatHtml(
-      '<div style="background-image:url(https://example.com/bg.png)"><span style="color:#fff">ghost</span></div>'
+      '<div style="background-image:url(https://example.com/bg.png)"><span style="color:#fff">ghost</span></div>',
     );
     expect(imageOnly).not.toMatch(/color:\s*(#fff|rgb\(255)/);
   });
@@ -93,9 +105,9 @@ describe('sanitizeChatHtml', () => {
     // alternating rows; stripping at the top strands those rows dark-on-dark.
     const out = sanitizeChatHtml(
       '<div style="color:#fff;text-shadow:1px 0 0 #000"><table>' +
-      '<tr style="background:rgb(35,35,100)"><td>gen 9 is trash man</td></tr>' +
-      '<tr style="background:rgb(80,80,110)"><td>Bekama</td></tr>' +
-      '</table></div>'
+        '<tr style="background:rgb(35,35,100)"><td>gen 9 is trash man</td></tr>' +
+        '<tr style="background:rgb(80,80,110)"><td>Bekama</td></tr>' +
+        '</table></div>',
     );
     expect(out).toMatch(/color:\s*(#fff|rgb\(255)/);
     expect(out).toContain('text-shadow');
@@ -107,13 +119,15 @@ describe('sanitizeChatHtml', () => {
     // wrapper ghosts. Strip it; the button text goes token-colored too.
     const out = sanitizeChatHtml(
       '<div style="color:#fff"><h2>The Café</h2><p>This month\'s theme:</p>' +
-      '<button style="background:#eee" value="/suggest">Suggest</button></div>'
+        '<button style="background:#eee" value="/suggest">Suggest</button></div>',
     );
     expect(out).not.toMatch(/color:\s*(#fff|rgb\(255)/);
 
     // `background: none` resolves to a keyword in CSSOM — it is not a
     // surface and must not justify white links (the Cafe nav row).
-    const bgNone = sanitizeChatHtml('<a href="https://x.com" style="background: none; color: white">Our website</a>');
+    const bgNone = sanitizeChatHtml(
+      '<a href="https://x.com" style="background: none; color: white">Our website</a>',
+    );
     expect(bgNone).not.toMatch(/color:\s*white/);
   });
 
@@ -123,7 +137,7 @@ describe('sanitizeChatHtml', () => {
     // margins surviving. Only position:fixed (escapes the block) is
     // neutralized.
     const out = sanitizeChatHtml(
-      '<div style="position:relative"><div style="position:absolute;margin-top:-40px;top:10px">pill</div></div>'
+      '<div style="position:relative"><div style="position:absolute;margin-top:-40px;top:10px">pill</div></div>',
     );
     expect(out).toContain('position:absolute');
     expect(out).toContain('-40px');
@@ -142,7 +156,9 @@ describe('sanitizeChatHtml', () => {
   });
 
   it('forces safe link and button behavior', () => {
-    const out = sanitizeChatHtml('<a href="https://example.com">x</a><button name="send" value="/poll vote 1">v</button>');
+    const out = sanitizeChatHtml(
+      '<a href="https://example.com">x</a><button name="send" value="/poll vote 1">v</button>',
+    );
     expect(out).toContain('target="_blank"');
     expect(out).toContain('rel="noopener noreferrer"');
     expect(out).toContain('type="button"');
@@ -153,7 +169,9 @@ describe('sanitizeChatHtml', () => {
     // Protocol-relative and data:image sources are common in PS content;
     // removing them takes layout-critical banner heights with them (the
     // collapsed-intro bug). They normalize instead.
-    const protoRelative = sanitizeChatHtml('<img src="//play.pokemonshowdown.com/fx/banner.png" width="500">');
+    const protoRelative = sanitizeChatHtml(
+      '<img src="//play.pokemonshowdown.com/fx/banner.png" width="500">',
+    );
     expect(protoRelative).toContain('src="https://play.pokemonshowdown.com/fx/banner.png"');
 
     const httpUpgrade = sanitizeChatHtml('<img src="http://example.com/a.png">');
@@ -165,14 +183,16 @@ describe('sanitizeChatHtml', () => {
     const rejected = sanitizeChatHtml('<img src="data:text/html;base64,PHNjcmlwdD4=">');
     expect(rejected).not.toContain('<img');
 
-    const styleProtoRelative = sanitizeChatHtml('<div style="background-image: url(//play.pokemonshowdown.com/fx/bg.png)">x</div>');
+    const styleProtoRelative = sanitizeChatHtml(
+      '<div style="background-image: url(//play.pokemonshowdown.com/fx/bg.png)">x</div>',
+    );
     expect(styleProtoRelative).toContain('url(https://play.pokemonshowdown.com/fx/bg.png)');
 
     // The Lobby banner: an empty div whose whole existence is a QUOTED https
     // background url plus a height. Regex backtracking must not reject the
     // quote and kill the style (that collapsed the intro to a sliver).
     const quoted = sanitizeChatHtml(
-      '<div style="background-image:url(\'https://i.postimg.cc/rpGfkSZ2/sunset.jpg\');height:200px"></div>'
+      '<div style="background-image:url(\'https://i.postimg.cc/rpGfkSZ2/sunset.jpg\');height:200px"></div>',
     );
     expect(quoted).toContain('sunset.jpg');
     expect(quoted).toContain('height:200px');
@@ -184,7 +204,7 @@ describe('sanitizeChatHtml', () => {
   it('restricts href/src to https without harming presentational attributes', () => {
     const out = sanitizeChatHtml(
       '<a href="ftp://example.com">dead</a><img src="ftp://example.com/x.png" alt="gone">' +
-      '<table><tr><td align="right" bgcolor="#334">259</td></tr></table>'
+        '<table><tr><td align="right" bgcolor="#334">259</td></tr></table>',
     );
     expect(out).not.toContain('href=');
     expect(out).not.toContain('<img');

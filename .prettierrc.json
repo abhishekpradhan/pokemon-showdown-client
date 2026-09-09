@@ -3,7 +3,5 @@
   "singleQuote": true,
   "arrowParens": "avoid",
   "trailingComma": "all",
-  "overrides": [
-    { "files": ["*.yml", "*.yaml", "*.md"], "options": { "singleQuote": false } }
-  ]
+  "overrides": [{ "files": ["*.yml", "*.yaml", "*.md"], "options": { "singleQuote": false } }]
 }

@@ -47,7 +47,9 @@ test('the battle console is accessible mid-battle', async ({ page }) => {
   // Audit the settled UI: the combatant entrance fade briefly blends every
   // nameplate toward the backdrop, and axe would measure that transient.
   await page.waitForFunction(() =>
-    [...document.querySelectorAll('.combatant')].every(element => Number(getComputedStyle(element).opacity) >= 0.99)
+    [...document.querySelectorAll('.combatant')].every(
+      element => Number(getComputedStyle(element).opacity) >= 0.99,
+    ),
   );
 
   const results = await new AxeBuilder({ page })

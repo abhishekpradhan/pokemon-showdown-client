@@ -6,7 +6,7 @@ on:
   pull_request:
   workflow_dispatch:
   schedule:
-    - cron: '20 6 * * *'
+    - cron: "20 6 * * *"
 
 permissions:
   contents: read
@@ -202,7 +202,7 @@ jobs:
       - run: npm ci
       - run: npm run test:live
         env:
-          LIVE_PS_TESTS: '1'
+          LIVE_PS_TESTS: "1"
       - if: failure()
         run: |
           echo '::warning::Public protocol smoke failed. The maintainer must distinguish upstream outage from protocol drift before releasing.'

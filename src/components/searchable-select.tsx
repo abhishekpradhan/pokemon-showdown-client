@@ -1,5 +1,14 @@
 import { Check, ChevronDown, Search } from 'lucide-react';
-import { type CSSProperties, type KeyboardEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import {
+  type CSSProperties,
+  type KeyboardEvent,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { createPortal } from 'react-dom';
 import { clsx } from 'clsx';
 
@@ -40,7 +49,10 @@ export function SearchableSelect({
   // A modal's focus scope requires the popup to remain its DOM descendant.
   // The native top layer lets that descendant escape scrolling/transformed
   // dialog ancestors without moving it outside the modal's focus boundary.
-  const topLayer = !!portalContainer && portalContainer !== document.body && typeof HTMLElement.prototype.showPopover === 'function';
+  const topLayer =
+    !!portalContainer &&
+    portalContainer !== document.body &&
+    typeof HTMLElement.prototype.showPopover === 'function';
   const updatePosition = useCallback(() => {
     const rect = triggerRef.current?.getBoundingClientRect();
     if (!rect) return;
@@ -63,7 +75,10 @@ export function SearchableSelect({
     const height = Math.max(0, Math.min(420, bottomEdge - topEdge, up ? above : below));
     const width = Math.max(0, Math.min(Math.max(rect.width, 340), rightEdge - leftEdge));
     const left = Math.max(leftEdge, Math.min(rect.left, rightEdge - width));
-    const top = Math.max(topEdge, Math.min(up ? rect.top - height - 8 : rect.bottom + 8, bottomEdge - height));
+    const top = Math.max(
+      topEdge,
+      Math.min(up ? rect.top - height - 8 : rect.bottom + 8, bottomEdge - height),
+    );
     setPopStyle({
       position: local ? 'absolute' : 'fixed',
       margin: 0,
@@ -75,7 +90,10 @@ export function SearchableSelect({
     });
   }, [portalContainer, topLayer]);
 
-  const close = () => { setOpen(false); setQuery(''); };
+  const close = () => {
+    setOpen(false);
+    setQuery('');
+  };
 
   // Close only when focus SETTLES outside — transient null-focus hops (a
   // portal input mounting, dev double-effects) must not dismiss the list.
@@ -105,8 +123,10 @@ export function SearchableSelect({
     // first so dismissing it does not also dismiss its enclosing dialog.
     const onEscape = (event: globalThis.KeyboardEvent) => {
       if (event.key !== 'Escape' || event.defaultPrevented) return;
-      event.preventDefault(); event.stopPropagation();
-      close(); triggerRef.current?.focus();
+      event.preventDefault();
+      event.stopPropagation();
+      close();
+      triggerRef.current?.focus();
     };
     window.addEventListener('keydown', onEscape, true);
     return () => window.removeEventListener('keydown', onEscape, true);
@@ -121,7 +141,10 @@ export function SearchableSelect({
     // closing; unrelated container scrolls (a feed filling in) must not
     // dismiss an open list.
     let frame = 0;
-    const follow = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(updatePosition); };
+    const follow = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(updatePosition);
+    };
     window.addEventListener('scroll', follow, true);
     window.addEventListener('resize', follow);
     window.visualViewport?.addEventListener('resize', follow);
@@ -139,12 +162,12 @@ export function SearchableSelect({
   const visibleOptions = useMemo(() => {
     const needle = query.trim().toLowerCase();
     if (!needle) return options;
-    return options.filter(option => [
-      option.label,
-      option.group || '',
-      option.description || '',
-      option.meta || '',
-    ].join(' ').toLowerCase().includes(needle));
+    return options.filter(option =>
+      [option.label, option.group || '', option.description || '', option.meta || '']
+        .join(' ')
+        .toLowerCase()
+        .includes(needle),
+    );
   }, [options, query]);
 
   const grouped = useMemo(() => {
@@ -158,10 +181,17 @@ export function SearchableSelect({
     return sections;
   }, [visibleOptions]);
 
-  const enabledOptions = useMemo(() => grouped.flatMap(section => section.options).filter(option => !option.disabled), [grouped]);
+  const enabledOptions = useMemo(
+    () => grouped.flatMap(section => section.options).filter(option => !option.disabled),
+    [grouped],
+  );
 
-  const enabledIndices = useMemo(() => new Map(enabledOptions.map((option, index) => [option.value, index])), [enabledOptions]);
-  const optionId = (optionValue: string) => `${ariaLabel.replace(/\s+/g, '-').toLowerCase()}-${encodeURIComponent(optionValue)}`;
+  const enabledIndices = useMemo(
+    () => new Map(enabledOptions.map((option, index) => [option.value, index])),
+    [enabledOptions],
+  );
+  const optionId = (optionValue: string) =>
+    `${ariaLabel.replace(/\s+/g, '-').toLowerCase()}-${encodeURIComponent(optionValue)}`;
 
   const choose = (nextValue: string) => {
     onValueChange(nextValue);
@@ -169,10 +199,17 @@ export function SearchableSelect({
   };
 
   const openSelect = () => {
-    setPortalContainer(rootRef.current?.closest<HTMLElement>('[role="dialog"], [role="alertdialog"]') || document.body);
+    setPortalContainer(
+      rootRef.current?.closest<HTMLElement>('[role="dialog"], [role="alertdialog"]') || document.body,
+    );
     setOpen(true);
     setQuery('');
-    setActiveIndex(Math.max(0, enabledOptions.findIndex(option => option.value === value)));
+    setActiveIndex(
+      Math.max(
+        0,
+        enabledOptions.findIndex(option => option.value === value),
+      ),
+    );
   };
 
   useEffect(() => {
@@ -181,7 +218,8 @@ export function SearchableSelect({
   }, [activeIndex, open]);
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (open && ['ArrowDown', 'ArrowUp', 'Home', 'End', 'Enter', 'Escape'].includes(event.key)) event.stopPropagation();
+    if (open && ['ArrowDown', 'ArrowUp', 'Home', 'End', 'Enter', 'Escape'].includes(event.key))
+      event.stopPropagation();
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault();
       if (!open) {
@@ -189,7 +227,9 @@ export function SearchableSelect({
         return;
       }
       const direction = event.key === 'ArrowDown' ? 1 : -1;
-      setActiveIndex(current => (current + direction + enabledOptions.length) % Math.max(1, enabledOptions.length));
+      setActiveIndex(
+        current => (current + direction + enabledOptions.length) % Math.max(1, enabledOptions.length),
+      );
       return;
     }
     if (open && event.key === 'Home') {
@@ -222,12 +262,7 @@ export function SearchableSelect({
   };
 
   return (
-    <div
-      className="searchable-select"
-      ref={rootRef}
-      onBlur={closeIfFocusLeft}
-      onKeyDown={handleKeyDown}
-    >
+    <div className="searchable-select" ref={rootRef} onBlur={closeIfFocusLeft} onKeyDown={handleKeyDown}>
       <button
         ref={triggerRef}
         type="button"
@@ -236,7 +271,8 @@ export function SearchableSelect({
         aria-expanded={open}
         aria-haspopup="listbox"
         onClick={() => {
-          if (open) close(); else openSelect();
+          if (open) close();
+          else openSelect();
         }}
       >
         <span>
@@ -246,67 +282,90 @@ export function SearchableSelect({
         <ChevronDown size={16} aria-hidden />
       </button>
 
-      {open && createPortal(
-        <div
-          className="select-popover"
-          ref={popRef}
-          style={popStyle}
-          popover={topLayer ? 'manual' : undefined}
-          tabIndex={-1}
-        >
-          <label className="select-search">
-            <Search size={15} aria-hidden />
-            <input
-              autoFocus
-              ref={searchRef}
-              aria-label={`${ariaLabel} filter`}
-              aria-activedescendant={enabledOptions[activeIndex] ? optionId(enabledOptions[activeIndex].value) : undefined}
-              aria-controls={`${ariaLabel.replace(/\s+/g, '-').toLowerCase()}-options`}
-              role="combobox"
-              aria-expanded="true"
-              placeholder="Filter"
-              value={query}
-              onChange={event => {
-                setQuery(event.currentTarget.value);
-                setActiveIndex(0);
-              }}
-            />
-          </label>
-          <div className="select-options" role="listbox" aria-label={ariaLabel} id={`${ariaLabel.replace(/\s+/g, '-').toLowerCase()}-options`}>
-            {grouped.length ? grouped.map(section => (
-              <div className="select-section" key={section.group}>
-                <span>{section.group}</span>
-                {section.options.map(option => {
-                  const enabledIndex = enabledIndices.get(option.value) ?? -1;
-                  return (
-                  <button
-                    ref={element => { if (enabledIndex >= 0) optionRefs.current[enabledIndex] = element; }}
-                    type="button"
-                    role="option"
-                    tabIndex={-1}
-                    id={optionId(option.value)}
-                    aria-selected={option.value === value}
-                    className={clsx('select-option', option.value === value && 'is-selected', enabledIndex === activeIndex && 'is-active')}
-                    disabled={option.disabled}
-                    key={option.value}
-                    onMouseDown={event => event.preventDefault()}
-                    onMouseEnter={() => enabledIndex >= 0 && setActiveIndex(enabledIndex)}
-                    onClick={() => { choose(option.value); triggerRef.current?.focus(); }}
-                  >
-                    <span className="select-option-gutter" aria-hidden>
-                      {option.value === value && <Check size={14} />}
-                    </span>
-                    <strong className="select-option-label">{option.label}</strong>
-                    {option.description && <small className="select-option-meta">{option.description}</small>}
-                  </button>
-                  );
-                })}
-              </div>
-            )) : <p className="select-empty">{emptyLabel}</p>}
-          </div>
-        </div>,
-        portalContainer || document.body
-      )}
+      {open &&
+        createPortal(
+          <div
+            className="select-popover"
+            ref={popRef}
+            style={popStyle}
+            popover={topLayer ? 'manual' : undefined}
+            tabIndex={-1}
+          >
+            <label className="select-search">
+              <Search size={15} aria-hidden />
+              <input
+                autoFocus
+                ref={searchRef}
+                aria-label={`${ariaLabel} filter`}
+                aria-activedescendant={
+                  enabledOptions[activeIndex] ? optionId(enabledOptions[activeIndex].value) : undefined
+                }
+                aria-controls={`${ariaLabel.replace(/\s+/g, '-').toLowerCase()}-options`}
+                role="combobox"
+                aria-expanded="true"
+                placeholder="Filter"
+                value={query}
+                onChange={event => {
+                  setQuery(event.currentTarget.value);
+                  setActiveIndex(0);
+                }}
+              />
+            </label>
+            <div
+              className="select-options"
+              role="listbox"
+              aria-label={ariaLabel}
+              id={`${ariaLabel.replace(/\s+/g, '-').toLowerCase()}-options`}
+            >
+              {grouped.length ? (
+                grouped.map(section => (
+                  <div className="select-section" key={section.group}>
+                    <span>{section.group}</span>
+                    {section.options.map(option => {
+                      const enabledIndex = enabledIndices.get(option.value) ?? -1;
+                      return (
+                        <button
+                          ref={element => {
+                            if (enabledIndex >= 0) optionRefs.current[enabledIndex] = element;
+                          }}
+                          type="button"
+                          role="option"
+                          tabIndex={-1}
+                          id={optionId(option.value)}
+                          aria-selected={option.value === value}
+                          className={clsx(
+                            'select-option',
+                            option.value === value && 'is-selected',
+                            enabledIndex === activeIndex && 'is-active',
+                          )}
+                          disabled={option.disabled}
+                          key={option.value}
+                          onMouseDown={event => event.preventDefault()}
+                          onMouseEnter={() => enabledIndex >= 0 && setActiveIndex(enabledIndex)}
+                          onClick={() => {
+                            choose(option.value);
+                            triggerRef.current?.focus();
+                          }}
+                        >
+                          <span className="select-option-gutter" aria-hidden>
+                            {option.value === value && <Check size={14} />}
+                          </span>
+                          <strong className="select-option-label">{option.label}</strong>
+                          {option.description && (
+                            <small className="select-option-meta">{option.description}</small>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ))
+              ) : (
+                <p className="select-empty">{emptyLabel}</p>
+              )}
+            </div>
+          </div>,
+          portalContainer || document.body,
+        )}
     </div>
   );
 }

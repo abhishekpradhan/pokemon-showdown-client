@@ -1,4 +1,11 @@
-import { ProtocolClient, parsePsFrame, parsePsLine, parseServerInput, serverWebSocketUrl, type ServerConfig } from './protocol-client';
+import {
+  ProtocolClient,
+  parsePsFrame,
+  parsePsLine,
+  parseServerInput,
+  serverWebSocketUrl,
+  type ServerConfig,
+} from './protocol-client';
 
 class FakeWebSocket {
   static instances: FakeWebSocket[] = [];
@@ -82,7 +89,9 @@ describe('PS protocol helpers', () => {
     client.reconnect();
     const fresh = FakeWebSocket.instances[1];
     fresh.onopen?.();
-    lateClose?.(); lateOpen?.(); lateError?.();
+    lateClose?.();
+    lateOpen?.();
+    lateError?.();
     expect(client.state).toBe('connected');
     expect(client.send('/choose move 1|2', 'battle-gen9ou-1')).toBe(true);
     expect(fresh.sent).toEqual(['battle-gen9ou-1|/choose move 1|2']);

@@ -20,50 +20,111 @@ function worker(options: { quota?: boolean; mismatchedShell?: boolean; htmlAsset
   let skipped = false;
   let claimed = false;
   const caches = {
-    async keys() { return [...stores.keys()]; },
-    async delete(key: string) { return stores.delete(key); },
+    async keys() {
+      return [...stores.keys()];
+    },
+    async delete(key: string) {
+      return stores.delete(key);
+    },
     async open(key: string) {
       if (!stores.has(key)) stores.set(key, new Map());
       const store = stores.get(key)!;
       return {
-        async put(path: string, value: Response) { store.set(path, value); },
-        async match(path: string) { return store.get(path)?.clone(); },
+        async put(path: string, value: Response) {
+          store.set(path, value);
+        },
+        async match(path: string) {
+          return store.get(path)?.clone();
+        },
         async addAll(paths: string[]) {
           if (options.quota) throw new DOMException('Storage full', 'QuotaExceededError');
-          for (const path of paths) store.set(path, new Response(path, { headers: { 'Content-Type': options.htmlAsset ? 'text/html' : 'application/javascript' } }));
+          for (const path of paths)
+            store.set(
+              path,
+              new Response(path, {
+                headers: { 'Content-Type': options.htmlAsset ? 'text/html' : 'application/javascript' },
+              }),
+            );
         },
       };
     },
   };
   const context = {
-    URL, location: { origin }, caches,
+    URL,
+    location: { origin },
+    caches,
     fetch: async () => new Response(options.mismatchedShell ? 'wrong deployment' : shell),
     self: {
-      addEventListener(name: string, handler: (event: WorkerEvent) => void) { handlers.set(name, handler); },
-      async skipWaiting() { skipped = true; },
-      clients: { async claim() { claimed = true; } },
+      addEventListener(name: string, handler: (event: WorkerEvent) => void) {
+        handlers.set(name, handler);
+      },
+      async skipWaiting() {
+        skipped = true;
+      },
+      clients: {
+        async claim() {
+          claimed = true;
+        },
+      },
     },
   };
-  const script = template.replace(/const BUILD = \/\* @arena-manifest \*\/ .*;/, 'const BUILD = { revision: "new", assets: ["/", "/assets/editor-new.js"] };');
+  const script = template.replace(
+    /const BUILD = \/\* @arena-manifest \*\/ .*;/,
+    'const BUILD = { revision: "new", assets: ["/", "/assets/editor-new.js"] };',
+  );
   runInNewContext(script, context);
   const lifecycle = async (name: string, data?: { type: string }) => {
     let work: Promise<unknown> | undefined;
-    handlers.get(name)!({ data, waitUntil(promise) { work = promise; } });
+    handlers.get(name)!({
+      data,
+      waitUntil(promise) {
+        work = promise;
+      },
+    });
     await work;
   };
   const navigate = (path: string, mode = 'navigate') => {
     let result: Promise<Response> | undefined;
-    handlers.get('fetch')!({ request: { url: origin + path, method: 'GET', mode }, respondWith(promise) { result = promise; } });
+    handlers.get('fetch')!({
+      request: { url: origin + path, method: 'GET', mode },
+      respondWith(promise) {
+        result = promise;
+      },
+    });
     return result;
   };
   const status = async () => {
     let work: Promise<unknown> | undefined;
     let reply: unknown;
-    handlers.get('message')!({ data: { type: 'ARENA_OFFLINE_STATUS' }, ports: [{ postMessage(value) { reply = value; } }], waitUntil(promise) { work = promise; } });
+    handlers.get('message')!({
+      data: { type: 'ARENA_OFFLINE_STATUS' },
+      ports: [
+        {
+          postMessage(value) {
+            reply = value;
+          },
+        },
+      ],
+      waitUntil(promise) {
+        work = promise;
+      },
+    });
     await work;
     return reply;
   };
-  return { stores, lifecycle, navigate, status, context, get skipped() { return skipped; }, get claimed() { return claimed; } };
+  return {
+    stores,
+    lifecycle,
+    navigate,
+    status,
+    context,
+    get skipped() {
+      return skipped;
+    },
+    get claimed() {
+      return claimed;
+    },
+  };
 }
 
 describe('versioned app worker', () => {
@@ -80,13 +141,17 @@ describe('versioned app worker', () => {
     expect([...subject.stores.get('arena-build-new')!.keys()]).toEqual(['/', '/assets/editor-new.js']);
     expect(subject.navigate('/oauth.html?token=synthetic')).toBeUndefined();
     expect(subject.navigate('/api/action')).toBeUndefined();
-    subject.context.fetch = async () => { throw new Error('offline'); };
+    subject.context.fetch = async () => {
+      throw new Error('offline');
+    };
     expect(await (await subject.navigate('/teambuilder'))!.text()).toContain('APP SHELL');
     for (const path of ['/battle-gen9ou-123', '/pm-alice', '/lobby']) {
       expect(await (await subject.navigate(path))!.text()).toContain('APP SHELL');
     }
     expect(subject.navigate('/missing-script.js')).toBeUndefined();
-    expect(await (await subject.navigate('/assets/editor-new.js', 'cors'))!.text()).toBe('/assets/editor-new.js');
+    expect(await (await subject.navigate('/assets/editor-new.js', 'cors'))!.text()).toBe(
+      '/assets/editor-new.js',
+    );
     expect(subject.skipped).toBe(false);
     await subject.lifecycle('message', { type: 'ARENA_APPLY_UPDATE' });
     expect(subject.skipped).toBe(true);
@@ -94,7 +159,14 @@ describe('versioned app worker', () => {
 
   it('keeps only current and previous releases, preserving unrelated caches', async () => {
     const subject = worker();
-    for (const name of ['unrelated', 'arena-assets-v1', 'arena-shell-v1', 'arena-build-oldest', 'arena-build-previous']) subject.stores.set(name, new Map());
+    for (const name of [
+      'unrelated',
+      'arena-assets-v1',
+      'arena-shell-v1',
+      'arena-build-oldest',
+      'arena-build-previous',
+    ])
+      subject.stores.set(name, new Map());
     subject.stores.get('arena-build-previous')!.set('/assets/editor-old.js', new Response('previous editor'));
     await subject.lifecycle('install');
     await subject.lifecycle('activate');
@@ -103,11 +175,14 @@ describe('versioned app worker', () => {
     expect(await (await subject.navigate('/assets/editor-old.js', 'cors'))!.text()).toBe('previous editor');
   });
 
-  it.each([{ quota: true }, { mismatchedShell: true }, { htmlAsset: true }])('failed install leaves the earlier offline version intact (%j)', async options => {
-    const subject = worker(options);
-    subject.stores.set('arena-build-previous', new Map([['/', new Response('working old shell')]]));
-    await expect(subject.lifecycle('install')).rejects.toThrow();
-    expect(subject.stores.has('arena-build-new')).toBe(false);
-    expect(subject.stores.has('arena-build-previous')).toBe(true);
-  });
+  it.each([{ quota: true }, { mismatchedShell: true }, { htmlAsset: true }])(
+    'failed install leaves the earlier offline version intact (%j)',
+    async options => {
+      const subject = worker(options);
+      subject.stores.set('arena-build-previous', new Map([['/', new Response('working old shell')]]));
+      await expect(subject.lifecycle('install')).rejects.toThrow();
+      expect(subject.stores.has('arena-build-new')).toBe(false);
+      expect(subject.stores.has('arena-build-previous')).toBe(true);
+    },
+  );
 });

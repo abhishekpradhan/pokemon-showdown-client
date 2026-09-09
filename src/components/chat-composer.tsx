@@ -4,7 +4,11 @@ import { useId, useLayoutEffect, useState, useRef, type KeyboardEvent } from 're
 const history = new Map<string, string[]>();
 const commands = ['/help', '/join', '/leave', '/msg', '/rules', '/rank', '/data', '/ignore', '/unignore'];
 function readDraft(roomId: string) {
-  try { return sessionStorage.getItem(`arena-chat-draft:${roomId}`) || ''; } catch { return ''; }
+  try {
+    return sessionStorage.getItem(`arena-chat-draft:${roomId}`) || '';
+  } catch {
+    return '';
+  }
 }
 function fitDraft(field: HTMLTextAreaElement) {
   field.style.height = 'auto';
@@ -12,8 +16,18 @@ function fitDraft(field: HTMLTextAreaElement) {
 }
 
 /** Mount with key={roomId}; successful sends alone clear a room's draft. */
-export function ChatComposer({ roomId, title, users = [], send, disabled = false }: {
-  roomId: string; title: string; users?: string[]; send: (message: string) => boolean; disabled?: boolean;
+export function ChatComposer({
+  roomId,
+  title,
+  users = [],
+  send,
+  disabled = false,
+}: {
+  roomId: string;
+  title: string;
+  users?: string[];
+  send: (message: string) => boolean;
+  disabled?: boolean;
 }) {
   const [text, setText] = useState(() => readDraft(roomId));
   const [error, setError] = useState('');
@@ -45,19 +59,36 @@ export function ChatComposer({ roomId, title, users = [], send, disabled = false
       resizeFrame = requestAnimationFrame(() => fitDraft(field));
     });
     observer.observe(field);
-    return () => { observer.disconnect(); cancelAnimationFrame(resizeFrame); };
+    return () => {
+      observer.disconnect();
+      cancelAnimationFrame(resizeFrame);
+    };
   }, []);
   const edit = (value: string) => {
     setText(value);
     setError('');
-    try { if (value) sessionStorage.setItem(`arena-chat-draft:${roomId}`, value); else sessionStorage.removeItem(`arena-chat-draft:${roomId}`); } catch { /* The visible draft remains available. */ }
+    try {
+      if (value) sessionStorage.setItem(`arena-chat-draft:${roomId}`, value);
+      else sessionStorage.removeItem(`arena-chat-draft:${roomId}`);
+    } catch {
+      /* The visible draft remains available. */
+    }
   };
   const submit = () => {
     if (!text.trim() || disabled) return;
     const lines = text.split(/\r?\n/).filter(line => line.trim());
-    if (lines.length > 8 || lines.some(line => line.length > 1000)) { setError('Use at most 8 lines of 1,000 characters each.'); input.current?.focus(); return; }
+    if (lines.length > 8 || lines.some(line => line.length > 1000)) {
+      setError('Use at most 8 lines of 1,000 characters each.');
+      input.current?.focus();
+      return;
+    }
     for (let index = 0; index < lines.length; index++) {
-      if (!send(lines[index])) { edit(lines.slice(index).join('\n')); setError('Message was not sent. Your draft is kept here.'); input.current?.focus(); return; }
+      if (!send(lines[index])) {
+        edit(lines.slice(index).join('\n'));
+        setError('Message was not sent. Your draft is kept here.');
+        input.current?.focus();
+        return;
+      }
     }
     history.set(roomId, [text, ...(history.get(roomId) || [])].slice(0, 40));
     if (history.size > 30) history.delete(history.keys().next().value!);
@@ -67,7 +98,10 @@ export function ChatComposer({ roomId, title, users = [], send, disabled = false
   };
   const keyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.nativeEvent.isComposing) return;
-    if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); submit(); }
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      submit();
+    }
     if (event.key === 'Tab' && text && !event.shiftKey) {
       const { selectionStart, selectionEnd } = event.currentTarget;
       // Complete the token at the caret, preserving the rest of a draft. A
@@ -76,7 +110,9 @@ export function ChatComposer({ roomId, title, users = [], send, disabled = false
       const before = text.slice(0, selectionStart);
       const word = before.match(/[^\s]*$/)?.[0] || '';
       const options = word.startsWith('/') ? commands : users.map(user => user.replace(/^[^a-z0-9]/i, ''));
-      const matches = [...new Set(options)].filter(option => word && option.toLowerCase().startsWith(word.toLowerCase()));
+      const matches = [...new Set(options)].filter(
+        option => word && option.toLowerCase().startsWith(word.toLowerCase()),
+      );
       if (matches.length === 1 && matches[0].toLowerCase() !== word.toLowerCase()) {
         event.preventDefault();
         const suffix = text.slice(selectionEnd);
@@ -85,21 +121,59 @@ export function ChatComposer({ roomId, title, users = [], send, disabled = false
         edit(before.slice(0, -word.length) + completion + suffix);
       }
     }
-    if ((event.key === 'ArrowUp' || event.key === 'ArrowDown') && !text.includes('\n') && (!text || historyIndex.current >= 0)) {
+    if (
+      (event.key === 'ArrowUp' || event.key === 'ArrowDown') &&
+      !text.includes('\n') &&
+      (!text || historyIndex.current >= 0)
+    ) {
       const entries = history.get(roomId) || [];
-      const next = Math.max(-1, Math.min(entries.length - 1, historyIndex.current + (event.key === 'ArrowUp' ? 1 : -1)));
-      if (entries.length) { event.preventDefault(); historyIndex.current = next; edit(next < 0 ? '' : entries[next]); }
+      const next = Math.max(
+        -1,
+        Math.min(entries.length - 1, historyIndex.current + (event.key === 'ArrowUp' ? 1 : -1)),
+      );
+      if (entries.length) {
+        event.preventDefault();
+        historyIndex.current = next;
+        edit(next < 0 ? '' : entries[next]);
+      }
     }
   };
-  return <div className="chat-composer">
-    {error && <p id={errorId} role="status" className="chat-compose-error">{error}</p>}
-    <form className="chat-entry room-surface-entry" onSubmit={event => { event.preventDefault(); submit(); }}>
-      <MessageCircle size={16} aria-hidden />
-      <textarea ref={input} aria-label={`Message ${title}`} placeholder={`Message ${title}`} value={text} rows={1}
-        onChange={event => { historyIndex.current = -1; edit(event.currentTarget.value); }} onKeyDown={keyDown}
-        maxLength={8008} aria-describedby={`${helpId}${error ? ` ${errorId}` : ''}`} />
-      <button type="submit" aria-label="Send" disabled={disabled || !text.trim()}><Send size={15} aria-hidden /></button>
-    </form>
-    <small id={helpId} className="chat-keyboard-help">Enter to send · Shift+Enter for a new line<span> · Tab to complete</span></small>
-  </div>;
+  return (
+    <div className="chat-composer">
+      {error && (
+        <p id={errorId} role="status" className="chat-compose-error">
+          {error}
+        </p>
+      )}
+      <form
+        className="chat-entry room-surface-entry"
+        onSubmit={event => {
+          event.preventDefault();
+          submit();
+        }}
+      >
+        <MessageCircle size={16} aria-hidden />
+        <textarea
+          ref={input}
+          aria-label={`Message ${title}`}
+          placeholder={`Message ${title}`}
+          value={text}
+          rows={1}
+          onChange={event => {
+            historyIndex.current = -1;
+            edit(event.currentTarget.value);
+          }}
+          onKeyDown={keyDown}
+          maxLength={8008}
+          aria-describedby={`${helpId}${error ? ` ${errorId}` : ''}`}
+        />
+        <button type="submit" aria-label="Send" disabled={disabled || !text.trim()}>
+          <Send size={15} aria-hidden />
+        </button>
+      </form>
+      <small id={helpId} className="chat-keyboard-help">
+        Enter to send · Shift+Enter for a new line<span> · Tab to complete</span>
+      </small>
+    </div>
+  );
 }

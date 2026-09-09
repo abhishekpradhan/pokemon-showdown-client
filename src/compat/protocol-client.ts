@@ -56,9 +56,21 @@ export function loadStoredServer(): ServerConfig {
     const raw = localStorage.getItem(SERVER_STORAGE_KEY);
     if (!raw) return getDefaultServerConfig();
     const parsed = JSON.parse(raw) as Partial<ServerConfig>;
-    if (!parsed || typeof parsed.host !== 'string' || !/^[a-z0-9.:[\]-]+$/i.test(parsed.host)) return getDefaultServerConfig();
-    if (typeof parsed.port !== 'number' || !Number.isInteger(parsed.port) || parsed.port < 1 || parsed.port > 65535) return getDefaultServerConfig();
-    if (typeof parsed.secure !== 'boolean' || typeof parsed.prefix !== 'string' || !/^\/[a-z0-9/_-]*$/i.test(parsed.prefix)) return getDefaultServerConfig();
+    if (!parsed || typeof parsed.host !== 'string' || !/^[a-z0-9.:[\]-]+$/i.test(parsed.host))
+      return getDefaultServerConfig();
+    if (
+      typeof parsed.port !== 'number' ||
+      !Number.isInteger(parsed.port) ||
+      parsed.port < 1 ||
+      parsed.port > 65535
+    )
+      return getDefaultServerConfig();
+    if (
+      typeof parsed.secure !== 'boolean' ||
+      typeof parsed.prefix !== 'string' ||
+      !/^\/[a-z0-9/_-]*$/i.test(parsed.prefix)
+    )
+      return getDefaultServerConfig();
     return { ...getDefaultServerConfig(), ...parsed };
   } catch {
     return getDefaultServerConfig();
@@ -87,7 +99,15 @@ export function parseServerInput(input: string, base = getDefaultServerConfig())
   } catch {
     return null;
   }
-  if (!url.hostname || !['ws:', 'wss:', 'http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash) return null;
+  if (
+    !url.hostname ||
+    !['ws:', 'wss:', 'http:', 'https:'].includes(url.protocol) ||
+    url.username ||
+    url.password ||
+    url.search ||
+    url.hash
+  )
+    return null;
 
   const secure = url.protocol === 'wss:' || url.protocol === 'https:';
   const path = url.pathname.replace(/\/websocket\/?$/, '').replace(/\/$/, '');
@@ -153,7 +173,7 @@ export class ProtocolClient {
 
   constructor(
     private server: ServerConfig = getDefaultServerConfig(),
-    private WebSocketImpl: WebSocketCtor | undefined = globalThis.WebSocket
+    private WebSocketImpl: WebSocketCtor | undefined = globalThis.WebSocket,
   ) {}
 
   connect() {
@@ -241,7 +261,10 @@ export class ProtocolClient {
       if (!roomId && /^\/cmd (?:rooms|roomlist|userdetails)(?: |$)/.test(message)) {
         if (!this.queue.includes(payload)) this.queue = [...this.queue, payload].slice(-20);
       } else {
-        this.emit({ type: 'error', error: new Error('Not sent: reconnect before sending messages or battle commands.') });
+        this.emit({
+          type: 'error',
+          error: new Error('Not sent: reconnect before sending messages or battle commands.'),
+        });
       }
       return false;
     }
@@ -250,7 +273,10 @@ export class ProtocolClient {
       this.emit({ type: 'send', message: payload });
       return true;
     } catch {
-      this.emit({ type: 'error', error: new Error('The connection closed before the command could be sent. Reconnect and try again.') });
+      this.emit({
+        type: 'error',
+        error: new Error('The connection closed before the command could be sent. Reconnect and try again.'),
+      });
       return false;
     }
   }

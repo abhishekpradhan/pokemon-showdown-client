@@ -311,5 +311,8 @@ export const avatarUrl = (value: string | number | undefined): string | undefine
   return /^[a-z0-9][a-z0-9-]{0,79}$/i.test(name) ? `${SPRITE_HOST}/sprites/trainers/${name}.png` : undefined;
 };
 // Match the public upstream picker; reserved avatars are deliberately omitted.
-export const PUBLIC_AVATARS = Object.entries(AVATAR_NAMES).filter(([id]) => Number(id) <= 293 && id !== '162' && id !== '168');
-export const isPublicAvatar = (value: unknown): value is string => typeof value === 'string' && PUBLIC_AVATARS.some(([, name]) => name === value);
+export const PUBLIC_AVATARS = Object.entries(AVATAR_NAMES).filter(
+  ([id]) => Number(id) <= 293 && id !== '162' && id !== '168',
+);
+export const isPublicAvatar = (value: unknown): value is string =>
+  typeof value === 'string' && PUBLIC_AVATARS.some(([, name]) => name === value);

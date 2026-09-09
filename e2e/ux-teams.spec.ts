@@ -1,7 +1,9 @@
 import { expect, test } from './fixtures';
 import { installMockPs } from './mock-ps';
 
-test.beforeEach(async ({ page }) => { await installMockPs(page); });
+test.beforeEach(async ({ page }) => {
+  await installMockPs(page);
+});
 
 test('adding a Pokémon opens a usable editor and preserves its complete set', async ({ page }) => {
   await page.goto('/teambuilder');
@@ -12,7 +14,9 @@ test('adding a Pokémon opens a usable editor and preserves its complete set', a
   const species = page.getByRole('button', { name: 'Species', exact: true });
   await expect(species).toBeFocused();
   await expect(species).toBeInViewport();
-  expect(await page.locator('.team-toolbar').evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+  expect(
+    await page.locator('.team-toolbar').evaluate(element => element.scrollWidth <= element.clientWidth + 1),
+  ).toBe(true);
   await expect(page.getByRole('button', { name: 'Move 1', exact: true })).toContainText('Move 1');
   await species.click();
   await page.getByRole('combobox', { name: /filter$/ }).fill('Pikachu');
@@ -39,7 +43,10 @@ test('adding a Pokémon opens a usable editor and preserves its complete set', a
   await page.getByText('Set details', { exact: true }).click();
   await expect(page.getByLabel('Gender', { exact: true })).toHaveValue('F');
   await expect(page.getByLabel('Happiness', { exact: true })).toHaveValue('0');
-  await page.screenshot({ path: `/tmp/teams-ux-verified-editor-${test.info().project.name}.png`, fullPage: true });
+  await page.screenshot({
+    path: `/tmp/teams-ux-verified-editor-${test.info().project.name}.png`,
+    fullPage: true,
+  });
 });
 
 test('removing a Pokémon can be undone without losing its set', async ({ page }) => {
@@ -54,7 +61,10 @@ test('removing a Pokémon can be undone without losing its set', async ({ page }
   await expect(page.getByRole('button', { name: 'Edit Dragapult', exact: true })).toBeVisible();
   await page.reload();
   await expect(page.getByRole('button', { name: 'Edit Dragapult', exact: true })).toBeVisible();
-  await page.screenshot({ path: `/tmp/teams-ux-verified-overview-${test.info().project.name}.png`, fullPage: true });
+  await page.screenshot({
+    path: `/tmp/teams-ux-verified-overview-${test.info().project.name}.png`,
+    fullPage: true,
+  });
 });
 
 test('the library and recovered drafts remain reachable while switching teams', async ({ page }) => {
@@ -78,8 +88,13 @@ test('the library and recovered drafts remain reachable while switching teams', 
 
 test('a delayed Pokédex does not interrupt typing in another field', async ({ page }) => {
   let release = () => {};
-  const pending = new Promise<void>(resolve => { release = resolve; });
-  await page.route(/@pkmn_dex/, async route => { await pending; await route.continue(); });
+  const pending = new Promise<void>(resolve => {
+    release = resolve;
+  });
+  await page.route(/@pkmn_dex/, async route => {
+    await pending;
+    await route.continue();
+  });
   try {
     // The intentionally stalled module participates in load on WebKit and
     // Firefox. Wait for the rendered controls while that request is held.
@@ -90,16 +105,27 @@ test('a delayed Pokédex does not interrupt typing in another field', async ({ p
     await name.fill('Keep typing here');
     release();
     await expect(page.getByRole('button', { name: 'Species', exact: true })).toBeVisible();
-    await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+    await page.evaluate(
+      () => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))),
+    );
     await expect(name).toBeFocused();
     await expect(name).toHaveValue('Keep typing here');
-  } finally { release(); }
+  } finally {
+    release();
+  }
 });
 
 test('offline editing stays informative and saves locally without masking save errors', async ({ page }) => {
   const socketEvent = async (type: 'error' | 'open') => {
     await page.evaluate(eventType => {
-      const socket = (window as unknown as { __mockPsSockets: Array<{ onerror: ((event: Event) => void) | null; onopen: ((event: Event) => void) | null }> }).__mockPsSockets[0];
+      const socket = (
+        window as unknown as {
+          __mockPsSockets: Array<{
+            onerror: ((event: Event) => void) | null;
+            onopen: ((event: Event) => void) | null;
+          }>;
+        }
+      ).__mockPsSockets[0];
       if (eventType === 'error') socket.onerror?.(new Event('error'));
       else socket.onopen?.(new Event('open'));
     }, type);
@@ -108,7 +134,9 @@ test('offline editing stays informative and saves locally without masking save e
   const validate = page.getByRole('button', { name: 'Validate with server', exact: true });
   await expect(validate).toBeEnabled();
   await socketEvent('error');
-  const offline = page.getByRole('status').filter({ hasText: 'Live server connection unavailable. You can still edit and save teams in this browser.' });
+  const offline = page.getByRole('status').filter({
+    hasText: 'Live server connection unavailable. You can still edit and save teams in this browser.',
+  });
   await expect(offline).toBeVisible();
   await expect(offline).toHaveClass(/is-info/);
   await expect(page.getByText('WebSocket error', { exact: true })).toHaveCount(0);
@@ -138,13 +166,17 @@ test('offline editing stays informative and saves locally without masking save e
   await page.evaluate(() => {
     const original = Storage.prototype.setItem;
     Storage.prototype.setItem = function (key, value) {
-      if (key === 'ps-modern-teams-v1') throw new DOMException('Storage quota exceeded', 'QuotaExceededError');
+      if (key === 'ps-modern-teams-v1')
+        throw new DOMException('Storage quota exceeded', 'QuotaExceededError');
       return original.call(this, key, value);
     };
   });
   await name.fill('Unsaved offline edits');
   await save.click();
-  const error = page.getByRole('alert').filter({ hasText: 'Could not save to browser storage. Your edits remain open; export a backup or free storage and retry.' });
+  const error = page.getByRole('alert').filter({
+    hasText:
+      'Could not save to browser storage. Your edits remain open; export a backup or free storage and retry.',
+  });
   await expect(error).toBeVisible();
   await expect(error).toHaveClass(/is-error/);
   await expect(offline).toHaveCount(0);

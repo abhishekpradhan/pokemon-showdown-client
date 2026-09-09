@@ -9,11 +9,35 @@ import { parsePsFrame } from '../compat/protocol-client';
 describe('preferences persistence and server confirmation', () => {
   const savedWorkspace = useWorkspaceStore.getState();
   const savedArena = useArenaStore.getState();
-  afterEach(() => { useArenaStore.setState(savedArena, true); useWorkspaceStore.setState(savedWorkspace, true); localStorage.removeItem('ps-arena-workspace-v1'); vi.restoreAllMocks(); });
+  afterEach(() => {
+    useArenaStore.setState(savedArena, true);
+    useWorkspaceStore.setState(savedWorkspace, true);
+    localStorage.removeItem('ps-arena-workspace-v1');
+    vi.restoreAllMocks();
+  });
   it('migrates the old volume and rejects malformed stored options', async () => {
-    localStorage.setItem('ps-arena-workspace-v1', JSON.stringify({ state: { volume: 73, background: 'url(evil)', preferredAvatar: '/admin', musicTrack: 'evil', serverLanguage: 'evil' }, version: 0 }));
+    localStorage.setItem(
+      'ps-arena-workspace-v1',
+      JSON.stringify({
+        state: {
+          volume: 73,
+          background: 'url(evil)',
+          preferredAvatar: '/admin',
+          musicTrack: 'evil',
+          serverLanguage: 'evil',
+        },
+        version: 0,
+      }),
+    );
     await useWorkspaceStore.persist.rehydrate();
-    expect(useWorkspaceStore.getState()).toMatchObject({ effectsVolume: 73, notificationVolume: 73, musicVolume: 30, background: 'none', serverLanguage: 'english', preferredAvatar: '' });
+    expect(useWorkspaceStore.getState()).toMatchObject({
+      effectsVolume: 73,
+      notificationVolume: 73,
+      musicVolume: 30,
+      background: 'none',
+      serverLanguage: 'english',
+      preferredAvatar: '',
+    });
     useWorkspaceStore.getState().setPreference('effectsVolume', 20);
     useWorkspaceStore.getState().setSoundEnabled(false);
     useWorkspaceStore.getState().setSoundEnabled(true);
@@ -28,16 +52,30 @@ describe('preferences persistence and server confirmation', () => {
   });
   it('bounds and checks local background uploads', () => {
     expect(() => validateBackground(new Blob(['<svg/>'], { type: 'image/svg+xml' }))).toThrow('PNG');
-    expect(() => validateBackground(new Blob([new Uint8Array(1024 * 1024 + 1)], { type: 'image/png' }))).toThrow('1 MB');
+    expect(() =>
+      validateBackground(new Blob([new Uint8Array(1024 * 1024 + 1)], { type: 'image/png' })),
+    ).toThrow('1 MB');
   });
   it('waits for authoritative avatar/language and does not rejoin on preference acknowledgements', () => {
     const send = vi.spyOn(useArenaStore.getState().protocol, 'send').mockReturnValue(true);
-    useArenaStore.setState({ named: true, username: 'PreferenceTester', connection: 'connected', avatar: 'dawn', serverLanguage: 'english', loginPending: false });
+    useArenaStore.setState({
+      named: true,
+      username: 'PreferenceTester',
+      connection: 'connected',
+      avatar: 'dawn',
+      serverLanguage: 'english',
+      loginPending: false,
+    });
     useWorkspaceStore.getState().setPreference('preferredAvatar', 'lucas');
     useWorkspaceStore.getState().setPreference('serverLanguage', 'french');
-    expect(send.mock.calls.map(args => args[0])).toEqual(['/avatar lucas', '/query userdetails preferencetester', '/language french']);
+    expect(send.mock.calls.map(args => args[0])).toEqual([
+      '/avatar lucas',
+      '/query userdetails preferencetester',
+      '/language french',
+    ]);
     expect(useArenaStore.getState().avatar).toBe('dawn');
-    const settled = vi.fn(); useArenaStore.setState({ onLoginSettled: settled });
+    const settled = vi.fn();
+    useArenaStore.setState({ onLoginSettled: settled });
     routeFrame(parsePsFrame('|updateuser| PreferenceTester|1|lucas|{"language":"french"}'), useArenaStore);
     expect(useArenaStore.getState()).toMatchObject({ avatar: 'lucas', serverLanguage: 'french' });
     expect(settled).not.toHaveBeenCalled();
@@ -48,13 +86,32 @@ describe('preferences persistence and server confirmation', () => {
   it('confirms an avatar from own structured details without trusting avatar reply HTML or another user', () => {
     const send = vi.spyOn(useArenaStore.getState().protocol, 'send').mockReturnValue(true);
     const settled = vi.fn();
-    useArenaStore.setState({ named: true, username: 'PreferenceTester', connection: 'connected', avatar: 'dawn', loginPending: false, onLoginSettled: settled });
+    useArenaStore.setState({
+      named: true,
+      username: 'PreferenceTester',
+      connection: 'connected',
+      avatar: 'dawn',
+      loginPending: false,
+      onLoginSettled: settled,
+    });
     useWorkspaceStore.getState().setPreference('preferredAvatar', 'lucas');
-    expect(send.mock.calls.map(args => args[0])).toEqual(['/avatar lucas', '/query userdetails preferencetester']);
-    routeFrame(parsePsFrame('|raw|<img src="https://play.pokemonshowdown.com/sprites/trainers/lucas.png" />'), useArenaStore);
-    routeFrame(parsePsFrame('|queryresponse|userdetails|{"userid":"someoneelse","avatar":1,"rooms":{}}'), useArenaStore);
+    expect(send.mock.calls.map(args => args[0])).toEqual([
+      '/avatar lucas',
+      '/query userdetails preferencetester',
+    ]);
+    routeFrame(
+      parsePsFrame('|raw|<img src="https://play.pokemonshowdown.com/sprites/trainers/lucas.png" />'),
+      useArenaStore,
+    );
+    routeFrame(
+      parsePsFrame('|queryresponse|userdetails|{"userid":"someoneelse","avatar":1,"rooms":{}}'),
+      useArenaStore,
+    );
     expect(useArenaStore.getState().avatar).toBe('dawn');
-    routeFrame(parsePsFrame('|queryresponse|userdetails|{"userid":"preferencetester","avatar":1,"rooms":{}}'), useArenaStore);
+    routeFrame(
+      parsePsFrame('|queryresponse|userdetails|{"userid":"preferencetester","avatar":1,"rooms":{}}'),
+      useArenaStore,
+    );
     expect(useArenaStore.getState().avatar).toBe('1');
     expect(settled).not.toHaveBeenCalled();
   });
@@ -66,10 +123,19 @@ describe('preferences persistence and server confirmation', () => {
       { username: 'PreferenceTester', named: true, connection: 'connected' as const, loginPending: true },
     ]) {
       useArenaStore.setState({ ...state, avatar: 'dawn' });
-      routeFrame(parsePsFrame('|queryresponse|userdetails|{"userid":"preferencetester","avatar":1,"rooms":{}}'), useArenaStore);
+      routeFrame(
+        parsePsFrame('|queryresponse|userdetails|{"userid":"preferencetester","avatar":1,"rooms":{}}'),
+        useArenaStore,
+      );
       expect(useArenaStore.getState().avatar).toBe('dawn');
     }
-    useArenaStore.setState({ username: 'PreferenceTester', named: true, connection: 'connected', loginPending: false, avatar: 'dawn' });
+    useArenaStore.setState({
+      username: 'PreferenceTester',
+      named: true,
+      connection: 'connected',
+      loginPending: false,
+      avatar: 'dawn',
+    });
     for (const data of [
       { userid: 'preferencetester', avatar: 1, rooms: false },
       { userid: 'PreferenceTester', avatar: 1, rooms: {} },
@@ -82,11 +148,20 @@ describe('preferences persistence and server confirmation', () => {
   it('queries confirmation on reconnect and retry, but does not query when the avatar command was not sent', () => {
     const send = vi.spyOn(useArenaStore.getState().protocol, 'send').mockReturnValue(true);
     useWorkspaceStore.getState().setPreference('preferredAvatar', 'lucas');
-    useArenaStore.setState({ named: true, username: 'PreferenceTester', connection: 'connected', avatar: 'dawn', loginPending: false });
+    useArenaStore.setState({
+      named: true,
+      username: 'PreferenceTester',
+      connection: 'connected',
+      avatar: 'dawn',
+      loginPending: false,
+    });
     useArenaStore.getState().onLoginSettled();
     useArenaStore.getState().applyAvatarPreference();
     expect(send.mock.calls.map(args => args[0])).toEqual([
-      '/avatar lucas', '/query userdetails preferencetester', '/avatar lucas', '/query userdetails preferencetester',
+      '/avatar lucas',
+      '/query userdetails preferencetester',
+      '/avatar lucas',
+      '/query userdetails preferencetester',
     ]);
     send.mockClear().mockReturnValue(false);
     expect(useArenaStore.getState().applyAvatarPreference()).toBe(false);
