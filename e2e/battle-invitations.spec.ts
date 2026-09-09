@@ -14,7 +14,7 @@ const emit = (page: Page, frame: string) =>
 const sent = (page: Page) =>
   page.evaluate(() => (window as unknown as { __mockPsSent: string[] }).__mockPsSent);
 const forms = (invited = false) =>
-  '<form><label>Player 1: <strong>CodexTester</strong></label></form><form><label>Player 2: <strong>Rival</strong></label></form>' +
+  '<form><label>Player 1: <strong>ArenaTester</strong></label></form><form><label>Player 2: <strong>Rival</strong></label></form>' +
   (invited
     ? `<form data-submitsend="/msgroom ${room},/uninvitebattle rosa"><label>Player 3: <strong>rosa</strong> (invited) <button type="submit">Uninvite</button></label></form>`
     : `<form data-submitsend="/msgroom ${room},/invitebattle {username}, p3"><label>Player 3: <input name="username" class="textbox" placeholder="Username" /></label> <button class="button" type="submit">Add Player</button></form>`) +
@@ -25,7 +25,7 @@ test.beforeEach(async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');
   await expect(page.getByText('Online', { exact: true })).toBeVisible();
-  await emit(page, '|updateuser|CodexTester|1|0');
+  await emit(page, '|updateuser|ArenaTester|1|0');
 });
 
 test('a supplied-team invitation joins the fourth seat and permits its own battle choice', async ({
@@ -33,7 +33,7 @@ test('a supplied-team invitation joins the fourth seat and permits its own battl
 }) => {
   await emit(
     page,
-    "|pm|+ArenaAlice| CodexTester|/challenge gen9freeforall||You're invited to join a battle (with ArenaAlice, Bob, Cora)||",
+    "|pm|+ArenaAlice| ArenaTester|/challenge gen9freeforall||You're invited to join a battle (with ArenaAlice, Bob, Cora)||",
   );
   await expect(page.locator('.challenge-row')).toContainText('invited to join a battle');
   await page.locator('.challenge-row').getByRole('button', { name: 'Accept', exact: true }).click();
@@ -42,12 +42,12 @@ test('a supplied-team invitation joins the fourth seat and permits its own battl
   await expect(dialog).toContainText('This seat already has a team');
   await dialog.getByRole('button', { name: 'Join battle', exact: true }).click();
   expect((await sent(page)).filter(line => /\/accept|\/utm/.test(line))).toEqual(['|/accept arenaalice']);
-  await emit(page, '|pm|+ArenaAlice| CodexTester|/challenge');
+  await emit(page, '|pm|+ArenaAlice| ArenaTester|/challenge');
   const request = {
     rqid: 5,
     side: {
       id: 'p4',
-      name: 'CodexTester',
+      name: 'ArenaTester',
       pokemon: [
         {
           ident: 'p4: Squirtle',
@@ -64,7 +64,7 @@ test('a supplied-team invitation joins the fourth seat and permits its own battl
   };
   await emit(
     page,
-    `>${room}\n|init|battle\n|gametype|freeforall\n|gen|9\n|player|p1|ArenaAlice\n|player|p2|Bob\n|player|p3|Cora\n|player|p4|CodexTester\n|start\n|switch|p1a: Pikachu|Pikachu|100/100\n|switch|p2a: Eevee|Eevee|100/100\n|switch|p3b: Charmander|Charmander|100/100\n|switch|p4b: Squirtle|Squirtle|100/100\n|turn|1\n|request|${JSON.stringify(request)}`,
+    `>${room}\n|init|battle\n|gametype|freeforall\n|gen|9\n|player|p1|ArenaAlice\n|player|p2|Bob\n|player|p3|Cora\n|player|p4|ArenaTester\n|start\n|switch|p1a: Pikachu|Pikachu|100/100\n|switch|p2a: Eevee|Eevee|100/100\n|switch|p3b: Charmander|Charmander|100/100\n|switch|p4b: Squirtle|Squirtle|100/100\n|turn|1\n|request|${JSON.stringify(request)}`,
   );
   await expect(page).toHaveURL(new RegExp(`/battle/${room}$`));
   await expect(page.getByRole('heading', { name: 'Choose Squirtle’s action', exact: true })).toBeVisible();
@@ -76,7 +76,7 @@ test('a supplied-team invitation joins the fourth seat and permits its own battl
 test('invitation metadata requests a team and preserves a custom decline action', async ({ page }) => {
   await emit(
     page,
-    "|pm| ArenaAlice| CodexTester|/challenge gen9freeforall|gen9freeforall|You're invited to join a battle (with Alice, Bob)|Review seat|Decline invite",
+    "|pm| ArenaAlice| ArenaTester|/challenge gen9freeforall|gen9freeforall|You're invited to join a battle (with Alice, Bob)|Review seat|Decline invite",
   );
   await page.locator('.challenge-row').getByRole('button', { name: 'Review seat', exact: true }).click();
   const dialog = page.getByRole('dialog');
@@ -100,7 +100,7 @@ test('hosts invite both remaining seats, revoke an invitation and reach the star
   });
   await emit(
     page,
-    `>${room}\n|init|battle\n|gametype|multi\n|gen|9\n|player|p1|CodexTester\n|player|p2|Rival\n|uhtmlchange|invites|<img src="https://invitation-resource.invalid/track"><iframe src="https://invitation-resource.invalid/embed"></iframe>${forms()}`,
+    `>${room}\n|init|battle\n|gametype|multi\n|gen|9\n|player|p1|ArenaTester\n|player|p2|Rival\n|uhtmlchange|invites|<img src="https://invitation-resource.invalid/track"><iframe src="https://invitation-resource.invalid/embed"></iframe>${forms()}`,
   );
   const invitations = page.getByRole('region', { name: 'Battle invitations' });
   await expect(page.getByRole('heading', { name: 'Waiting for players', exact: true })).toBeVisible();
@@ -114,7 +114,7 @@ test('hosts invite both remaining seats, revoke an invitation and reach the star
   expect(await sent(page)).toContain(`${room}|/invitebattle barry, p4`);
   await invitations.getByRole('button', { name: 'Uninvite rosa', exact: true }).click();
   expect(await sent(page)).toContain(`${room}|/uninvitebattle rosa`);
-  await emit(page, '|pm| CodexTester| Rosa|/challenge');
+  await emit(page, '|pm| ArenaTester| Rosa|/challenge');
   await expect(invitations.getByLabel('Player for seat p3')).toBeVisible();
   await emit(page, `>${room}\n|player|p3|Rosa\n|player|p4|Barry\n|start`);
   await expect(invitations).toHaveCount(0);

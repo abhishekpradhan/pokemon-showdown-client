@@ -100,6 +100,11 @@ const PURIFY_OPTIONS = {
   // bgcolor="#223", align="right" and friends. The default already blocks
   // dangerous schemes; the hook below tightens href/src to https.
   ALLOW_DATA_ATTR: false,
+  // `name` stays allowed for legacy form markup, but a server-chosen value
+  // like name="location" would otherwise shadow window/document properties
+  // (DOM clobbering). DOMPurify prefixes id/name values with `user-content-`;
+  // nothing in this client reads those attributes back.
+  SANITIZE_NAMED_PROPS: true,
 };
 
 /** Showdown internal links belong to this client; other web links open separately. */

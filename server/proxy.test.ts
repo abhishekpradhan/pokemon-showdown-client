@@ -93,6 +93,9 @@ describe('production proxy boundary', () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
     expect((await login(request(undefined, { Origin: 'https://other.example' }))).status).toBe(403);
+    const bare = request();
+    bare.headers.delete('origin');
+    expect((await login(bare)).status).toBe(403);
     expect((await login(request(undefined, { Origin: 'null' }))).status).toBe(403);
     expect((await login(new Request('https://arena.example/api/action'))).status).toBe(405);
     expect((await login(request('{}', { 'Content-Type': 'application/json' }))).status).toBe(415);

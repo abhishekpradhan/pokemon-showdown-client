@@ -93,8 +93,8 @@ test('a notification opens a challenge dialog with explicit format and team cont
 test('battle directory and privacy settings remain usable at narrow widths', async ({ page }) => {
   await page.goto('/battles');
   await expect(page.getByRole('heading', { name: 'Live battles', exact: true })).toBeVisible();
-  await page.getByRole('textbox', { name: 'Filter live battles' }).fill('CodexTester');
-  await expect(page.getByRole('button', { name: /CodexTester vs MockRival/ })).toBeVisible();
+  await page.getByRole('textbox', { name: 'Filter live battles' }).fill('ArenaTester');
+  await expect(page.getByRole('button', { name: /ArenaTester vs MockRival/ })).toBeVisible();
   await page.goto('/settings');
   await page.getByRole('switch', { name: 'Block incoming private messages' }).click();
   await page.getByRole('switch', { name: 'Reduce motion' }).click();

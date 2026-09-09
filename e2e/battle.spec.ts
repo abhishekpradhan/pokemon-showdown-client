@@ -26,9 +26,9 @@ test.beforeEach(async ({ page }) => {
 async function startBattle(page: Page) {
   await page.goto('/');
   await page.getByRole('button', { name: /Unnamed guest/i }).click();
-  await page.getByRole('textbox', { name: 'Username' }).fill('CodexTester');
+  await page.getByRole('textbox', { name: 'Username' }).fill('ArenaTester');
   await page.getByRole('button', { name: /Use guest name/i }).click();
-  await expect(page.getByRole('button', { name: 'CodexTester', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'ArenaTester', exact: true })).toBeVisible();
   await page.getByRole('button', { name: /find battle/i }).click();
   await expect(page).toHaveURL(new RegExp(`/battle/${roomId}`));
   await expect(page.locator('.move-choice', { hasText: 'Moonblast' })).toBeVisible();
@@ -62,7 +62,7 @@ test('team preview accepts the first slot, toggles and reorders before explicit 
   await startBattle(page);
   const side = {
     id: 'p1',
-    name: 'CodexTester',
+    name: 'ArenaTester',
     pokemon: ['Iron Valiant', 'Heatran', 'Dragapult'].map((name, i) => ({
       ident: `p1: ${name}`,
       details: `${name}, L80`,

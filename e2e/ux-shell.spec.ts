@@ -19,7 +19,7 @@ test('first battle action resolves naming without starting a search, and presets
   await page.keyboard.press('Escape');
   await expect(action).toBeFocused();
   await action.click();
-  await name.fill('CodexTester');
+  await name.fill('ArenaTester');
   await page.getByRole('button', { name: 'Use guest name', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(action).toHaveText('Find battle');
@@ -39,9 +39,9 @@ test('a failed rename keeps the account dialog and error visible for an already 
 }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Unnamed guest', exact: true }).click();
-  await page.getByRole('textbox', { name: 'Username', exact: true }).fill('CodexTester');
+  await page.getByRole('textbox', { name: 'Username', exact: true }).fill('ArenaTester');
   await page.getByRole('button', { name: 'Use guest name', exact: true }).click();
-  const account = page.getByRole('button', { name: 'CodexTester', exact: true });
+  const account = page.getByRole('button', { name: 'ArenaTester', exact: true });
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await account.click();
   await page.getByRole('textbox', { name: 'Username', exact: true }).fill('TakenName');

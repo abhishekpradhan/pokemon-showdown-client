@@ -626,14 +626,19 @@ export function BattleScreen() {
               )}
               {battle.supportReason && (
                 <p className="decision-error" role="alert">
-                  {battle.supportReason}{' '}
-                  <a
-                    href={`https://play.pokemonshowdown.com/${battle.id}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    Open original client
-                  </a>
+                  {battle.supportReason}
+                  {/^battle-[a-z0-9-]+$/.test(battle.id) && (
+                    <>
+                      {' '}
+                      <a
+                        href={`https://play.pokemonshowdown.com/${battle.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Open original client
+                      </a>
+                    </>
+                  )}
                 </p>
               )}
               {battle.engineWarning && (
