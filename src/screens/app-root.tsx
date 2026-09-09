@@ -14,6 +14,7 @@ import { ChallengeDialog } from '../components/challenge-dialog';
 import { useBattleAudio } from '../battle/use-battle-audio';
 import { useBackground } from '../preferences/use-background';
 import { openChallenge } from '../compat/ui-events';
+import { routeRoomId, useDocumentTitle } from './use-document-title';
 
 export function AppRoot() {
   const location = useLocation();
@@ -84,6 +85,7 @@ export function AppRoot() {
     : undefined;
   const routeBattle = routeBattleId ? rooms[routeBattleId] : undefined;
   useBackground();
+  useDocumentTitle(location.pathname);
   useBattleAudio(
     !!(
       routeBattle?.type === 'battle' &&
@@ -137,16 +139,8 @@ export function AppRoot() {
   }, [connect]);
 
   useEffect(() => {
-    const sync = () => {
-      const match = location.pathname.match(/^\/(battle|room)\/([^/]+)/);
-      let id: string | undefined;
-      try {
-        id = match ? decodeURIComponent(match[2]) : undefined;
-      } catch {
-        /* Invalid route has no focused room. */
-      }
-      useArenaStore.getState().focusRoom(document.hidden ? undefined : id);
-    };
+    const sync = () =>
+      useArenaStore.getState().focusRoom(document.hidden ? undefined : routeRoomId(location.pathname));
     sync();
     document.addEventListener('visibilitychange', sync);
     return () => document.removeEventListener('visibilitychange', sync);

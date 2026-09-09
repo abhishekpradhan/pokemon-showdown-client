@@ -187,6 +187,23 @@ const conditionName = (battle: Battle, id: string): string => {
   return resolved?.name || titleCase(id);
 };
 
+/**
+ * Volatiles the engine keeps for its own bookkeeping; the official client's
+ * status table hides the same ids. A changed type still shows through the type
+ * icons, a removed item through `lastItem`, trapping through the request flags.
+ * `substitute` stays visible: without a substitute sprite overlay the chip is
+ * the only indicator this client has.
+ */
+const HIDDEN_VOLATILES = new Set([
+  'formechange',
+  'typechange',
+  'typeadd',
+  'trapped',
+  'doomdesire',
+  'futuresight',
+  'itemremoved',
+]);
+
 const safeTypes = (pokemon: Pokemon): TypeName[] => {
   // The getter resolves the species in the battle's generation; a species the
   // loaded gen does not know (mods, future gens, a missing |gen| line) throws
@@ -209,7 +226,8 @@ const projectPokemon = (
   const boosts = Object.fromEntries(
     Object.entries(pokemon.boosts).filter(([, stage]) => stage !== 0),
   ) as PokemonSet['boosts'];
-  const volatiles = Object.keys(pokemon.volatiles).map(id => conditionName(battle, id));
+  const visibleVolatiles = Object.entries(pokemon.volatiles).filter(([id]) => !HIDDEN_VOLATILES.has(id));
+  const volatiles = visibleVolatiles.map(([id]) => conditionName(battle, id));
   let speedRange: [number, number] | undefined;
   let effectiveAbility: string | undefined;
   let grounded: boolean | undefined;
@@ -266,7 +284,7 @@ const projectPokemon = (
     counters: [
       pokemon.statusState.toxicTurns ? `Toxic: ${pokemon.statusState.toxicTurns} turns` : '',
       pokemon.statusState.sleepTurns ? `Sleep: ${pokemon.statusState.sleepTurns} turns` : '',
-      ...Object.entries(pokemon.volatiles).flatMap(([id, effect]) =>
+      ...visibleVolatiles.flatMap(([id, effect]) =>
         typeof effect.duration === 'number' ? [`${conditionName(battle, id)}: ${effect.duration} turns`] : [],
       ),
     ].filter(Boolean),

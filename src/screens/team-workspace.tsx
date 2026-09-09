@@ -383,11 +383,11 @@ export function TeamWorkspace() {
                 type="checkbox"
                 aria-label={`Select ${team.name} for bulk actions`}
                 checked={selectedIds.includes(team.id)}
-                onChange={event =>
-                  setSelectedIds(ids =>
-                    event.currentTarget.checked ? [...ids, team.id] : ids.filter(id => id !== team.id),
-                  )
-                }
+                onChange={event => {
+                  // React nulls currentTarget after dispatch; the updater may run later.
+                  const checked = event.currentTarget.checked;
+                  setSelectedIds(ids => (checked ? [...ids, team.id] : ids.filter(id => id !== team.id)));
+                }}
               />
               <button
                 type="button"
