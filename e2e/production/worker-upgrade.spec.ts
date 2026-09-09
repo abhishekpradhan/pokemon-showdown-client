@@ -15,7 +15,7 @@ test('native worker updates wait, reject incomplete installs and retain exactly 
       response.setHeader('Content-Type', 'application/javascript');
       response.end(
         template.replace(
-          /const BUILD = \/\* @arena-manifest \*\/ .*;/,
+          /const BUILD = \/\* @arena-manifest \*\/ [\s\S]*?;/,
           `const BUILD = ${JSON.stringify({ revision, assets: ['/', `/assets/${revision}.js`] })};`,
         ),
       );

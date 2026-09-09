@@ -1,7 +1,9 @@
 import { expect, test } from '@playwright/test';
 import { installMockPs } from '../mock-ps';
 
-test('deployed handlers reject unsafe inputs and expose production headers', async ({ request }) => {
+test('deployed handlers reject unsafe inputs and expose production headers', async ({ request, baseURL }) => {
+  // Browsers send Origin on every POST; the proxies require it to match ours.
+  const sameOrigin = { Origin: new URL(baseURL!).origin };
   const notices = await request.get('/THIRD_PARTY_NOTICES.txt');
   expect(notices.ok()).toBe(true);
   expect(await notices.text()).toContain('BattleStatGuesser');
@@ -13,17 +15,30 @@ test('deployed handlers reject unsafe inputs and expose production headers', asy
   expect((await request.get('/api/action')).status()).toBe(405);
   expect(
     (
-      await request.post('/api/action', { data: '{}', headers: { 'Content-Type': 'application/json' } })
+      await request.post('/api/action', {
+        data: '{}',
+        headers: { ...sameOrigin, 'Content-Type': 'application/json' },
+      })
     ).status(),
   ).toBe(415);
-  expect((await request.post('/api/action', { form: { act: 'login' } })).status()).toBe(400);
+  expect((await request.post('/api/action', { form: { act: 'login' }, headers: sameOrigin })).status()).toBe(
+    400,
+  );
+  const noOrigin = await request.post('/api/action', {
+    form: { act: 'getassertion', userid: 'alice', challstr: '4|test' },
+  });
+  expect(noOrigin.status()).toBe(403);
   const crossOrigin = await request.post('/api/replay', {
     form: { id: 'test', log: '|turn|1' },
     headers: { Origin: 'https://another.example' },
   });
   expect(crossOrigin.status()).toBe(403);
   expect(crossOrigin.headers()['cache-control']).toBe('no-store');
-  expect((await request.post('/api/replay', { form: { id: '../bad', log: '|turn|1' } })).status()).toBe(400);
+  expect(
+    (
+      await request.post('/api/replay', { form: { id: '../bad', log: '|turn|1' }, headers: sameOrigin })
+    ).status(),
+  ).toBe(400);
   const info = await (await request.get('/build-info.json')).json();
   expect(info.source).toContain('/tree/');
   expect(info.revision).toMatch(/^[a-f0-9]{40}$/);
