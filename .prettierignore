@@ -1,0 +1,23 @@
+# Build and test output
+dist/
+coverage/
+playwright-report*/
+test-results*/
+test-results-*.json
+blob-report/
+
+# Package manager files keep npm's own formatting
+package.json
+package-lock.json
+
+# Fixtures, recordings and baselines are data, not source
+src/compat/__fixtures__/
+src/compat/__snapshots__/
+src/test/fixtures/
+e2e/**/*-snapshots/
+scripts/local-server-dependencies/
+
+# Prose is edited by hand
+*.md
+LICENSE
+UPSTREAM_NOTICES.txt
