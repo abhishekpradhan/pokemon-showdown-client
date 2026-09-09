@@ -140,7 +140,7 @@
 
 .server-state.is-connected {
   background: var(--arena-green);
-  box-shadow: 0 0 0 3px rgb(72 199 142 / 12%);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--arena-green) 12%, transparent);
 }
 
 .server-state.is-connecting,
@@ -220,7 +220,7 @@
   margin: 8px 0;
   padding: 9px 11px;
   color: var(--arena-red-text);
-  background: rgb(240 90 90 / 8%);
+  background: color-mix(in srgb, var(--arena-red) 8%, transparent);
   border-radius: 7px;
   font-size: 12px;
 }

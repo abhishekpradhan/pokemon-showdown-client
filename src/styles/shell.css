@@ -142,7 +142,7 @@ textarea:focus-visible,
 
 .rail-status.is-connected i {
   background: var(--arena-green);
-  box-shadow: 0 0 0 3px rgb(72 199 142 / 14%);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--arena-green) 14%, transparent);
 }
 
 .rail-status.is-connecting i {
@@ -168,10 +168,13 @@ textarea:focus-visible,
 .topbar {
   flex-shrink: 0;
   position: relative;
-  top: auto;
+  z-index: 20;
   display: grid;
   grid-template-columns: minmax(150px, 0.45fr) minmax(260px, 520px) minmax(150px, 0.45fr);
   align-items: center;
+  /* The fr tracks sum to 0.9, so a tenth of the row is free space; this keeps
+     the actions column flush right instead of packing everything left. */
+  justify-content: space-between;
   gap: 16px;
   min-height: 56px;
   height: 56px;
@@ -374,7 +377,10 @@ textarea:focus-visible,
 
 .topbar-actions {
   position: relative;
+  display: flex;
+  align-items: center;
   justify-content: flex-end;
+  gap: 10px;
 }
 
 .notification-button,

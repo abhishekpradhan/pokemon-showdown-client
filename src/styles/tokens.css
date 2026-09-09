@@ -16,6 +16,14 @@
   --arena-panel: #171d27;
   --arena-panel-strong: #1d2430;
   --arena-panel-raised: #232b39;
+  /* Small control resting on a panel: playback bar buttons, preview
+     reordering, the touch inspect button. Same step as --arena-panel-strong;
+     the battle field pins it dark with the rest of its scenery. */
+  --arena-surface: #1d2430;
+  /* Glass over a stage that is waiting for content (the empty replay canvas).
+     Dark glass here, light glass in the light theme, so the theme's own text
+     tokens stay readable on top of it. */
+  --arena-scrim: rgb(10 14 19 / 56%);
   --arena-line: rgb(226 232 240 / 11%);
   --arena-line-strong: rgb(226 232 240 / 20%);
 
@@ -43,6 +51,17 @@
   --arena-green: #48c78e;
   --arena-gold: #e7b95c;
   --arena-purple: #a78bfa;
+
+  /* Status text on a 12% tint of the matching accent: callouts, the urgent
+     timer chip, compose errors. Pale in the dark theme; the light theme
+     darkens each separately so 12px text clears 4.5:1 on white and on ink. */
+  --arena-danger-text: #ffc9c9;
+  --arena-warning-text: #f6dda6;
+  --arena-success-text: #b9f0d5;
+  /* Destructive buttons: a fixed fill with its own ink. The theme text colour
+     cannot be reused — dark ink on this red is 2.5:1 in the light theme. */
+  --arena-danger-fill: #9f2f2f;
+  --arena-on-danger: #f4f7fb;
 
   /* Health states, shared by the field bars and the bench. */
   --hp-high: #48c78e;
@@ -76,7 +95,7 @@
      thumb. */
   --arena-track: #3b4454;
 
-  /* Motion. Reduced-motion collapses these to zero (see base.css). */
+  /* Motion. Reduced-motion collapses these to zero (see touch.css). */
   --arena-fast: 120ms;
   --arena-base: 200ms;
   --arena-slow: 320ms;
@@ -98,6 +117,8 @@
   --arena-panel: #ffffff;
   --arena-panel-strong: #f5f7fb;
   --arena-panel-raised: #eceff5;
+  --arena-surface: #f5f7fb;
+  --arena-scrim: rgb(255 255 255 / 72%);
   --arena-line: rgb(18 23 34 / 12%);
   --arena-line-strong: rgb(18 23 34 / 24%);
 
@@ -118,6 +139,12 @@
   --arena-green: #1f9e66;
   --arena-gold: #a97d1e;
   --arena-purple: #7c5cd6;
+
+  --arena-danger-text: #992727;
+  --arena-warning-text: #7a5810;
+  --arena-success-text: #146b45;
+  --arena-danger-fill: #b32d2d;
+  --arena-on-danger: #ffffff;
 
   --arena-hover: rgb(18 23 34 / 5%);
   --arena-hover-strong: rgb(18 23 34 / 9%);

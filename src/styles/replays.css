@@ -36,7 +36,7 @@
   align-content: center;
   gap: 9px;
   color: var(--arena-faint);
-  background: rgba(10, 14, 19, 0.56);
+  background: var(--arena-scrim);
   backdrop-filter: blur(4px);
 }
 
