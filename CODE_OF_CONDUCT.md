@@ -26,23 +26,22 @@ Examples of unacceptable behavior:
 
 ## Enforcement
 
-Instances of abusive, harassing, or otherwise unacceptable behavior can be
-reported through a private channel already established with the maintainer.
-If none is available, open a [contact-only request](https://github.com/abhishekpradhan/pokemon-showdown-client/issues/new?title=Private%20maintainer%20contact%20requested)
-without incident details or personal information. The maintainer will arrange a
-private channel before receiving the report; see [SUPPORT.md](SUPPORT.md). Use
-GitHub's abuse-reporting tools for harassment on GitHub, including concerns about
-the maintainer when direct reporting would be inappropriate.
+Report abusive, harassing, or otherwise unacceptable behavior privately
+through the contact procedure in [SECURITY.md](SECURITY.md); do not put
+incident details or personal information in a public issue. For harassment on
+GitHub, including concerns about the maintainer, GitHub's own reporting tools
+are a separate route.
 
-The maintainer aims to acknowledge contact requests within 7 days and treat
-reports confidentially. Review the conduct, context and people affected; explain
-any correction, warning, temporary restriction or permanent removal to the
-parties privately where appropriate. No retaliation against good-faith reporters
-is acceptable. Maintainers who do not follow or enforce this policy can be
-removed from project responsibilities. These are volunteer response targets.
+[@abhishekpradhan](https://github.com/abhishekpradhan) aims to acknowledge
+reports within 7 days and treats them confidentially. Each report is reviewed
+in context, and any correction, warning, temporary restriction or permanent
+removal is explained privately to the people involved where appropriate.
+Retaliation against good-faith reporters is not acceptable, and maintainers who
+do not follow or enforce this policy can be removed from project
+responsibilities. These are volunteer response targets.
 
 ## Attribution
 
 Adapted from the [Contributor Covenant][homepage], version 2.1.
 
-  [homepage]: https://www.contributor-covenant.org/version/2/1/code_of_conduct/
+[homepage]: https://www.contributor-covenant.org/version/2/1/code_of_conduct/

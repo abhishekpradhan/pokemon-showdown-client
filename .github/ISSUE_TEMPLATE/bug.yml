@@ -10,6 +10,12 @@ body:
     validations:
       required: true
   - type: input
+    id: revision
+    attributes:
+      label: Build revision
+      description: From Settings → About, or /build-info.json on the deployment you used.
+      placeholder: 1.2.0 (440cccc1)
+  - type: input
     id: server
     attributes:
       label: Server
@@ -26,6 +32,5 @@ body:
       label: Protocol log (if battle-related)
       description: >
         Use the share-safe export in Settings and review it before posting. Never
-        post raw private messages, teams, tokens, or private replay URLs. Include
-        the build revision from Settings or /build-info.json.
+        post raw private messages, teams, tokens, or private replay URLs.
       render: text

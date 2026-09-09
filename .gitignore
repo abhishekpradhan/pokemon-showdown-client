@@ -7,24 +7,18 @@ dist/
 test-results*/
 playwright-report*/
 test-results-local-server.json
+test-results-local-corpus.json
+test-results-session-stress.json
 blob-report/
 coverage/
 
-# Local env overrides (.env.example is committed)
-.env
-.env.local
-.env.*.local
+# Local environment (.env.example is committed)
+.env*
+!.env.example
 
-# Editor / OS
+# Editor / OS / tooling
 .DS_Store
 Thumbs.db
 npm-debug.log*
 .vercel
-# Local agent tooling
 .claude/
-.env*
-!.env.example
-
-# Generated synthetic integration/stress evidence (release notes link CI).
-test-results-local-corpus.json
-test-results-session-stress.json

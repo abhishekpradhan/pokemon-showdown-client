@@ -1,8 +1,1 @@
-# Default owner for everything in this repository.
-*                 @abhishekpradhan
-
-# Protocol and deployment surfaces — changes here can break live sessions.
-/src/compat/      @abhishekpradhan
-/api/             @abhishekpradhan
-/vercel.json      @abhishekpradhan
-/.github/         @abhishekpradhan
+* @abhishekpradhan

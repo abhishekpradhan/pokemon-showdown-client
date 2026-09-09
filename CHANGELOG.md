@@ -1,46 +1,110 @@
 # Changelog
 
-## 1.2.0 — 2026-09-06
+All notable changes to Showdown Arena are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-Complete the remaining implementable team, battle and preference workflows and expand their verification.
+## [Unreleased]
 
-- Import official sample sets with source previews, explicit apply/undo and preserved personal fields; infer EV/nature spreads with the pinned upstream heuristic and keep manual control.
-- Add triples targeting/Shift and four-player multi/free-for-all ownership, targets, private rosters, spectator viewpoints, seat invitations and responsive fields.
-- Add public avatars with server confirmation, twelve server languages, local backgrounds, separate audio levels and optional battle music that follows focus and visibility.
-- Keep OAuth pending until the expected named identity is acknowledged; preserve failed-login errors across unrelated profile updates.
-- Fix avatar sprite aliases and confirm avatar changes through queued own-user details, including throttled servers; fix preference acknowledgements that rejoined rooms, accumulated room errors, mobile Settings overflow and WebKit image storage.
-- Expand controlled real-server, OAuth/replay, recorded protocol and long-session tests; patch the isolated test-server runtime lock and retain network isolation.
-- Extract feature/settings/integration modules, distribute upstream notices and publish concrete GitHub acceptance issues.
+In progress on the current branch.
 
-See the [parity record](docs/parity-completion.md). Rotation remains gated until upstream implements it. [Physical-device/screen-reader](https://github.com/abhishekpradhan/pokemon-showdown-client/issues/12) and [registered production-account](https://github.com/abhishekpradhan/pokemon-showdown-client/issues/13) acceptance remain separate, explicitly unverified checks. Arena's interface is English; the language preference controls translated server messages.
+### Added
 
-## 1.1.1 — 2026-09-06
+- `npm run format` and a Prettier check inside `npm run check`.
+- Route-aware page titles.
 
-Polish the main desktop and mobile workflows following a hands-on UX review.
+### Changed
 
-- Put the next usable action in matchmaking, clarify provided teams, and keep compact navigation oriented to the current page or conversation.
-- Restore focus and predictable dismissal in account, search, notification, battle and selector dialogs; keep modal controls above mobile navigation.
-- Make team editing reachable with compact roster navigation, a mobile library toggle, responsive save controls and undo for removing a Pokémon.
-- Explain offline team editing without presenting a transport error as a failed local save.
-- Improve move targeting, spectator playback, mobile battle details, multiline chat drafts, room search and conversation controls.
-- Bring replay loading into the first viewport and add direct navigation to settings sections.
+- The codebase is formatted with Prettier.
+- The CI advisory gate blocks only on high-severity advisories in shipped dependencies; `npm run audit:dependencies:all` reports every severity across the whole tree as an advisory step.
+- CI jobs have timeouts.
+- README and docs rewritten and consolidated; historical audit and review records left the tree (they remain readable at the `v1.2.0` tag).
 
-See the [UX review](docs/ux-review-2026-09-06.md) for the findings, changes and verification scope. Team storage and supported battle formats retain the 1.1 compatibility contract.
+### Fixed
 
-## 1.1.0 — 2026-09-05
+- Light-theme contrast for the replay empty state, status callouts and danger buttons.
+- Internal battle volatiles are no longer shown as status chips.
 
-This release addresses the September 2026 project audit. Its release notes record the verified revision, CI results and deployment evidence.
+### Removed
 
-- Strengthen authentication, transport, team portability/persistence and protocol lifecycle behavior; see the implementation status for exact acceptance evidence.
-- Add supported battle/editor/community workflow improvements with explicit capability and compatibility behavior.
-- Replace unbounded app caching with a versioned offline manifest, update consent and cache repair that preserves local teams.
-- Bound/test production proxies, add CSP and safe interactive room-content rules, and update vulnerable dependencies.
-- Correct hosted Edge redirect handling without forwarding redirects; verify the deployed assertion proxy with a real signed guest acknowledgement before release.
-- Check API/browser-test TypeScript, desktop/mobile/browser/visual and production paths; enforce license/advisory/bundle gates.
-- Publish current compatibility, privacy, self-hosting, contribution/release documentation and matching-source/dependency build metadata.
+- Dead password-login code.
+- Unused dependencies.
 
-Existing local teams migrate to a versioned, recoverable library. Export a complete backup before downgrading to an older client. See [release checklist](docs/releases.md) and [implementation status](docs/implementation-status.md) for the verification record and explicit support limits.
+## [1.2.0] - 2026-09-06
 
-## 1.0.0 — existing baseline
+### Added
 
-The repository declared version 1.0.0 before this release process was introduced. Its source history contains the initial independent client, engine integration, teams, room/replay/ladder surfaces, sound, notifications, PWA and tournament UI. No historical release date or tag is inferred here.
+- Official sample sets in the team builder: preview the source, apply or undo, and keep the personal fields you already filled in.
+- EV/nature spread suggestions from the upstream stat-guessing heuristic, with full manual control.
+- Triples battles, including targeting and Shift.
+- Four-player multi and free-for-all battles: per-seat ownership and targets, private rosters, spectator viewpoints, seat invitations and responsive fields.
+- Trainer avatars confirmed by the server, twelve server-language choices, built-in and locally stored backgrounds, separate effects/notification/music volumes, and optional battle music that follows focus and visibility.
+
+### Changed
+
+- Sign-in waits for the server to acknowledge the requested named identity instead of settling on an unrelated profile update, and login failures stay visible.
+- Upstream notices are distributed in [UPSTREAM_NOTICES.txt](UPSTREAM_NOTICES.txt) and the built `/THIRD_PARTY_NOTICES.txt`.
+
+### Fixed
+
+- Avatar sprite aliases; avatar changes are confirmed through the server's own-user details, including on servers that throttle commands.
+- Preference acknowledgements no longer rejoin rooms, room errors no longer accumulate, mobile Settings no longer overflows, and images persist correctly on WebKit.
+
+The interface is English; the language preference changes translated server messages. Rotation stays unsupported until the server offers a playable protocol ([#14](https://github.com/abhishekpradhan/pokemon-showdown-client/issues/14)); physical-device and screen-reader acceptance ([#12](https://github.com/abhishekpradhan/pokemon-showdown-client/issues/12)) and registered-account acceptance ([#13](https://github.com/abhishekpradhan/pokemon-showdown-client/issues/13)) remain open.
+
+## [1.1.1] - 2026-09-06
+
+### Changed
+
+- Matchmaking walks through connection, player name and team setup before offering Find battle, and formats with provided teams say so.
+- Compact mobile navigation shows the current page or conversation and the player name; theme switching lives in Settings.
+- Team editing gains compact roster navigation, a mobile library toggle, responsive save controls and undo after removing a Pokémon.
+- Battle decisions keep focus on the next choice, with readable target choices, Back to moves and Change choice; spectator playback gives its space back to the field.
+- Chat drafts grow with multiline text, tab completion follows the caret, and spoilers have accessible reveal controls.
+- Replay loading sits in the first viewport, and Settings has direct section navigation.
+
+### Fixed
+
+- Focus and dismissal in the account, notification, search, selector and battle-details dialogs; modal controls stay above mobile navigation.
+- Offline team editing is explained as a connection status instead of a transport error.
+- Invalid room joins are validated, favourites use less space, and roster/history filters no longer leak across conversations.
+- Replay search resets stale results and pages when filters change.
+
+The [UX review](https://github.com/abhishekpradhan/pokemon-showdown-client/blob/v1.2.0/docs/ux-review-2026-09-06.md) records the findings behind this release.
+
+## [1.1.0] - 2026-09-06
+
+### Added
+
+- Team library with folders, search, sort, bulk actions, complete backup/import/recovery, and a generation-aware set editor with learnsets, IVs/DVs and stats.
+- Challenge dialog with per-match team and format validation; live-battle directory with filters, ratings and paging; room favourites and autojoin.
+- Room rosters, ignore lists, PM/challenge blocking, user profiles and presence; timestamps, highlights, per-room drafts, multiline input, history and tab completion in chat.
+- Tournament signups, challenges and brackets; ladder lookup with player search and custom-server ladders.
+- Replays addressable by turn, with normalised URLs, search, bookmarks, import/export and reliable upload results.
+- Content Security Policy, bounded API proxies, a share-safe diagnostic export, and a versioned offline manifest with update consent and cache repair.
+- Compatibility, privacy, self-hosting, contributing and release documentation.
+
+### Changed
+
+- Local teams migrate to a versioned, recoverable library; export a backup before downgrading to an older client.
+- Battle choices follow the server's request exactly: team-preview ordering, forced switches, Revival Blessing, Commander, Z/Max targeting, locked submitted choices and rejection recovery.
+- Singles and doubles are supported; triples, rotation, multi and free-for-all are gated with an explanation (1.2.0 lifts all but rotation).
+- Closing an active battle asks for an explicit forfeit.
+
+### Fixed
+
+- Lossless team import and export, truthful save failures, and validated, recoverable local storage.
+- Socket callbacks guarded by connection identity, cancellable authentication, OAuth callbacks bound to their attempt, and token refresh coordinated across tabs.
+- Duplicate combobox keyboard dispatch, recoverable startup errors, stable URLs and legacy redirects.
+- Hosted guest sign-in on Vercel's Edge runtime.
+- Vulnerable dependencies updated.
+
+The [1.1.0 implementation record](https://github.com/abhishekpradhan/pokemon-showdown-client/blob/v1.2.0/docs/implementation-status.md) maps each finding of the [September 2026 audit](https://github.com/abhishekpradhan/pokemon-showdown-client/blob/v1.2.0/docs/project-audit-2026-09-05.md) to its change.
+
+## [1.0.0]
+
+The baseline before this changelog: the initial independent client with the `@pkmn/client` engine, teams, rooms, replays, ladder, sound, notifications, PWA installation and tournament UI. The repository declared version 1.0.0 without a tag or release date.
+
+[Unreleased]: https://github.com/abhishekpradhan/pokemon-showdown-client/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/abhishekpradhan/pokemon-showdown-client/compare/v1.1.1...v1.2.0
+[1.1.1]: https://github.com/abhishekpradhan/pokemon-showdown-client/compare/v1.1.0...v1.1.1
+[1.1.0]: https://github.com/abhishekpradhan/pokemon-showdown-client/compare/f48e68fc1b72ef1394b279996ec9f4e3e4bb8aa1...v1.1.0
+[1.0.0]: https://github.com/abhishekpradhan/pokemon-showdown-client/tree/f48e68fc1b72ef1394b279996ec9f4e3e4bb8aa1
