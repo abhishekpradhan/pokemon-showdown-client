@@ -1,6 +1,6 @@
 # Self-hosting
 
-Build with supported Node and the committed lockfile. Vercel serves `dist/` plus the two `api/` Edge handlers; `vercel.json` supplies SPA routing and security/cache headers. Other hosts need an equivalent adapter for the exported Web Request handlers and SPA fallback. Do not expose a Vite development server as a production host.
+Build with a supported Node version (24, or 22.13+) and the committed lockfile. On Vercel, the site is `dist/` plus the two `api/` Edge handlers, and `vercel.json` supplies SPA routing and the security and cache headers. Other hosts need an equivalent adapter for the exported Web Request handlers and an SPA fallback. Never expose a Vite development server as a production host.
 
 ## Configuration
 
@@ -21,11 +21,11 @@ Copy `.env.example` to `.env.local` for development. Vite explicitly loads confi
 | `VITE_PS_AUTOCONNECT` | Disable automatic connection for offline UI development |
 | `VITE_ENABLE_DEMO_FIXTURES` | Explicit opt-in demo data for UI work |
 
-The client also supports its documented endpoint configuration for custom OAuth/replay providers; keep the provider, guest action proxy, replay links and ladder compatible with the selected server. Changing a socket address alone cannot configure an independent account/ladder/replay service. Review the current endpoint module and compatibility matrix before enabling a custom server for users.
+Custom OAuth and replay providers are supported through the same variables; keep the provider, guest action proxy, replay links and ladder consistent with the selected server. Changing the socket address alone does not configure an independent account, ladder or replay service. Check the endpoint module and [compatibility](compatibility.md) before offering a custom server to users.
 
 ## OAuth origins
 
-Request a public client ID through the [official provider instructions](https://github.com/smogon/pokemon-showdown-loginserver/blob/master/OAUTH.md). The registered scheme, host and port must match the app's origin. Localhost, a stable preview hostname and production are separate origins; use a registration appropriate to each. Ephemeral preview URLs do not inherit production authorization. Without a valid client ID, offer guest naming and explain registered-login availability.
+Request a public client ID through the [official provider instructions](https://github.com/smogon/pokemon-showdown-loginserver/blob/master/OAUTH.md). The registered scheme, host and port must match the app's origin. Localhost, a stable preview hostname and production are separate origins; use a registration appropriate to each. Ephemeral preview URLs do not inherit production authorization. Without a valid client ID the client offers guest naming and explains that registered login is unavailable.
 
 Serve `/oauth.html` and `/oauth-callback.js` as actual static files, never as SPA fallback. The callback is no-store/no-referrer, external-script only, and forwards a state-bound result to its opener. Reverse proxies must preserve these headers and serve the proper JavaScript/HTML content types.
 
@@ -39,7 +39,7 @@ Configure hosting-level request limits, rate/concurrency limits, operational ale
 
 ## Verify a deployed build
 
-Check `/build-info.json` identifies the intended source revision, `/oauth.html` is the callback, `/api/action` rejects GET and cross-origin POST, and responses have the expected CSP/cache headers. Confirm a guest handshake, origin-registered OAuth where available, a controlled battle, configured replay URL/upload, and offline team editing after worker installation. Verify an update from the previous deployed version and keep the previous deployment available for rollback. See [release checklist](releases.md).
+Check that `/build-info.json` identifies the intended source revision, `/oauth.html` is the callback, `/api/action` rejects GET and cross-origin POST, and responses carry the expected CSP and cache headers. Confirm a guest handshake, origin-registered OAuth where available, a controlled battle, the configured replay URL and upload, and offline team editing after the worker installs. Verify an update from the previous deployed version and keep that deployment available for rollback. See [releases](releases.md).
 
 Run the guest handshake through the actual deployed assertion proxy from the repository with supported Node:
 

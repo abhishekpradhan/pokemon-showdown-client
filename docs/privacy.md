@@ -1,6 +1,6 @@
 # Privacy, local storage and network use
 
-Showdown Arena stores its local teams, editor preferences and server selection in browser storage. A configured OAuth sign-in stores a provider token and its metadata so the browser can request fresh assertions. Tokens are credentials: never paste them into reports, shared screenshots, console snippets or `VITE_` configuration. Logout clears the client's saved OAuth authorization; account/provider session controls are separate.
+Showdown Arena keeps your teams, editor preferences and server selection in browser storage. Signing in with OAuth stores a provider token and its metadata so the browser can request fresh assertions; that token is a credential, so keep it out of reports, screenshots and `VITE_` configuration. Logging out clears the client's saved OAuth authorisation; the provider's own account session is separate.
 
 ## Where requests go
 
@@ -30,6 +30,6 @@ Teams and preferences persist until removed in the app or through browser site-d
 
 Client cache repair removes only generated app resources and service-worker registrations, not localStorage teams, credentials, preferences or your IndexedDB background image. Clearing all browser site data is broader and removes those records too. Offline caches contain this app's files and game data, not OAuth responses, API results or arbitrary third-party media.
 
-Detailed diagnostic logs can include private information. Use the separate share-safe export, inspect its preview, and remove anything sensitive before posting. The bug/protocol forms are public. [Private vulnerability reporting](../SECURITY.md) is separate.
+Detailed diagnostic logs can include private information. Use the share-safe export, inspect its preview, and remove anything sensitive before posting; the bug and protocol forms are public. Security reports go through [SECURITY.md](../SECURITY.md).
 
-Self-hosted forks must update this notice when adding analytics, synchronization, different data services or storage. See [self-hosting](self-hosting.md) for endpoint ownership.
+A self-hosted fork that adds analytics, synchronisation, other data services or storage must update this notice. See [self-hosting](self-hosting.md) for which endpoint each setting controls.

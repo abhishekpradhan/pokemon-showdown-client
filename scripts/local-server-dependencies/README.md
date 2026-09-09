@@ -25,4 +25,4 @@ npm audit --omit=dev --prefix scripts/local-server-dependencies
 
 The checked-in lock SHA-256 is `b5fcedeb12ec17f831f4171a4d0353a1aabb3f171c16ea3ef81e4a484111504e`, also recorded in integration evidence and the temporary installation marker. This does not change or clear advisories in upstream's full optional/development dependency tree. Runtime isolation remains required even when the audit is clear. The app's own dependency audit is separate.
 
-Review updates with the [controlled integration procedure](../../docs/local-integration.md). Keep this manifest private, the source pin explicit, dependency integrity hashes committed, the disposable checkout constraint intact and the server's external network guard enabled.
+Review updates with the [controlled integration procedure](../../docs/testing.md). Keep this manifest private, the source pin explicit, dependency integrity hashes committed, the disposable checkout constraint intact and the server's external network guard enabled.
