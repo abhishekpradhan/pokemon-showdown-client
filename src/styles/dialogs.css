@@ -145,7 +145,7 @@
    name is registered, so the next step is obvious rather than an error. */
 .account-form label.needs-attention input {
   border-color: var(--arena-gold);
-  box-shadow: 0 0 0 3px rgb(231 185 92 / 18%);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--arena-gold) 18%, transparent);
 }
 
 .account-hint {

@@ -37,16 +37,6 @@ a {
   text-decoration: none;
 }
 
-button:focus-visible,
-a:focus-visible,
-input:focus-visible,
-textarea:focus-visible,
-[role='menuitem']:focus-visible,
-[role='tab']:focus-visible {
-  outline: 3px solid var(--arena-cyan);
-  outline-offset: 3px;
-}
-
 .skip-link {
   position: fixed;
   top: 10px;
@@ -66,8 +56,6 @@ textarea:focus-visible,
   transform: translateY(0);
 }
 
-.nav-link,
-.icon-row,
 .user-trigger,
 .notification-button,
 .format-trigger,
@@ -85,17 +73,13 @@ textarea:focus-visible,
     color 160ms ease;
 }
 
-.connection-pill,
-.icon-row {
+.connection-pill {
   display: flex;
   align-items: center;
   gap: 9px;
   min-height: 40px;
   padding: 8px 10px;
   color: var(--arena-muted);
-}
-
-.connection-pill {
   border: 1px solid var(--arena-line);
   border-radius: 999px;
   text-transform: capitalize;
@@ -124,7 +108,6 @@ textarea:focus-visible,
   color: var(--arena-red);
 }
 
-.icon-row:hover,
 .primary-action:hover,
 .secondary-action:hover,
 .danger-action:hover,
@@ -138,27 +121,6 @@ textarea:focus-visible,
   flex-direction: column;
   min-width: 0;
   min-height: 100svh;
-}
-
-.topbar {
-  position: sticky;
-  top: 0;
-  z-index: 20;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  min-height: 72px;
-  padding: 14px 22px;
-  background: rgba(21, 22, 24, 0.72);
-  border-bottom: 1px solid var(--arena-line);
-  backdrop-filter: blur(18px);
-}
-
-.topbar-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
 }
 
 .notification-button,
@@ -386,12 +348,9 @@ textarea:focus-visible,
 }
 
 .select-empty {
-  color: var(--arena-faint);
-}
-
-.select-empty {
   margin: 0;
   padding: 14px 10px;
+  color: var(--arena-faint);
 }
 
 .format-trigger,
@@ -423,8 +382,8 @@ textarea:focus-visible,
 
 .danger-action,
 .forfeit-button {
-  color: var(--arena-text);
-  background: #9f2f2f;
+  color: var(--arena-on-danger);
+  background: var(--arena-danger-fill);
   border-color: var(--arena-faint);
   font-weight: 800;
 }
@@ -454,73 +413,6 @@ textarea:focus-visible,
   font-size: 18px;
 }
 
-.mini-room-list {
-  display: grid;
-  gap: 8px;
-}
-
-.mini-room-row,
-.room-list-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  min-height: 52px;
-  padding: 10px;
-  color: var(--arena-soft);
-  background: var(--arena-panel);
-  border: 1px solid var(--arena-line);
-  border-radius: var(--arena-radius);
-  text-align: left;
-  cursor: pointer;
-}
-
-.mini-room-row span,
-.room-list-row span,
-.utility-list-row span {
-  display: grid;
-}
-
-.mini-room-row em,
-.room-list-row em,
-.utility-list-row em,
-.utility-table-row em,
-.utility-table-row small {
-  color: var(--arena-faint);
-  font-style: normal;
-  font-size: 13px;
-}
-
-.battle-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 340px;
-  gap: 14px;
-}
-
-.battle-stage,
-.battle-console .battle-stage {
-  position: relative;
-  gap: 0;
-  padding: 14px;
-  overflow: hidden;
-  background: linear-gradient(180deg, var(--arena-line), var(--arena-hover)), rgba(11, 12, 13, 0.58);
-  border: 1px solid var(--arena-line);
-  border-radius: 12px;
-  box-shadow: 0 28px 92px rgba(0, 0, 0, 0.24);
-  backdrop-filter: blur(16px);
-}
-
-.battle-toolbar {
-  min-height: 56px;
-  padding: 0 2px 12px;
-}
-
-.battle-toolbar h2,
-.decision-heading h3 {
-  margin: 3px 0 0;
-  font-size: 24px;
-}
-
 .toolbar-actions {
   display: flex;
   gap: 8px;
@@ -528,288 +420,6 @@ textarea:focus-visible,
 
 .icon-button {
   width: 44px;
-}
-
-.battle-field {
-  position: relative;
-  min-height: clamp(340px, 48svh, 500px);
-  overflow: hidden;
-  border: 1px solid var(--arena-line);
-  border-radius: 10px;
-  background: #29251f;
-}
-
-.field-backdrop {
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(180deg, var(--arena-hover), rgba(0, 0, 0, 0.22)),
-    url('https://play.pokemonshowdown.com/fx/bg-gen4.png') center / cover;
-  transform: scale(1.02);
-}
-
-.field-vignette {
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(circle at 30% 72%, rgba(70, 199, 200, 0.13), transparent 30%),
-    radial-gradient(circle at 72% 30%, rgba(224, 79, 63, 0.13), transparent 32%),
-    linear-gradient(180deg, rgba(3, 4, 5, 0.18), rgba(3, 4, 5, 0.36));
-  pointer-events: none;
-}
-
-.field-hud {
-  position: absolute;
-  inset-inline: 18px;
-  top: 16px;
-  display: flex;
-  justify-content: space-between;
-  color: var(--arena-text);
-}
-
-.field-hud strong,
-.field-hud span {
-  padding: 7px 11px;
-  background: rgba(15, 16, 17, 0.58);
-  border: 1px solid var(--arena-line-strong);
-  border-radius: 999px;
-  backdrop-filter: blur(12px);
-  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.16);
-  font-size: 12px;
-}
-
-.combatant {
-  position: absolute;
-  display: grid;
-  gap: 10px;
-  width: min(300px, 42%);
-}
-
-.combatant-far {
-  top: 92px;
-  right: 9%;
-}
-
-.combatant-near {
-  left: 8%;
-  bottom: 72px;
-}
-
-.combatant-sprite {
-  display: grid;
-  place-items: center;
-  min-height: 164px;
-}
-
-.combatant-sprite img {
-  max-width: 205px;
-  max-height: 184px;
-  image-rendering: pixelated;
-  filter: drop-shadow(0 26px 20px rgba(0, 0, 0, 0.46));
-}
-
-.combatant-bar {
-  padding: 10px 11px;
-  color: #f8f4ea;
-  background: rgba(15, 16, 17, 0.66);
-  border: 1px solid var(--arena-line-strong);
-  border-radius: 8px;
-  box-shadow: 0 16px 46px rgba(0, 0, 0, 0.2);
-  backdrop-filter: blur(14px);
-}
-
-.combatant-meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.combatant-meta strong {
-  display: inline-block;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.combatant-meta span {
-  color: #e9dfca;
-  font-weight: 800;
-}
-
-.hp-track,
-.bench-hp {
-  display: block;
-  height: 6px;
-  margin-top: 8px;
-  overflow: hidden;
-  background: var(--arena-line-strong);
-  border-radius: 999px;
-}
-
-.hp-track i,
-.bench-hp i {
-  display: block;
-  height: 100%;
-  background: var(--arena-green);
-  border-radius: inherit;
-}
-
-.hp-track i[data-critical='true'] {
-  background: var(--arena-red);
-}
-
-.hp-track.is-hidden i {
-  width: 0 !important;
-}
-
-.decision-dock {
-  position: relative;
-  z-index: 2;
-  /* The dock no longer overlaps the field above it — the old -28px overlay
-     swallowed the near player chip's bottom half. */
-  margin: 10px clamp(10px, 2.2vw, 24px) 0;
-  padding: 14px;
-  color: var(--arena-text);
-  background: var(--arena-panel);
-  border: 1px solid var(--arena-line);
-  border-radius: 10px;
-  box-shadow: var(--arena-shadow-sm);
-}
-
-.decision-note {
-  margin: 5px 0 0;
-  color: var(--arena-faint);
-  font-size: 13px;
-}
-
-.decision-error {
-  margin: 7px 0 0;
-  color: var(--arena-red-text);
-  font-size: 13px;
-  font-weight: 800;
-}
-
-.target-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-  margin-top: 14px;
-}
-
-.target-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  min-height: 48px;
-  color: var(--arena-inverse-text);
-  background: var(--arena-inverse);
-  border: 1px solid rgba(80, 72, 60, 0.18);
-  border-radius: var(--arena-radius);
-  cursor: pointer;
-  font-weight: 800;
-}
-
-.move-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-  margin-top: 14px;
-}
-
-.team-bench {
-  display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 7px;
-  margin-top: 10px;
-}
-
-.bench-slot {
-  position: relative;
-  min-width: 0;
-  min-height: 76px;
-  padding: 7px;
-  color: var(--arena-inverse-text);
-  background: rgba(245, 238, 226, 0.82);
-  border: 1px solid rgba(170, 154, 129, 0.34);
-  border-radius: 7px;
-  text-align: left;
-  cursor: pointer;
-}
-
-.bench-slot:disabled {
-  cursor: default;
-}
-
-.bench-slot.is-active {
-  border-color: var(--arena-red);
-  box-shadow: inset 0 0 0 2px rgba(224, 79, 63, 0.22);
-}
-
-.bench-slot.is-fainted {
-  opacity: 0.55;
-}
-
-.bench-icon {
-  display: grid;
-  place-items: center;
-  height: 34px;
-}
-
-.bench-icon img {
-  max-width: 48px;
-  max-height: 42px;
-  image-rendering: pixelated;
-}
-
-.bench-slot strong {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 12px;
-}
-
-.bench-slot em {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  padding: 1px 4px;
-  color: var(--arena-text);
-  background: #9f2f2f;
-  border-radius: 4px;
-  font-style: normal;
-  font-size: 12px;
-}
-
-.battle-log-list {
-  display: grid;
-  gap: 8px;
-  max-height: 220px;
-  padding: 0;
-  margin: 14px 0 0;
-  overflow: auto;
-  list-style: none;
-}
-
-.battle-log-list li {
-  padding: 8px 10px;
-  color: rgba(255, 253, 247, 0.84);
-  background: var(--arena-hover);
-  border: 1px solid var(--arena-hover);
-  border-radius: 6px;
-}
-
-.chat-feed {
-  min-height: 132px;
-  margin-top: 14px;
-  color: rgba(255, 253, 247, 0.82);
-}
-
-.chat-feed p {
-  margin: 0 0 8px;
 }
 
 .chat-entry {
@@ -821,16 +431,6 @@ textarea:focus-visible,
   background: var(--arena-panel);
   border: 1px solid var(--arena-line);
   border-radius: var(--arena-radius-lg);
-}
-
-.chat-entry input,
-.team-builder-panel textarea {
-  flex: 1;
-  min-width: 0;
-  color: var(--arena-text);
-  background: transparent;
-  border: 0;
-  outline: 0;
 }
 
 .chat-entry button {
@@ -937,22 +537,24 @@ textarea:focus-visible,
   margin-block-start: 1px;
 }
 
+/* Tints follow the theme's own accent, and the text tokens are tuned per
+   theme so the callout reads on white as well as on the dark panel. */
 .status-callout.is-error {
-  color: #ffc9c9;
-  background: rgb(240 90 90 / 12%);
-  border-color: rgb(240 90 90 / 34%);
+  color: var(--arena-danger-text);
+  background: color-mix(in srgb, var(--arena-red) 12%, transparent);
+  border-color: color-mix(in srgb, var(--arena-red) 34%, transparent);
 }
 
 .status-callout.is-warning {
-  color: #f6dda6;
-  background: rgb(231 185 92 / 12%);
-  border-color: rgb(231 185 92 / 34%);
+  color: var(--arena-warning-text);
+  background: color-mix(in srgb, var(--arena-gold) 12%, transparent);
+  border-color: color-mix(in srgb, var(--arena-gold) 34%, transparent);
 }
 
 .status-callout.is-success {
-  color: #b9f0d5;
-  background: rgb(72 199 142 / 12%);
-  border-color: rgb(72 199 142 / 30%);
+  color: var(--arena-success-text);
+  background: color-mix(in srgb, var(--arena-green) 12%, transparent);
+  border-color: color-mix(in srgb, var(--arena-green) 30%, transparent);
 }
 
 .protocol-log {
@@ -990,19 +592,6 @@ textarea:focus-visible,
   border-radius: 7px;
 }
 
-.tooltip {
-  z-index: 80;
-  padding: 6px 8px;
-  color: var(--arena-inverse-text);
-  background: var(--arena-inverse);
-  border-radius: 6px;
-  font-size: 12px;
-}
-
-.tooltip-arrow {
-  fill: var(--arena-inverse);
-}
-
 @keyframes pulse {
   0%,
   100% {
@@ -1020,80 +609,11 @@ textarea:focus-visible,
 }
 
 @media (max-width: 1120px) {
-  .brand-lockup span,
-  .nav-link span,
-  .icon-row span,
   .connection-pill span {
     display: none;
   }
-  .brand-lockup,
-  .nav-link,
-  .icon-row,
   .connection-pill {
     justify-content: center;
-  }
-  .home-grid,
-  .battle-layout,
-  .utility-layout {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 760px) {
-  .arena-app {
-    display: block;
-  }
-  .topbar {
-    align-items: stretch;
-    flex-direction: column;
-    min-height: 0;
-    padding: 12px;
-  }
-  .topbar-actions {
-    justify-content: space-between;
-  }
-  .workspace {
-    padding: 12px;
-  }
-  .battle-console .battle-stage {
-    padding: 10px;
-  }
-  .battle-field {
-    min-height: 400px;
-  }
-  .decision-dock {
-    margin: -18px 6px 0;
-    padding: 12px;
-  }
-  .move-grid,
-  .team-bench {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .battle-toolbar,
-  .decision-heading {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-  .combatant {
-    width: min(310px, 76%);
-  }
-  .combatant-far {
-    top: 72px;
-    right: 5%;
-  }
-  .combatant-near {
-    left: 5%;
-    bottom: 58px;
-  }
-  .field-hud {
-    inset-inline: 10px;
-    gap: 5px;
-  }
-  .field-hud span {
-    max-width: 38%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
 }
 

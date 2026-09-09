@@ -512,7 +512,7 @@ button.chat-author:hover {
   background: var(--arena-panel);
   border: 1px solid var(--arena-line-strong);
   border-radius: 10px;
-  box-shadow: var(--arena-shadow-lg, 0 18px 40px rgb(0 0 0 / 35%));
+  box-shadow: var(--arena-shadow);
   outline: none;
 }
 
@@ -953,7 +953,7 @@ button.chat-author:hover {
 }
 .chat-compose-error {
   margin: 4px 16px;
-  color: var(--arena-warning);
+  color: var(--arena-warning-text);
   font-size: 12px;
 }
 .chat-line.is-html {
