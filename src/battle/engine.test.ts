@@ -151,6 +151,42 @@ describe('battle information and history', () => {
     expect(view.opponentActive.currentHp).toBeUndefined();
   });
 
+  it('hides engine bookkeeping volatiles from nameplates while keeping real ones', () => {
+    const battle = new Battle(gens, null);
+    for (const line of [
+      '|gametype|singles',
+      '|gen|9',
+      '|player|p1|Alice',
+      '|player|p2|Bob',
+      '|teamsize|p1|6',
+      '|teamsize|p2|6',
+      '|start',
+      '|switch|p1a: Pikachu|Pikachu|100/100',
+      '|switch|p2a: Bulbasaur|Bulbasaur|100/100',
+      '|-enditem|p1a: Pikachu|Sitrus Berry|[eat]',
+      '|-start|p1a: Pikachu|typechange|Water',
+      '|-start|p1a: Pikachu|Substitute',
+      '|-start|p1a: Pikachu|confusion',
+      '|-start|p1a: Pikachu|perish3',
+    ])
+      feedLine(battle, line);
+    // The engine records its bookkeeping ids; only the projection hides them.
+    expect(Object.keys(battle.p1.active[0]!.volatiles)).toEqual(
+      expect.arrayContaining(['itemremoved', 'typechange', 'substitute', 'confusion']),
+    );
+    const view = projectEngineBattle(battle, { roomId: 'battle-test', perspective: null });
+    const volatiles = view.active.volatiles ?? [];
+    expect(volatiles).toContain('Substitute');
+    expect(volatiles.some(name => /^confusion$/i.test(name))).toBe(true);
+    expect(volatiles.some(name => /itemremoved|typechange/i.test(name))).toBe(false);
+    // The changed type still reaches the nameplate through the type icons.
+    expect(view.active.types).toEqual(['Water']);
+    expect(view.active.lastItem).toBe('Sitrus Berry');
+    const counters = view.active.counters ?? [];
+    expect(counters.some(line => /perish/i.test(line))).toBe(true);
+    expect(counters.some(line => /itemremoved|typechange/i.test(line))).toBe(false);
+  });
+
   it('does not invent exact HP when a public replay happens to name the viewer', () => {
     const view = projectEngineLog(singlesLog.split('\n'), { username: 'Jogarame' });
     expect(view?.team.every(pokemon => pokemon.currentHp === undefined)).toBe(true);
