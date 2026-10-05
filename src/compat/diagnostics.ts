@@ -44,7 +44,10 @@ export function sanitizeProtocolLog(raw: string): string {
 
 export type ClientErrorRecord = {
   at: string;
-  /** Which layer failed: `router` (a protocol line), `protocol-client` (a subscriber). */
+  /**
+   * Which layer failed: `router` (a protocol line), `protocol-client` (a
+   * subscriber), `chat-html` (server HTML the sanitizer could not process).
+   */
   source: string;
   message: string;
   /** The offending input, sanitized the same way as the protocol log. */

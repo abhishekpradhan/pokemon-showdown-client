@@ -3,6 +3,7 @@ import { Fragment, memo, useState, type MouseEvent, type ReactNode } from 'react
 import { useNavigate } from '@tanstack/react-router';
 import type { ChatMessage } from '../rooms/types';
 import { sanitizeChatHtml, isSafeChatCommand, normalizeChatHref } from './chat-html';
+import { recordClientError } from '../compat/diagnostics';
 import { useWorkspaceStore } from '../stores/workspace-store';
 import { toId } from '../compat/protocol-parsers';
 import { useChatAnnouncements } from './chat-announcements';
@@ -18,10 +19,20 @@ import { useChatAnnouncements } from './chat-announcements';
  */
 
 const htmlCache = new Map<string, { __html: string }>();
+const sanitizeOrNotice = (html: string): string => {
+  try {
+    return sanitizeChatHtml(html);
+  } catch (error) {
+    // This runs during render: a throw would take the whole room view down
+    // with it, and the message stays in history to throw again. Contain it.
+    recordClientError('chat-html', error);
+    return '<p>Room content could not be displayed safely.</p>';
+  }
+};
 const sanitize = (html: string) => {
   let result = htmlCache.get(html);
   if (!result) {
-    result = { __html: sanitizeChatHtml(html) };
+    result = { __html: sanitizeOrNotice(html) };
     if (htmlCache.size >= 100) htmlCache.delete(htmlCache.keys().next().value!);
     if (html.length <= 100_000) htmlCache.set(html, result);
   }
@@ -153,12 +164,17 @@ export const ChatFeed = memo(function ChatFeed({
               const self = !!selfName && toId(message.user) === toId(selfName);
 
               if (message.kind === 'html') {
+                const html = sanitize(message.message);
+                // Markup the sanitizer removed entirely (script-only, a
+                // frameset) would leave an empty strip; like an emptied
+                // uhtml block, it takes no space.
+                if (!html.__html.trim()) return null;
                 return (
                   <li className="chat-line is-html" key={key}>
                     <div
                       className="chat-rich-content"
                       onClick={handleHtmlClick}
-                      dangerouslySetInnerHTML={sanitize(message.message)}
+                      dangerouslySetInnerHTML={html}
                     />
                   </li>
                 );

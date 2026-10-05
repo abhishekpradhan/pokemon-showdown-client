@@ -1,9 +1,16 @@
 import { act, cleanup, render, screen } from '@testing-library/react';
 import { ChatFeed } from './chat-feed';
+import { sanitizeChatHtml } from './chat-html';
 import type { ChatMessage } from '../rooms/types';
+import { clientErrors, resetClientErrors } from '../compat/diagnostics';
 import { useWorkspaceStore } from '../stores/workspace-store';
 
 vi.mock('@tanstack/react-router', () => ({ useNavigate: () => vi.fn() }));
+// The real sanitizer, wrapped so a test can make it fail.
+vi.mock('./chat-html', async importOriginal => {
+  const actual = await importOriginal<typeof import('./chat-html')>();
+  return { ...actual, sanitizeChatHtml: vi.fn(actual.sanitizeChatHtml) };
+});
 const message = (text: string, extra: Partial<ChatMessage> = {}): ChatMessage => ({
   user: 'Bob',
   message: text,
@@ -114,4 +121,29 @@ it('announces hidden spoilers without speaking their contents, including across 
   flush();
   expect(announcements()).toHaveTextContent('[spoiler]');
   expect(announcements()).not.toHaveTextContent('Hidden');
+});
+
+it('keeps the room rendering when server HTML parses to nothing, without an empty line', () => {
+  resetClientErrors();
+  const frameset = message('<div class="infobox"><frameset></frameset></div>', { kind: 'html', user: '' });
+  const scriptOnly = message('<script>alert(1)</script>', { kind: 'html', user: '' });
+  const view = render(<ChatFeed messages={[frameset, scriptOnly, message('Still here')]} />);
+  expect(screen.getByText('Still here')).toBeInTheDocument();
+  expect(view.container.querySelector('.chat-line.is-html')).toBeNull();
+  expect(screen.queryByText(/could not be displayed/)).not.toBeInTheDocument();
+  expect(clientErrors()).toEqual([]);
+});
+
+it('contains a sanitizer failure to its own message and records it', () => {
+  resetClientErrors();
+  vi.mocked(sanitizeChatHtml).mockImplementationOnce(() => {
+    throw new TypeError('sanitizer failed');
+  });
+  const broken = message('<p>Unprocessable intro</p>', { kind: 'html', user: '' });
+  render(<ChatFeed messages={[broken, message('Still here')]} />);
+  expect(screen.getByText('Room content could not be displayed safely.')).toBeInTheDocument();
+  expect(screen.getByText('Still here')).toBeInTheDocument();
+  expect(clientErrors()).toEqual([
+    expect.objectContaining({ source: 'chat-html', message: 'TypeError: sanitizer failed' }),
+  ]);
 });

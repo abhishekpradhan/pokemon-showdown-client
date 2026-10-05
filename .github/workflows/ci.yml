@@ -19,12 +19,14 @@ concurrency:
 env:
   NODE_VERSION: 24.x
 
+# Linux jobs pin ubuntu-24.04: ubuntu-latest moves to Ubuntu 26 from 2026-10-19, and Playwright 1.59 has
+# no browser builds or system dependency lists for it. Move every job together once Playwright does.
 jobs:
   check:
     if: github.event_name != 'schedule'
     timeout-minutes: 15
     name: Quality (Node ${{ matrix.node }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
         node: [22.x, 24.x]
@@ -42,7 +44,7 @@ jobs:
 
   security:
     name: Dependency advisories
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
@@ -63,7 +65,7 @@ jobs:
     if: github.event_name != 'schedule'
     timeout-minutes: 25
     name: Browser (${{ matrix.project }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -125,7 +127,7 @@ jobs:
     if: github.event_name != 'schedule'
     timeout-minutes: 20
     name: Production boundary and bundle budgets
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
@@ -152,7 +154,7 @@ jobs:
   integration:
     if: github.event_name != 'schedule'
     name: Pinned local server integration
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
@@ -177,7 +179,7 @@ jobs:
     if: always() && github.event_name != 'schedule'
     timeout-minutes: 5
     needs: [check, security, browsers, visual, production, integration]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Require every release gate to succeed
         env:
@@ -187,7 +189,7 @@ jobs:
 
   live:
     name: Public protocol drift (advisory)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     if: github.event_name != 'pull_request'
     continue-on-error: true
