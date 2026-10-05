@@ -311,7 +311,14 @@ export const sanitizeChatHtml = (html: string): string => {
   // Fail closed before parsing a payload that can stall the UI. Do not truncate
   // inside markup and accidentally reinterpret its closing tags.
   if (html.length > 256 * 1024) return '<p>Room content is too large to display safely.</p>';
-  const fragment = DOMPurify.sanitize(html, { ...PURIFY_OPTIONS, RETURN_DOM_FRAGMENT: true });
+  // NOTE: despite its types, DOMPurify returns null when the parse has no
+  // <body>. A <frameset> ahead of any text makes a frameset document, which
+  // discards the body and everything after the tag — nothing survives.
+  const fragment: DocumentFragment | null = DOMPurify.sanitize(html, {
+    ...PURIFY_OPTIONS,
+    RETURN_DOM_FRAGMENT: true,
+  });
+  if (!fragment) return '';
   if (fragment.querySelectorAll('*').length > 3000)
     return '<p>Room content is too complex to display safely.</p>';
 

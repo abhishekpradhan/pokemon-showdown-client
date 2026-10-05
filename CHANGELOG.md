@@ -22,11 +22,16 @@ In progress on the current branch.
 
 - Light-theme contrast for the replay empty state, status callouts and danger buttons.
 - Internal battle volatiles are no longer shown as status chips.
+- Server HTML containing a `<frameset>` no longer crashes the room view. Server HTML that sanitizes to nothing leaves no empty strip, and an unexpected sanitizer failure shows a short notice in place of that one message.
 
 ### Removed
 
 - Dead password-login code.
 - Unused dependencies.
+
+### Security
+
+- DOMPurify 3.4.16 (GHSA-p98j-92pf-mc4p). The advisory needs DOMPurify's in-place mode, which Arena never uses; updated as a precaution.
 
 ## [1.2.0] - 2026-09-06
 

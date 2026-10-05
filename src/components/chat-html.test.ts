@@ -26,6 +26,16 @@ describe('sanitizeChatHtml', () => {
     expect(sanitizeChatHtml('x'.repeat(256 * 1024 + 1))).toContain('too large');
     expect(sanitizeChatHtml('<span>x</span>'.repeat(3001))).toContain('too complex');
   });
+
+  it('returns nothing, without throwing, when a frameset discards the document body', () => {
+    // DOMPurify hands back null rather than a fragment for these parses.
+    expect(sanitizeChatHtml('<frameset>')).toBe('');
+    expect(sanitizeChatHtml('<div class="infobox"><frameset onload="alert(1)"></frameset>Gone</div>')).toBe(
+      '',
+    );
+    // Text first keeps the body, so the parser ignores the frameset.
+    expect(sanitizeChatHtml('Intro<frameset></frameset>')).toBe('Intro');
+  });
   it('strips scripts and event handlers but keeps PS content structure', () => {
     const out = sanitizeChatHtml(
       '<div class="infobox"><script>alert(1)</script><table><tr><td onclick="x()">cell</td></tr></table></div>',
